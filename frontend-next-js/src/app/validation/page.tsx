@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import JsonTreeViewer from "@/components/validation/JsonTreeViewer";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,27 +10,101 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 
 export default function Home() {
-  const [url, setUrl] = useState('');
-  const [showUrlSuggestions, setShowUrlSuggestions] = useState(false);
-  const [method, setMethod] = useState('GET');
+  // ===== [핵심 상태(State) 관리] =====
+  const urlInputRef = useRef<HTMLInputElement>(null); // URL 입력창 포커스 제어용
+  const [url, setUrl] = useState(''); // 대상 API URL
+  const [showUrlSuggestions, setShowUrlSuggestions] = useState(false); // 추천 URL 목록 표시 여부
+  const [focusedSuggestionIdx, setFocusedSuggestionIdx] = useState<number>(-1); // 방향키 탐색용 인덱스
+  const [suggestedUrls, setSuggestedUrls] = useState<string[]>([
+    'http://localhost:3000/api/tester/mock',
+    'http://localhost:3000/api/tester/mock2',
+    'http://localhost:3000/api/tester/mock3',
+    'http://localhost:8080/api/orders/ORD-1024/status',
+  ]); // URL 추천 목록 상태 (삭제 가능하도록 분리)
+  const [method, setMethod] = useState('GET'); // HTTP 메서드 (GET, POST 등)
 
-  const [executionResult, setExecutionResult] = useState<any>(null);
-  const [rules, setRules] = useState<any[]>([]);
-  const [selectedRuleIdx, setSelectedRuleIdx] = useState<number | null>(null);
-  const [validationResults, setValidationResults] = useState<any[] | null>(null);
-  const [globalPassed, setGlobalPassed] = useState<boolean | null>(null);
-  // 우클릭 하이라이트: 해당 경로의 JSON 트리 노드를 하이라이트
+  const [executionResult, setExecutionResult] = useState<any>(null); // 외부 API 실제 호출 결과 (Status, Body)
+  const [rules, setRules] = useState<any[]>([]); // 사용자가 등록한 검증 규칙(Rule) 목록
+  const [selectedRuleIdx, setSelectedRuleIdx] = useState<number | null>(null); // 현재 UI에서 '선택 모드(⌖)'가 활성화된 규칙의 인덱스
+  const [validationResults, setValidationResults] = useState<any[] | null>(null); // 백엔드 채점 엔진이 반환한 규칙별 합격/불합격 결과
+  const [globalPassed, setGlobalPassed] = useState<boolean | null>(null); // AND, OR 연산이 모두 적용된 최종 전체 테스트 통과 여부
+
+  // [UX 기능] 우클릭 하이라이트: 규칙 선택 시 위쪽 JSON 트리에서 해당 경로를 노란색 배경으로 스크롤 및 강조 표시하기 위한 상태
   const [highlightPath, setHighlightPath] = useState<string | null>(null);
-  // 툴팅: 호버 중인 입력창의 인덱스 및 실제 값
+
+  // [UX 기능] 실시간 값 툴팁: JSON Path 입력창에 마우스를 올렸을 때(hover), 해당 인덱스와 추출된 실제 값을 보여주기 위한 상태
   const [hoveredInputIdx, setHoveredInputIdx] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);
 
+  // ===== [API 등록 기능] =====
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [saveMeta, setSaveMeta] = useState({ name: '', description: '', group: '' });
+
+  // URL Query(?loadApi=id) 감지하여 API 정보 로드
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const loadId = params.get('loadApi');
+      if (loadId) {
+        fetch('/api/tester/apis')
+          .then(res => res.json())
+          .then(data => {
+            const api = data.find((a: any) => a.id === loadId);
+            if (api) {
+              setUrl(api.url);
+              setMethod(api.method);
+              setRules(api.rules || []);
+              toast.success(`'${api.name}' 불러오기 완료`);
+            }
+          })
+          .catch(console.error);
+      }
+    }
+  }, []);
+
+  const handleSaveApi = async () => {
+    if (!saveMeta.name) return toast.error("API 이름을 입력해주세요.");
+    setLoading(true);
+    try {
+      const res = await fetch('/api/tester/apis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url,
+          method,
+          rules,
+          ...saveMeta
+        })
+      });
+      if (res.ok) {
+        toast.success("API가 성공적으로 등록되었습니다.");
+        setIsSaveModalOpen(false);
+        setSaveMeta({ name: '', description: '', group: '' }); // 리셋
+      } else {
+        toast.error("API 저장에 실패했습니다.");
+      }
+    } catch(e) {
+      toast.error("저장 중 오류가 발생했습니다.");
+    }
+    setLoading(false);
+  };
+
+  // ===== [API 실행 및 채점 요청] =====
+  // 1) 사용자가 입력한 URL로 실제 API를 호출하여 응답(Response Body)을 받아옵니다.
+  // 2) 만약 등록된 검증 규칙(rules)이 있다면, 응답값과 규칙을 묶어 백엔드(/api/tester/execute)로 보내 채점(평가)을 수행합니다.
   const handleExecute = async (isNewApi = false) => {
     if (!url) return toast.error("URL을 입력해주세요");
     setLoading(true);
-    setValidationResults(null);
+    
+    // API URL이 변경되었을 때만 화면을 완전히 초기화하여 스크롤 튕김 방지
+    if (isNewApi) {
+      setValidationResults(null);
+      setExecutionResult(null);
+    }
+    
     try {
+      // 새로운 API를 호출하는 경우(isNewApi=true) 기존에 작성된 엉뚱한 규칙들을 보내지 않기 위해 빈 배열 처리
       const activeRules = isNewApi ? [] : rules.map(r => ({
         fieldPath: r.fieldPath,
         operator: r.operator,
@@ -39,16 +113,20 @@ export default function Home() {
         logicalOperator: r.logicalOperator
       }));
 
+      // Next.js 백엔드 채점 엔진 라우트로 POST 요청 발송
       const res = await fetch('/api/tester/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, method, headers: {}, rules: activeRules })
       });
       const data = await res.json();
+
+      // 실행 결과 화면 업데이트
       setExecutionResult(data.executionResult);
       if (isNewApi) {
-        setRules([]);
+        setRules([]); // API 변경 시 기존 룰 찌꺼기 초기화
       }
+      // 채점 결과가 같이 넘어왔다면 테이블 렌더링을 위해 세팅
       if (data.validationResults) {
         setValidationResults(data.validationResults);
         setGlobalPassed(data.globalPassed);
@@ -60,14 +138,17 @@ export default function Home() {
     setLoading(false);
   };
 
+  // ===== [JSON Tree 연동: 규칙 생성 및 수정] =====
+  // 사용자가 상단 JSON Tree에서 특정 노드(값)를 클릭했을 때 호출됩니다.
   const handleAddRuleFromClick = (path: string, value: any, type: string) => {
+    // 1) 특정 규칙의 '선택 모드(⌖)'가 활성화된 상태라면 -> 새 규칙 추가 대신 기존 규칙의 경로/값을 '덮어쓰기(수정)' 합니다.
     if (selectedRuleIdx !== null && selectedRuleIdx < rules.length) {
       const newRules = [...rules];
       newRules[selectedRuleIdx].fieldPath = path;
       newRules[selectedRuleIdx].expectedValue = String(value);
       newRules[selectedRuleIdx].valueType = type;
 
-      // Also update children if it's a parent rule
+      // 만약 해당 규칙 아래에 종속된 'AND/OR' 하위 규칙들이 있다면, 부모 경로를 함께 동기화해 줍니다.
       if (newRules[selectedRuleIdx].logicalOperator === 'NONE') {
         for (let i = selectedRuleIdx + 1; i < newRules.length; i++) {
           if (newRules[i].logicalOperator !== 'NONE') {
@@ -79,16 +160,17 @@ export default function Home() {
       }
 
       setRules(newRules);
-      setSelectedRuleIdx(null);
-      setHighlightPath(null);
+      setSelectedRuleIdx(null); // 값 입력이 끝났으므로 선택 모드 해제
+      setHighlightPath(null); // 노란색 하이라이트 해제
     } else {
+      // 2) 선택 모드가 아니라면 -> 트리를 누를 때마다 표 맨 아래에 '새로운 검증 규칙'으로 추가합니다.
       setRules(prev => [...prev, {
         fieldPath: path,
         operator: '=',
-        expectedValue: String(value),
+        expectedValue: String(value), // 사용자가 누른 원본 응답값을 기본 기대값(Expected)으로 세팅
         valueType: type,
         selected: true,
-        logicalOperator: 'NONE'
+        logicalOperator: 'NONE' // 최상위 부모 조건으로 생성
       }]);
     }
   };
@@ -103,7 +185,7 @@ export default function Home() {
       selected: true,
       logicalOperator: 'AND'
     };
-    
+
     // Find the end of the current group
     let insertIdx = parentIdx + 1;
     while (insertIdx < rules.length && rules[insertIdx].logicalOperator !== 'NONE') {
@@ -168,11 +250,23 @@ export default function Home() {
       const orig = parseFloat(String(originalValue));
       const isInt = Number.isInteger(orig);
       const base = orig === 0 ? 10 : Math.abs(orig);
-      const delta = base * 0.2; // ±20% 범위
-      const sign = orig < 0 ? -1 : 1;
+      
+      // 정수인 경우 값이 너무 작으면(1, 2 등) 20%를 해도 반올림 시 그대로가 되므로 최소 변동폭을 보장
+      const delta = isInt ? Math.max(base * 0.2, 2) : base * 0.2; 
+      
       const randomDelta = (Math.random() * 2 - 1) * delta; // -delta ~ +delta
       const result = orig + randomDelta;
-      return isInt ? String(Math.round(result)) : result.toFixed(1);
+      
+      if (isInt) {
+        let rounded = Math.round(result);
+        // 랜덤 결과가 원본과 똑같다면 강제로 1을 더하거나 빼서 확실히 변하게 만듦
+        if (rounded === orig) {
+          rounded += (Math.random() > 0.5 ? 1 : -1);
+        }
+        return String(rounded);
+      } else {
+        return result.toFixed(1);
+      }
     } else {
       // 문자열: 같은 응답 내 다른 문자열 값 참조
       const others = allStringValues.filter(v => v !== String(originalValue));
@@ -191,7 +285,7 @@ export default function Home() {
     try {
       const parsed = JSON.parse(executionResult.responseBody);
       const possiblePaths: { path: string, value: any }[] = [];
-      
+
       const traverse = (obj: any, currentPath: string) => {
         if (obj !== null && typeof obj === 'object') {
           if (Array.isArray(obj)) {
@@ -205,16 +299,16 @@ export default function Home() {
             });
           }
         } else if (obj !== null && obj !== undefined) {
-           possiblePaths.push({ path: currentPath, value: obj });
+          possiblePaths.push({ path: currentPath, value: obj });
         }
       };
-      
+
       traverse(parsed, '');
-      
+
       if (possiblePaths.length === 0) {
         return toast.info("추천할 만한 유효한 필드를 찾지 못했습니다.");
       }
-      
+
       // Shuffle array randomly
       for (let i = possiblePaths.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -225,7 +319,7 @@ export default function Home() {
       const maxCount = Math.min(possiblePaths.length, 50);
       const randomCount = Math.floor(Math.random() * maxCount) + 1;
       const selected = possiblePaths.slice(0, randomCount);
-      
+
       const ops = ['=', '!=', '>', '<', '>=', '<=', 'contains'];
       const newRules = selected.map(item => {
         const type = typeof item.value === 'number' ? 'number' : typeof item.value === 'boolean' ? 'boolean' : 'string';
@@ -250,7 +344,7 @@ export default function Home() {
           logicalOperator: 'NONE'
         };
       });
-      
+
       setRules(newRules);
     } catch (e) {
       toast.error("응답값이 유효한 JSON 형식이 아닙니다.");
@@ -308,10 +402,10 @@ export default function Home() {
       const type = String(rule.valueType || 'string').toLowerCase();
       const originalValue = rule.expectedValue;
       const randomVal = generateSmartRandom(originalValue, type, allStringValues);
-      return { 
-        ...rule, 
+      return {
+        ...rule,
         operator: ops[Math.floor(Math.random() * ops.length)],
-        expectedValue: randomVal 
+        expectedValue: randomVal
       };
     }));
   };
@@ -338,49 +432,86 @@ export default function Home() {
                   <SelectItem value="POST">POST</SelectItem>
                 </SelectContent>
               </Select>
-              
+
               <div className="relative flex-1">
                 <Input
+                  ref={urlInputRef}
                   type="text"
                   value={url}
                   onChange={e => setUrl(e.target.value)}
                   onKeyDown={e => {
-                    if (e.key === 'Enter') {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      if (showUrlSuggestions && suggestedUrls.length > 0) {
+                        setFocusedSuggestionIdx(prev => (prev < suggestedUrls.length - 1 ? prev + 1 : prev));
+                      } else {
+                        setShowUrlSuggestions(true);
+                        setFocusedSuggestionIdx(0);
+                      }
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      if (showUrlSuggestions && suggestedUrls.length > 0) {
+                        setFocusedSuggestionIdx(prev => (prev > 0 ? prev - 1 : 0));
+                      }
+                    } else if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (showUrlSuggestions && focusedSuggestionIdx >= 0 && focusedSuggestionIdx < suggestedUrls.length) {
+                        // 방향키로 목록을 고른 상태에서 엔터를 치면 해당 주소가 입력창에 반영됨
+                        setUrl(suggestedUrls[focusedSuggestionIdx]);
+                        setShowUrlSuggestions(false);
+                        setFocusedSuggestionIdx(-1);
+                      } else {
+                        // 아무것도 선택하지 않고 엔터를 치면 바로 실행
+                        setShowUrlSuggestions(false);
+                        handleExecute(true);
+                      }
+                    } else if (e.key === 'Escape') {
                       setShowUrlSuggestions(false);
-                      handleExecute(true);
+                      setFocusedSuggestionIdx(-1);
                     }
                   }}
                   onFocus={() => setShowUrlSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowUrlSuggestions(false), 200)}
+                  onClick={() => setShowUrlSuggestions(true)}
+                  onBlur={() => setTimeout(() => {
+                    setShowUrlSuggestions(false);
+                    setFocusedSuggestionIdx(-1);
+                  }, 200)}
                   placeholder="e.g., https://jsonplaceholder.typicode.com/users/1"
                   className="w-full"
                 />
-                {showUrlSuggestions && (
+                {showUrlSuggestions && suggestedUrls.length > 0 && (
                   <ul className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    {[
-                      'http://localhost:3000/api/tester/mock',
-                      'http://localhost:3000/api/tester/mock2',
-                      'http://localhost:3000/api/tester/mock3',
-                      'https://jsonplaceholder.typicode.com/users/1',
-                      'https://jsonplaceholder.typicode.com/posts/1',
-                      'https://api.publicapis.org/entries'
-                    ].map((s, i) => (
+                    {suggestedUrls.map((s, i) => (
                       <li
                         key={i}
-                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                        onMouseDown={() => {
+                        className={`px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm flex justify-between items-center group ${focusedSuggestionIdx === i ? 'bg-blue-50' : ''}`}
+                        onMouseEnter={() => setFocusedSuggestionIdx(i)}
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // 기본 클릭 동작을 막아 blur 이벤트로 인한 문제 방지
                           setUrl(s);
                           setShowUrlSuggestions(false);
+                          setTimeout(() => urlInputRef.current?.focus(), 0); // 상태 업데이트 후 포커스 복귀
                         }}
                       >
-                        {s}
+                        <span>{s}</span>
+                        <button
+                          type="button"
+                          className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                          onMouseDown={(e) => {
+                            e.stopPropagation(); // 부모(li)의 onMouseDown(선택)이 발생하지 않도록 차단
+                            setSuggestedUrls(prev => prev.filter(item => item !== s));
+                          }}
+                          title="목록에서 삭제"
+                        >
+                          ✕
+                        </button>
                       </li>
                     ))}
                   </ul>
                 )}
               </div>
-              <Button 
-                onClick={() => handleExecute(true)} 
+              <Button
+                onClick={() => handleExecute(true)}
                 disabled={loading}
                 className="w-full sm:w-32"
               >
@@ -394,7 +525,7 @@ export default function Home() {
           <div className="flex flex-col gap-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2 border-b mb-4">
-                <CardTitle className="text-lg font-semibold">Response Body Schema</CardTitle>
+                <CardTitle className="text-lg font-semibold">2. Response Body Schema</CardTitle>
                 {selectedRuleIdx !== null ? (
                   <span className="text-xs text-sky-700 bg-sky-100 px-2 py-1 rounded border border-sky-200 cursor-pointer" onClick={() => { setSelectedRuleIdx(null); setHighlightPath(null); }}>
                     ⌖ 선택 모드 — 원하는 키를 클릭하세요 ✕
@@ -419,36 +550,37 @@ export default function Home() {
             <Card>
               <CardHeader className="flex flex-col gap-4 pb-4 border-b mb-4">
                 <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center w-full gap-4">
-                  <CardTitle className="text-lg font-semibold whitespace-nowrap">값 검증 규칙</CardTitle>
+                  <CardTitle className="text-lg font-semibold whitespace-nowrap">3. 값 검증 규칙</CardTitle>
                   <div className="flex flex-wrap items-center justify-end gap-2">
-                  <div className="flex gap-2 pr-3 border-r border-gray-200">
-                    <Button variant="outline" size="sm" onClick={() => handleAutoRecommend(false)} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-none shadow-[0_2px_6px_rgba(236,72,153,0.25)] hover:from-purple-600 hover:to-pink-600">✨ 자동 추천</Button>
-                    <Button variant="outline" size="sm" onClick={() => handleAutoRecommend(true)} className="bg-gradient-to-r from-rose-500 to-orange-500 text-white border-none shadow-[0_2px_6px_rgba(244,63,94,0.25)] hover:from-rose-600 hover:to-orange-600">🌪️ 풀 랜덤 추천</Button>
-                  </div>
-                  <div className="flex gap-2 pr-3 border-r border-gray-200">
-                    <Button variant="outline" size="sm" onClick={handleRandomizeAllOperators} className="bg-fuchsia-50 text-fuchsia-600 border-fuchsia-200 hover:bg-fuchsia-100">🎲 조건 랜덤</Button>
-                    <Button variant="outline" size="sm" onClick={handleRandomizeAll} className="bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100">🎲 값 랜덤</Button>
-                    <Button variant="outline" size="sm" onClick={handleRandomizeAllBoth} className="bg-violet-50 text-violet-700 border-violet-200 font-semibold hover:bg-violet-100">🎲 조건+값 랜덤</Button>
-                  </div>
-                  <div className="flex gap-2 pr-3 border-r border-gray-200">
-                    <Button variant="outline" size="sm" onClick={() => {
-                      if (confirm('모든 규칙을 초기화하시겠습니까?')) {
-                        setRules([]);
+                    <div className="flex gap-2 pr-3 border-r border-gray-200">
+                      <Button variant="outline" size="sm" onClick={() => handleAutoRecommend(false)} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-none shadow-[0_2px_6px_rgba(236,72,153,0.25)] hover:from-purple-600 hover:to-pink-600">✨ 자동 추천</Button>
+                      <Button variant="outline" size="sm" onClick={() => handleAutoRecommend(true)} className="bg-gradient-to-r from-rose-500 to-orange-500 text-white border-none shadow-[0_2px_6px_rgba(244,63,94,0.25)] hover:from-rose-600 hover:to-orange-600">🌪️ 풀 랜덤 추천</Button>
+                    </div>
+                    <div className="flex gap-2 pr-3 border-r border-gray-200">
+                      <Button variant="outline" size="sm" onClick={handleRandomizeAllOperators} className="bg-fuchsia-50 text-fuchsia-600 border-fuchsia-200 hover:bg-fuchsia-100">🎲 조건 랜덤</Button>
+                      <Button variant="outline" size="sm" onClick={handleRandomizeAll} className="bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100">🎲 값 랜덤</Button>
+                      <Button variant="outline" size="sm" onClick={handleRandomizeAllBoth} className="bg-violet-50 text-violet-700 border-violet-200 font-semibold hover:bg-violet-100">🎲 조건+값 랜덤</Button>
+                    </div>
+                    <div className="flex gap-2 pr-3 border-r border-gray-200">
+                      <Button variant="outline" size="sm" onClick={() => {
+                        if (confirm('모든 규칙을 초기화하시겠습니까?')) {
+                          setRules([]);
+                          setSelectedRuleIdx(null);
+                        }
+                      }} className="text-gray-500 border-gray-200">초기화</Button>
+                      <Button variant="destructive" size="sm" onClick={() => {
+                        const newRules = rules.filter(r => !r.selected);
+                        setRules(newRules);
                         setSelectedRuleIdx(null);
-                      }
-                    }} className="text-gray-500 border-gray-200">초기화</Button>
-                    <Button variant="destructive" size="sm" onClick={() => {
-                      const newRules = rules.filter(r => !r.selected);
-                      setRules(newRules);
-                      setSelectedRuleIdx(null);
-                      setHighlightPath(null);
-                    }} className="bg-red-50 text-red-500 border border-red-200 hover:bg-red-100">선택 삭제</Button>
+                        setHighlightPath(null);
+                      }} className="bg-red-50 text-red-500 border border-red-200 hover:bg-red-100">선택 삭제</Button>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleAddRuleFromClick('$.newField', '', 'string')}>+ 규칙 추가</Button>
+                      <Button variant="secondary" size="sm" onClick={() => setIsSaveModalOpen(true)} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 shadow-sm">💾 API 등록</Button>
+                      <Button size="sm" onClick={() => handleExecute(false)} disabled={loading} className="bg-blue-500 hover:bg-blue-600 text-white shadow-[0_2px_4px_rgba(59,130,246,0.3)]">검증 실행</Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleAddRuleFromClick('$.newField', '', 'string')}>+ 규칙 추가</Button>
-                    <Button size="sm" onClick={() => handleExecute(false)} disabled={loading} className="bg-blue-500 hover:bg-blue-600 text-white shadow-[0_2px_4px_rgba(59,130,246,0.3)]">검증 실행</Button>
-                  </div>
-                </div>
                 </div>
               </CardHeader>
               <CardContent className="pt-0 overflow-x-auto">
@@ -457,7 +589,7 @@ export default function Home() {
                     <TableRow>
                       <TableHead className="w-12">
                         <div className="flex justify-center items-center h-full">
-                          <Checkbox 
+                          <Checkbox
                             checked={rules.length > 0 && rules.every(r => r.selected)}
                             onCheckedChange={(c) => {
                               setRules(rules.map(r => ({ ...r, selected: !!c })));
@@ -732,6 +864,38 @@ export default function Home() {
           </Card>
         )}
       </div>
+
+      {/* API 등록 모달 */}
+      {isSaveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md animate-in fade-in zoom-in duration-200">
+            <h2 className="text-xl font-bold mb-4 text-gray-800">API 등록 및 저장</h2>
+            <p className="text-sm text-gray-500 mb-6">현재 테스트 중인 URL, Method, 그리고 검증 규칙들을 저장소에 등록합니다.</p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold mb-1 text-gray-700">API 이름 <span className="text-red-500">*</span></label>
+                <Input value={saveMeta.name} onChange={e => setSaveMeta({...saveMeta, name: e.target.value})} placeholder="예: 회원 프로필 조회 API" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1 text-gray-700">그룹 (태그)</label>
+                <Input value={saveMeta.group} onChange={e => setSaveMeta({...saveMeta, group: e.target.value})} placeholder="예: User API" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1 text-gray-700">설명</label>
+                <Input value={saveMeta.description} onChange={e => setSaveMeta({...saveMeta, description: e.target.value})} placeholder="API에 대한 부가적인 설명" />
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2 mt-8">
+              <Button variant="outline" onClick={() => setIsSaveModalOpen(false)}>취소</Button>
+              <Button onClick={handleSaveApi} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white shadow-md">
+                {loading ? '저장 중...' : '저장하기'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

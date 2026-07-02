@@ -41,6 +41,7 @@ export default function RootLayout({
             <nav className="sidebar-nav">
               <Link href="/" className="nav-link">🏠 홈</Link>
               <Link href="/validation" className="nav-link">✅ 값 검증</Link>
+              <Link href="/api-registry" className="nav-link">💾 API 관리</Link>
             </nav>
           </aside>
           <main className="main-area">
