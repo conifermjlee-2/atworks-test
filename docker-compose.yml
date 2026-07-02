@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: atworks-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: atworks_test_user
+      POSTGRES_PASSWORD: atworks_test_password
+      POSTGRES_DB: atworks_test_db
+    volumes:
+      - atworks_test_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  atworks_test_data:
