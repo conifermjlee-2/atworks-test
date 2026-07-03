@@ -44,6 +44,16 @@ public class DeliveryController {
         return dto;
     }
 
+    @GetMapping("/sameday")
+    @Operation(summary = "당일 배송 조회", description = "당일 배송 정보 (필드명이 약간 다름)")
+    public SameDayDeliveryDto getSameDayDelivery() {
+        SameDayDeliveryDto dto = new SameDayDeliveryDto();
+        dto.setDeliverId("SAM-001");
+        dto.setParcelWeight(1.5);
+        dto.setCurrentStatus("READY_FOR_PICKUP");
+        return dto;
+    }
+
     @Data
     public static class StandardDeliveryDto {
         @Schema(description = "배송 ID")
@@ -78,5 +88,17 @@ public class DeliveryController {
         
         @Schema(description = "배송 상태", allowableValues = {"CUSTOMS_CLEARED", "SHIPPED", "DELIVERED"})
         private String status;
+    }
+
+    @Data
+    public static class SameDayDeliveryDto {
+        @Schema(description = "배송 고유 번호 (deliveryId와 유사)")
+        private String deliverId;
+        
+        @Schema(description = "수화물 무게 (0.5 이상)", minimum = "0.5")
+        private Double parcelWeight;
+        
+        @Schema(description = "현재 상태", allowableValues = {"READY_FOR_PICKUP", "ON_THE_WAY", "DELIVERED"})
+        private String currentStatus;
     }
 }
