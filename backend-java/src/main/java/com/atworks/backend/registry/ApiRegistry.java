@@ -1,4 +1,4 @@
-package com.atworks.backend.entity;
+package com.atworks.backend.registry;
 
 import jakarta.persistence.*;
 import lombok.*;

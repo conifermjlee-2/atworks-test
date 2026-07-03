@@ -40,7 +40,18 @@ export default function RootLayout({
             </Link>
             <nav className="sidebar-nav">
               <Link href="/" className="nav-link">🏠 홈</Link>
-              <Link href="/validation" className="nav-link">✅ 값 검증</Link>
+              
+              {/* 부모 메뉴: 값 검증 */}
+              <div className="nav-link font-bold text-gray-400 cursor-default" style={{ paddingBottom: '4px' }}>
+                ✅ 값 검증
+              </div>
+              {/* 자식 메뉴 */}
+              <div style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
+                <Link href="/validation" className="nav-link text-sm py-1" style={{ fontSize: '0.9rem' }}>↳ V1 (스펙 기반)</Link>
+                <Link href="/validation-v2" className="nav-link text-sm py-1" style={{ fontSize: '0.9rem' }}>↳ V2 (AI 유사도 기반)</Link>
+              </div>
+
+              <Link href="/similarity" className="nav-link mt-2">🔍 유사 API 분석</Link>
               <Link href="/api-registry" className="nav-link">💾 API 관리</Link>
             </nav>
           </aside>

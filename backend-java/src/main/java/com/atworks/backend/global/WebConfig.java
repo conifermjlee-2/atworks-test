@@ -1,4 +1,4 @@
-package com.atworks.backend.config;
+package com.atworks.backend.global;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;

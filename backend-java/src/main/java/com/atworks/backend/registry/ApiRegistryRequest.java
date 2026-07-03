@@ -1,4 +1,4 @@
-package com.atworks.backend.dto;
+package com.atworks.backend.registry;
 
 import lombok.*;
 

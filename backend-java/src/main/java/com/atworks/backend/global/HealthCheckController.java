@@ -1,4 +1,4 @@
-package com.atworks.backend.controller;
+package com.atworks.backend.global;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

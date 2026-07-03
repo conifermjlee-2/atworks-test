@@ -1,6 +1,5 @@
-package com.atworks.backend.repository;
+package com.atworks.backend.registry;
 
-import com.atworks.backend.entity.ApiRegistry;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 

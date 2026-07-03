@@ -1,9 +1,5 @@
-package com.atworks.backend.service;
+package com.atworks.backend.registry;
 
-import com.atworks.backend.dto.ApiRegistryRequest;
-import com.atworks.backend.dto.ApiRegistryResponse;
-import com.atworks.backend.entity.ApiRegistry;
-import com.atworks.backend.repository.ApiRegistryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,5 +58,10 @@ public class ApiRegistryService {
             throw new RuntimeException("API not found: " + id);
         }
         repository.deleteById(id);
+    }
+
+    @Transactional
+    public void deleteByIds(List<Long> ids) {
+        repository.deleteAllById(ids);
     }
 }

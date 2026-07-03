@@ -8,6 +8,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 export default function Home() {
   // ===== [핵심 상태(State) 관리] =====
@@ -356,7 +357,10 @@ export default function Home() {
     }
   };
 
-  const handleSwaggerRecommend = async () => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [mixMatchData, setMixMatchData] = useState<any>(null);
+
+  const handleAiRecommend = async () => {
     if (!url) {
       return toast.info("API URL을 먼저 입력해주세요.");
     }
@@ -370,28 +374,33 @@ export default function Home() {
       localStorage.setItem('swaggerUrl', targetSwaggerUrl);
     }
 
-    const toastId = toast.loading("Swagger 스펙을 분석 중입니다...");
+    const toastId = toast.loading("🤖 AI가 여러 API를 조합하여 하이브리드 룰을 생성하는 중입니다...");
     try {
-      const res = await fetch('/api/tester/recommend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          swaggerUrl: targetSwaggerUrl,
-          targetPath: url,
-          targetMethod: method
-        })
-      });
+      const res = await fetch(`http://localhost:8080/api/validation-v2/recommend?swaggerUrl=${encodeURIComponent(targetSwaggerUrl)}&targetUrl=${encodeURIComponent(url)}&targetMethod=${method}`);
       const data = await res.json();
+      
       if (res.ok) {
-        if (Array.isArray(data) && data.length > 0) {
-          // 기존 '스펙 추천' 룰만 지우고, 사용자가 수동 추가한 룰은 유지한 채 새 추천을 추가
-          setRules(prev => [...prev.filter(r => !r.isRecommended), ...data]);
-          toast.success(`${data.length}개의 규칙이 스펙 기반으로 자동 추천되었습니다!`, { id: toastId });
+        if (data.recommendedRules && data.recommendedRules.length > 0) {
+          setMixMatchData(data);
+          
+          // 규칙을 테이블에 즉시 적용
+          const mappedRules = data.recommendedRules.map((r: any) => ({
+            fieldPath: r.jsonPath,
+            operator: '=',
+            expectedValue: r.exampleValue,
+            valueType: r.type,
+            selected: true,
+            logicalOperator: 'NONE',
+            isRecommended: true,
+            sourceApi: r.sourceApi
+          }));
+          setRules(prev => [...prev.filter(r => !r.isRecommended), ...mappedRules]);
+          toast.success(`총 ${mappedRules.length}개의 믹스매치 룰이 즉시 적용되었습니다! 옆의 버튼을 눌러 분석 결과를 확인하세요.`, { id: toastId });
         } else {
-          toast.info("이 API에 대해 추천할 만한 스펙 제약조건을 찾지 못했습니다.", { id: toastId });
+          toast.info("추천할 만한 검증 룰을 찾지 못했습니다.", { id: toastId });
         }
       } else {
-        toast.error(`스펙 분석 실패: ${data.error}`, { id: toastId });
+        toast.error(`AI 분석 실패`, { id: toastId });
       }
     } catch (e: any) {
       toast.error(`오류 발생: ${e.message}`, { id: toastId });
@@ -460,7 +469,7 @@ export default function Home() {
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-7xl">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">✨ API Validation Recommender</h1>
+        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">🤖 API Validation Recommender (V2)</h1>
       </header>
 
       <div className="space-y-6">
@@ -610,7 +619,7 @@ export default function Home() {
                 <div className="flex flex-wrap items-center gap-2">
                   {/* 그룹 1 - Swagger 스펙 추천 */}
                   <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 rounded-lg px-2.5 py-1.5">
-                    <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide mr-0.5">추천 타깃</span>
+                    <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide mr-0.5">AI 스펙 추출</span>
                     <input
                       type="text"
                       value={swaggerUrl}
@@ -621,7 +630,10 @@ export default function Home() {
                       placeholder="Swagger JSON URL"
                       className="h-7 text-xs px-2 w-[220px] rounded-md border border-emerald-200 outline-none focus:border-emerald-400 text-gray-600"
                     />
-                    <button onClick={handleSwaggerRecommend} className="flex items-center gap-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-semibold px-3 h-7 rounded-md shadow-sm hover:from-emerald-600 hover:to-teal-600 transition-all">🔍 추천받기</button>
+                    <button onClick={handleAiRecommend} className="flex items-center gap-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-semibold px-3 h-7 rounded-md shadow-sm hover:from-emerald-600 hover:to-teal-600 transition-all">🤖 유사 스펙 (V2)</button>
+                    {mixMatchData && (
+                      <button onClick={() => setIsDialogOpen(true)} className="flex items-center gap-1 bg-white border border-emerald-500 text-emerald-600 text-xs font-semibold px-3 h-7 rounded-md shadow-sm hover:bg-emerald-50 transition-all">📋 AI 분석 결과 보기</button>
+                    )}
                   </div>
 
                   {/* 그룹 2 - 자동 추천 */}
@@ -777,7 +789,14 @@ export default function Home() {
                               );
                             })()}
                             {rule.isRecommended && (
-                              <span className="ml-2 text-[10px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-sm whitespace-nowrap">스펙 추천</span>
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-sm whitespace-nowrap">스펙 추천</span>
+                                {rule.sourceApi && (
+                                  <span className="text-[10px] text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded font-medium border border-sky-100 truncate max-w-[200px]" title={rule.sourceApi}>
+                                    from: {rule.sourceApi}
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </div>
                         </TableCell>
@@ -948,6 +967,15 @@ export default function Home() {
                 <label className="block text-sm font-semibold mb-1 text-gray-700">그룹 (태그)</label>
                 <Input value={saveMeta.group} onChange={e => setSaveMeta({ ...saveMeta, group: e.target.value })} placeholder="예: User API" />
               </div>
+              {/* V2: AI 유사 스펙 분석 버튼 */}
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleAiRecommend}
+                  className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0"
+                >
+                  🤖 유사 스펙 (V2)
+                </Button>
+              </div>
               <div>
                 <label className="block text-sm font-semibold mb-1 text-gray-700">설명</label>
                 <Input value={saveMeta.description} onChange={e => setSaveMeta({ ...saveMeta, description: e.target.value })} placeholder="API에 대한 부가적인 설명" />
@@ -963,6 +991,60 @@ export default function Home() {
           </div>
         </div>
       )}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              🤖 AI 필드 단위 믹스매치 완료!
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 mt-2">
+              AI가 분석에 활용한 유사 API 전체 목록입니다. 여러 API들의 필드 제약조건을 🎲 무작위로 섞어서 최적의 하이브리드 룰을 생성했습니다!
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="my-4 overflow-y-auto max-h-[400px] border rounded-md">
+            <Table>
+              <TableHeader className="bg-gray-50 sticky top-0">
+                <TableRow>
+                  <TableHead className="w-[60px] text-center">순위</TableHead>
+                  <TableHead className="w-[80px] text-center">유사도</TableHead>
+                  <TableHead className="w-[80px]">Method</TableHead>
+                  <TableHead className="w-[250px]">API Path</TableHead>
+                  <TableHead>요약</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {mixMatchData?.similarApis?.map((api: any, idx: number) => (
+                  <TableRow key={idx}>
+                    <TableCell className="text-center font-medium">{idx + 1}</TableCell>
+                    <TableCell className="text-center">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
+                        {api.similarityScore}%
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`text-xs font-bold px-2 py-1 rounded ${api.method === 'GET' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                        {api.method}
+                      </span>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">{api.path}</TableCell>
+                    <TableCell className="text-sm text-gray-600">{api.summary}</TableCell>
+                  </TableRow>
+                ))}
+                {(!mixMatchData?.similarApis || mixMatchData.similarApis.length === 0) && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-gray-500 py-4">조회된 유사 API가 없습니다.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>닫기</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

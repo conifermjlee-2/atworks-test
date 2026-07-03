@@ -1,6 +1,5 @@
-package com.atworks.backend.dto;
+package com.atworks.backend.registry;
 
-import com.atworks.backend.entity.ApiRegistry;
 import lombok.*;
 import java.time.LocalDateTime;
 
