@@ -8,10 +8,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-
+import java.util.List;
+import java.util.Arrays;
 @RestController
 @RequestMapping("/api/delivery")
-@Tag(name = "Delivery API", description = "배송 관련 교차 추천 테스트 API")
+@Tag(name = "Delivery API", description = "1차 뎁스용 배송 관련 교차 추천 테스트 API")
 public class DeliveryController {
 
     @GetMapping("/standard")

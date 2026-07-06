@@ -49,6 +49,9 @@ export default function RootLayout({
               <div style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
                 <Link href="/validation" className="nav-link text-sm py-1" style={{ fontSize: '0.9rem' }}>↳ V1 (스펙 기반)</Link>
                 <Link href="/validation-v2" className="nav-link text-sm py-1" style={{ fontSize: '0.9rem' }}>↳ V2 (AI 유사도 기반)</Link>
+                <Link href="/validation-v3" className="nav-link text-sm py-1" style={{ fontSize: '0.9rem' }}>↳ V3 (타입 매칭 기반)</Link>
+                <Link href="/validation-v4" className="nav-link text-sm py-1" style={{ fontSize: '0.9rem' }}>↳ V4 (N-Depth 믹스매치)</Link>
+                <Link href="/validation-v4-1" className="nav-link text-sm py-1 text-emerald-600 font-semibold" style={{ fontSize: '0.9rem' }}>↳ V4-1 (UI 개선판 트리 에디터)</Link>
               </div>
 
               <Link href="/similarity" className="nav-link mt-2">🔍 유사 API 분석</Link>

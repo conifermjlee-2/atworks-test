@@ -17,9 +17,9 @@ export default function Home() {
   const [showUrlSuggestions, setShowUrlSuggestions] = useState(false); // 추천 URL 목록 표시 여부
   const [focusedSuggestionIdx, setFocusedSuggestionIdx] = useState<number>(-1); // 방향키 탐색용 인덱스
   const [suggestedUrls, setSuggestedUrls] = useState<string[]>([
-    'http://localhost:8080/api/delivery/standard',
-    'http://localhost:8080/api/delivery/international',
-    'http://localhost:8080/api/delivery/express',
+    'http://localhost:8080/api/delivery/v4/standard-order',
+    'http://localhost:8080/api/delivery/v4/international-order',
+    'http://localhost:8080/api/delivery/v4/express-order',
   ]); // URL 추천 목록 상태 (삭제 가능하도록 분리)
   const [method, setMethod] = useState('GET'); // HTTP 메서드 (GET, POST 등)
 
@@ -38,6 +38,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   // ===== [API 등록 기능] =====
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [saveMeta, setSaveMeta] = useState({ name: '', description: '', group: '' });
 
@@ -359,8 +360,9 @@ export default function Home() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [mixMatchData, setMixMatchData] = useState<any>(null);
+  const [expandedApis, setExpandedApis] = useState<number[]>([]);
 
-  const handleAiRecommend = async () => {
+  const handleV4Recommend = async () => {
     if (!url) {
       return toast.info("API URL을 먼저 입력해주세요.");
     }
@@ -374,16 +376,19 @@ export default function Home() {
       localStorage.setItem('swaggerUrl', targetSwaggerUrl);
     }
 
-    const toastId = toast.loading("🤖 AI가 여러 API를 조합하여 하이브리드 룰을 생성하는 중입니다...");
+    const toastId = toast.loading("⚡ N-Depth 매칭(V4) 룰을 추출하는 중입니다...");
     try {
-      const res = await fetch(`http://localhost:8080/api/validation-v2/recommend?swaggerUrl=${encodeURIComponent(targetSwaggerUrl)}&targetUrl=${encodeURIComponent(url)}&targetMethod=${method}`);
+      // V4는 POST 바디가 아닌 쿼리 파라미터로 설계됨
+      const res = await fetch(`/api/tester/recommend-v4?swaggerUrl=${encodeURIComponent(targetSwaggerUrl)}&targetUrl=${encodeURIComponent(url)}&targetMethod=${encodeURIComponent(method)}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
       const data = await res.json();
       
       if (res.ok) {
         if (data.recommendedRules && data.recommendedRules.length > 0) {
           setMixMatchData(data);
           
-          // 규칙을 테이블에 즉시 적용
           const mappedRules = data.recommendedRules.map((r: any) => ({
             fieldPath: r.jsonPath,
             operator: '=',
@@ -394,13 +399,13 @@ export default function Home() {
             isRecommended: true,
             sourceApi: r.sourceApi
           }));
-          setRules(prev => [...prev.filter(r => !r.isRecommended), ...mappedRules]);
-          toast.success(`총 ${mappedRules.length}개의 믹스매치 룰이 즉시 적용되었습니다! 옆의 버튼을 눌러 분석 결과를 확인하세요.`, { id: toastId });
+          setRules(mappedRules);
+          toast.success(`총 ${mappedRules.length}개의 N-Depth 믹스매치 룰이 즉시 적용되었습니다! 옆의 버튼을 눌러 분석 결과를 확인하세요.`, { id: toastId });
         } else {
           toast.info("추천할 만한 검증 룰을 찾지 못했습니다.", { id: toastId });
         }
       } else {
-        toast.error(`AI 분석 실패`, { id: toastId });
+        toast.error(`V4 분석 실패`, { id: toastId });
       }
     } catch (e: any) {
       toast.error(`오류 발생: ${e.message}`, { id: toastId });
@@ -468,12 +473,9 @@ export default function Home() {
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-7xl">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">🤖 API Validation Recommender (V2)</h1>
-        <p className="mt-3 text-sm text-gray-600 bg-blue-50 border border-blue-100 p-3 rounded-md">
-          💡 <strong>AI(LLM) 모델</strong>을 활용하여 타 API 스펙(Swagger)과의 <strong>의미적 유사도(Semantic Similarity)</strong>를 분석하고, 
-          가장 적합한 하이브리드 검증 룰을 추천하는 지능형 엔진입니다.
-        </p>
+      <header className="mb-8 flex items-center gap-3">
+        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">⚡ API Validation Recommender (V4)</h1>
+        <button onClick={() => setIsInfoModalOpen(true)} className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-sm font-bold hover:bg-gray-300 transition-colors" title="V3 프로젝트 설명 보기">?</button>
       </header>
 
       <div className="space-y-6">
@@ -634,9 +636,9 @@ export default function Home() {
                       placeholder="Swagger JSON URL"
                       className="h-7 text-xs px-2 w-[220px] rounded-md border border-emerald-200 outline-none focus:border-emerald-400 text-gray-600"
                     />
-                    <button onClick={handleAiRecommend} className="flex items-center gap-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-semibold px-3 h-7 rounded-md shadow-sm hover:from-emerald-600 hover:to-teal-600 transition-all">🤖 유사 스펙 (V2)</button>
+                    <button onClick={handleV4Recommend} className="flex items-center gap-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-semibold px-3 h-7 rounded-md shadow-sm hover:from-blue-600 hover:to-indigo-600 transition-all">⚡ N-Depth 매칭 스펙 (V4)</button>
                     {mixMatchData && (
-                      <button onClick={() => setIsDialogOpen(true)} className="flex items-center gap-1 bg-white border border-emerald-500 text-emerald-600 text-xs font-semibold px-3 h-7 rounded-md shadow-sm hover:bg-emerald-50 transition-all">📋 AI 분석 결과 보기</button>
+                      <button onClick={() => setIsDialogOpen(true)} className="flex items-center gap-1 bg-white border border-indigo-500 text-indigo-600 text-xs font-semibold px-3 h-7 rounded-md shadow-sm hover:bg-indigo-50 transition-all">📋 V4 매칭 결과 보기</button>
                     )}
                   </div>
 
@@ -679,9 +681,9 @@ export default function Home() {
                       </TableHead>
                       <TableHead className="w-10"></TableHead>
                       <TableHead className="w-24"></TableHead>
-                      <TableHead>JSON Path</TableHead>
+                      <TableHead className="min-w-[220px]">JSON Path</TableHead>
                       <TableHead className="w-36">조건</TableHead>
-                      <TableHead>값</TableHead>
+                      <TableHead className="min-w-[180px]">값</TableHead>
                       <TableHead className="w-20 text-center"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -712,10 +714,17 @@ export default function Home() {
                                   setSelectedRuleIdx(idx);
                                   const path = rule.fieldPath;
                                   if (path) {
-                                    setHighlightPath(path);
+                                    // JsonTreeViewer의 path 포맷과 맞추기 위해 '$.' 또는 '$' 제거
+                                    const normalizedPath = path.startsWith('$.') ? path.slice(2) : path.startsWith('$') ? path.slice(1) : path;
+                                    setHighlightPath(normalizedPath);
                                     setTimeout(() => {
-                                      const el = document.querySelector(`[data-json-path="${path}"]`);
-                                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                      // CSS Selector 특수문자 이스케이프 처리 (예: [0])
+                                      try {
+                                        const el = document.querySelector(`[data-json-path="${normalizedPath.replace(/"/g, '\\"')}"]`);
+                                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                      } catch (e) {
+                                        console.error('Invalid selector:', normalizedPath);
+                                      }
                                     }, 50);
                                   }
                                 }
@@ -977,7 +986,7 @@ export default function Home() {
                   onClick={handleAiRecommend}
                   className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0"
                 >
-                  🤖 유사 스펙 (V2)
+                  ⚡ 타입 매칭 스펙 (V3)
                 </Button>
               </div>
               <div>
@@ -999,10 +1008,10 @@ export default function Home() {
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
-              🤖 AI 필드 단위 믹스매치 완료!
+              ⚡ V4 N-Depth 매칭 완료!
             </DialogTitle>
             <DialogDescription className="text-gray-600 mt-2">
-              AI가 분석에 활용한 유사 API 전체 목록입니다. 여러 API들의 필드 제약조건을 🎲 무작위로 섞어서 최적의 하이브리드 룰을 생성했습니다!
+              Swagger 스펙에서 1-depth 필드명과 타입이 일치하는 API 전체 목록입니다. 여러 API에서 실제 값을 추출하여 무작위로 섞었습니다!
             </DialogDescription>
           </DialogHeader>
 
@@ -1011,34 +1020,73 @@ export default function Home() {
               <TableHeader className="bg-gray-50 sticky top-0">
                 <TableRow>
                   <TableHead className="w-[60px] text-center">순위</TableHead>
-                  <TableHead className="w-[80px] text-center">유사도</TableHead>
+                  <TableHead className="w-[80px] text-center">매치 여부</TableHead>
                   <TableHead className="w-[80px]">Method</TableHead>
                   <TableHead className="w-[250px]">API Path</TableHead>
                   <TableHead>요약</TableHead>
+                  <TableHead className="w-[40px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mixMatchData?.similarApis?.map((api: any, idx: number) => (
-                  <TableRow key={idx}>
-                    <TableCell className="text-center font-medium">{idx + 1}</TableCell>
-                    <TableCell className="text-center">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
-                        {api.similarityScore}%
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className={`text-xs font-bold px-2 py-1 rounded ${api.method === 'GET' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
-                        {api.method}
-                      </span>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{api.path}</TableCell>
-                    <TableCell className="text-sm text-gray-600">{api.summary}</TableCell>
-                  </TableRow>
-                ))}
-                {(!mixMatchData?.similarApis || mixMatchData.similarApis.length === 0) && (
+                {(!mixMatchData?.matchedApis || mixMatchData.matchedApis.length === 0) ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-gray-500 py-4">조회된 유사 API가 없습니다.</TableCell>
+                    <TableCell colSpan={6} className="text-center text-gray-500 py-4">조건이 일치하는 매칭 API가 없습니다.</TableCell>
                   </TableRow>
+                ) : (
+                  mixMatchData.matchedApis.map((api: any, idx: number) => {
+                    const usedRules = mixMatchData?.recommendedRules?.filter((rule: any) => rule.sourceApi === api.path) || [];
+                    return (
+                      <React.Fragment key={idx}>
+                        <TableRow 
+                          className="cursor-pointer hover:bg-gray-50 transition-colors" 
+                          onClick={() => setExpandedApis(prev => prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx])}
+                        >
+                          <TableCell className="text-center font-medium">{idx + 1}</TableCell>
+                          <TableCell className="text-center">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
+                              100% 매치
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className={`text-xs font-bold px-2 py-1 rounded ${api.method === 'GET' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                              {api.method}
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">{api.path}</TableCell>
+                          <TableCell className="text-sm text-gray-600">{api.summary}</TableCell>
+                          <TableCell className="text-right">
+                            <span className="text-gray-400 text-xs">{expandedApis.includes(idx) ? '▲' : '▼'}</span>
+                          </TableCell>
+                        </TableRow>
+                        {expandedApis.includes(idx) && (
+                          <TableRow className="border-0 hover:bg-transparent">
+                            <TableCell colSpan={6} className="p-0">
+                              <div className="p-4 overflow-x-auto shadow-inner bg-gray-900">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-800 px-2 py-1 rounded">추출된 원본 데이터 (Extracted Data)</span>
+                                </div>
+                                <pre className="text-green-400 font-mono text-xs leading-relaxed pl-2">
+                                  {JSON.stringify(api.extractedData || {}, null, 2)}
+                                </pre>
+                                {usedRules.length > 0 && (
+                                  <div className="mt-4 pt-3 border-t border-gray-700">
+                                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-2">🎯 최종 추천 룰에 채택된 필드</span>
+                                    <div className="flex flex-wrap gap-2">
+                                      {usedRules.map((rule: any, rIdx: number) => (
+                                        <span key={rIdx} className="text-xs text-white bg-emerald-600 px-2 py-1 rounded-md font-medium shadow-sm">
+                                          {rule.jsonPath.replace('$.', '')} <span className="text-emerald-200 ml-1 font-normal">({rule.exampleValue})</span>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </React.Fragment>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -1046,6 +1094,52 @@ export default function Home() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>닫기</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isInfoModalOpen} onOpenChange={setIsInfoModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">API 값 검증 V4 (N-Depth 믹스매치)</DialogTitle>
+          </DialogHeader>
+          
+          <div className="bg-blue-50 border border-blue-100 rounded-md p-4 mt-2 mb-6">
+            <p className="text-sm text-blue-800 font-medium leading-relaxed">
+              💡 타 API의 실제 응답 데이터를 활용해 검증 룰을 자동 조립하는 <strong>데이터 믹스 앤 매치(Mix &amp; Match) 엔진</strong>입니다.
+            </p>
+          </div>
+
+          <div className="space-y-8 text-sm text-gray-800 leading-relaxed">
+            {/* 5단계 동작 원리 */}
+            <section>
+              <h3 className="text-lg font-bold text-gray-900 border-b pb-2 mb-3">V4 엔진의 5단계 동작 원리</h3>
+              <ol className="list-decimal pl-5 space-y-3">
+                <li>
+                  <strong>타겟 스펙 파악 (기준점 설정)</strong>
+                  <p className="text-gray-600 mt-1">타겟 API의 Swagger 스펙에서 200 성공 응답의 1-depth 필드 이름과 타입(예: userId: integer)을 추출합니다.</p>
+                </li>
+                <li>
+                  <strong>Swagger 전체 순회 및 교집합 찾기</strong>
+                  <p className="text-gray-600 mt-1">타겟 API <strong>자기 자신을 제외(continue)</strong>한 모든 API를 순회하며, 타겟 API와 '필드 이름'과 '데이터 타입'이 똑같은 필드를 반환하는 API들을 추려냅니다.</p>
+                </li>
+                <li>
+                  <strong>후보 API 실제 호출 시도</strong>
+                  <p className="text-gray-600 mt-1">추려진 후보 API들에게 빈 데이터(&#123;&#125;)를 활용해 실제로 HTTP 요청을 날려봅니다. (안전상 DELETE, Path Variable은 Skip)</p>
+                </li>
+                <li>
+                  <strong>실제 데이터 조각 수집 (추출)</strong>
+                  <p className="text-gray-600 mt-1">정상 응답이 온 후보 API에서 교집합에 해당하는 1-depth 필드의 실제 값만 뽑아와 룰 조각으로 만듭니다.</p>
+                </li>
+                <li>
+                  <strong>믹스 앤 매치 (Mix &amp; Match)</strong>
+                  <p className="text-gray-600 mt-1">각 필드별로 수집된 여러 API의 실제 값들 중 하나를 랜덤으로 뽑아, 최종적인 1-depth 테스트 룰 목록으로 조합하여 프론트엔드에 전달합니다.</p>
+                </li>
+              </ol>
+            </section>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsInfoModalOpen(false)}>닫기</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
