@@ -4,6 +4,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { toast } from 'sonner';
 
 export interface Rule {
   fieldPath: string;
@@ -37,72 +38,84 @@ interface JsonNodeProps {
 const normalizePath = (p: string) => p ? (p.startsWith('$.') ? p.slice(2) : p.startsWith('$') ? p.slice(1) : p) : p;
 
 // Rule Badge Component (Inline Editor)
-const RuleBadge = ({ rule, isChild, onDelete, onUpdate, result }: { rule: Rule & { originalIndex: number }, isChild: boolean, onDelete: () => void, onUpdate: (u: Partial<Rule>) => void, result?: ValidationResult }) => {
+const RuleBadge = ({ rule, isChild, hasGroup, onDelete, onUpdate, result }: { rule: Rule & { originalIndex: number }, isChild: boolean, hasGroup: boolean, onDelete: () => void, onUpdate: (u: Partial<Rule>) => void, result?: ValidationResult }) => {
   return (
-    <div className={`inline-flex items-center gap-1.5 ml-3 px-2 py-1 rounded-md text-xs shadow-sm border ${result ? (result.passed ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200') : 'bg-white border-gray-200'} transition-all group hover:shadow-md`}>
-      {/* Result Indicator */}
-      {result && (
-        <span className={result.passed ? "text-emerald-600 font-bold" : "text-red-600 font-bold"}>
-          {result.passed ? '✅' : '❌'}
-        </span>
+    <div className={`inline-flex flex-col gap-1.5 ml-3 px-2 py-1.5 rounded-md text-xs shadow-sm border ${result ? (result.passed ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200') : 'bg-white border-gray-200'} transition-all group hover:shadow-md`}>
+      <div className="flex items-center gap-1.5">
+        {/* Result Indicator */}
+        {result && (
+          <span className={result.passed ? "text-emerald-600 font-bold" : "text-red-600 font-bold"}>
+            {result.passed ? '✅' : '❌'}
+          </span>
+        )}
+
+        {/* Logical Operator (if child) */}
+        {isChild ? (
+          <div className="flex items-center gap-1.5 w-[75px]">
+            <span className="text-gray-400 font-bold">↳</span>
+            <Select value={rule.logicalOperator} onValueChange={(val) => onUpdate({ logicalOperator: val })}>
+              <SelectTrigger className="h-6 w-[60px] text-[10px] px-1 border-gray-200 bg-gray-50 text-gray-600">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="AND">AND</SelectItem>
+                <SelectItem value="OR">OR</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : hasGroup ? (
+          <div className="w-[75px]" /> /* 부모 룰이면서 자식이 있는 경우 줄맞춤을 위한 여백 */
+        ) : null}
+
+        {/* Operator */}
+        <Select value={rule.operator} onValueChange={(val) => onUpdate({ operator: val })}>
+          <SelectTrigger className="h-6 w-[75px] text-[10px] px-1 border-gray-200 bg-gray-50 text-gray-700 font-semibold">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="=">==</SelectItem>
+            <SelectItem value="!=">!=</SelectItem>
+            <SelectItem value=">">&gt;</SelectItem>
+            <SelectItem value="<">&lt;</SelectItem>
+            <SelectItem value=">=">&gt;=</SelectItem>
+            <SelectItem value="<=">&lt;=</SelectItem>
+            <SelectItem value="contains">has (포함)</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Expected Value */}
+        <Input 
+          type="text" 
+          value={rule.expectedValue} 
+          onChange={(e) => onUpdate({ expectedValue: e.target.value })}
+          className="h-6 w-[120px] text-[11px] px-2 border-gray-200 focus-visible:ring-1 focus-visible:ring-emerald-400"
+          placeholder="기대값"
+        />
+
+        {/* Recommended Badge */}
+        {rule.isRecommended && (
+          <span className="text-[9px] font-bold text-sky-600 bg-sky-100 px-1 py-0.5 rounded ml-1">
+            스펙추천
+          </span>
+        )}
+
+        {/* Delete Button */}
+        <button 
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="text-gray-300 hover:text-red-500 hover:bg-red-50 rounded w-5 h-5 flex items-center justify-center transition-colors ml-1"
+          title="규칙 삭제"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Source API Display under the rule */}
+      {rule.isRecommended && rule.sourceApi && (
+        <div className="text-[10px] text-sky-600/80 bg-sky-50/50 rounded-md px-2 py-0.5 flex items-center gap-1 border border-sky-100 w-full overflow-hidden">
+          <span className="text-[9px] flex-shrink-0">🔗 추출된 API:</span>
+          <span className="font-mono truncate" title={rule.sourceApi}>{rule.sourceApi}</span>
+        </div>
       )}
-
-      {/* Logical Operator (if child) */}
-      {isChild && (
-        <>
-          <span className="text-gray-400 font-bold">↳</span>
-          <Select value={rule.logicalOperator} onValueChange={(val) => onUpdate({ logicalOperator: val })}>
-            <SelectTrigger className="h-6 w-[60px] text-[10px] px-1 border-gray-200 bg-gray-50 text-gray-600">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="AND">AND</SelectItem>
-              <SelectItem value="OR">OR</SelectItem>
-            </SelectContent>
-          </Select>
-        </>
-      )}
-
-      {/* Operator */}
-      <Select value={rule.operator} onValueChange={(val) => onUpdate({ operator: val })}>
-        <SelectTrigger className="h-6 w-[65px] text-[10px] px-1 border-gray-200 bg-gray-50 text-gray-700 font-semibold">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="=">=</SelectItem>
-          <SelectItem value="!=">!=</SelectItem>
-          <SelectItem value=">">&gt;</SelectItem>
-          <SelectItem value="<">&lt;</SelectItem>
-          <SelectItem value=">=">&gt;=</SelectItem>
-          <SelectItem value="<=">&lt;=</SelectItem>
-          <SelectItem value="contains">has</SelectItem>
-        </SelectContent>
-      </Select>
-
-      {/* Expected Value */}
-      <Input 
-        type="text" 
-        value={rule.expectedValue} 
-        onChange={(e) => onUpdate({ expectedValue: e.target.value })}
-        className="h-6 w-[120px] text-[11px] px-2 border-gray-200 focus-visible:ring-1 focus-visible:ring-emerald-400"
-        placeholder="기대값"
-      />
-
-      {/* Recommended Badge */}
-      {rule.isRecommended && (
-        <span className="text-[9px] font-bold text-sky-600 bg-sky-100 px-1 py-0.5 rounded ml-1" title={rule.sourceApi}>
-          스펙추천
-        </span>
-      )}
-
-      {/* Delete Button */}
-      <button 
-        onClick={(e) => { e.stopPropagation(); onDelete(); }}
-        className="text-gray-300 hover:text-red-500 hover:bg-red-50 rounded w-5 h-5 flex items-center justify-center transition-colors ml-1"
-        title="규칙 삭제"
-      >
-        ✕
-      </button>
     </div>
   );
 };
@@ -160,6 +173,24 @@ const JsonNode: React.FC<JsonNodeProps> = ({ data, nodeKey, path, isLast, rules,
           {nodeKey !== '' && <span style={{ color: '#0ea5e9' }}>{String(nodeKey).startsWith('[') ? nodeKey : `"${nodeKey}"`}: </span>}
           <span style={{ color: '#9ca3af' }}>{bracketOpen}</span>
           {isArray && <span style={{ color: '#6b7280', fontSize: '0.85em', marginLeft: '6px', fontStyle: 'italic' }}>{keys.length} items</span>}
+          {path === '' && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                try {
+                  const formattedJson = JSON.stringify(data, null, 2);
+                  navigator.clipboard.writeText(formattedJson);
+                  toast.success('응답 JSON이 클립보드에 복사되었습니다.');
+                } catch {
+                  toast.error('복사에 실패했습니다.');
+                }
+              }}
+              className="ml-2 px-1.5 py-0.5 text-[10px] text-gray-500 hover:text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200 rounded transition-all"
+              title="전체 JSON 복사"
+            >
+              📄 복사
+            </button>
+          )}
         </div>
         
         {expanded && (
@@ -226,6 +257,7 @@ const JsonNode: React.FC<JsonNodeProps> = ({ data, nodeKey, path, isLast, rules,
                 <RuleBadge 
                   rule={r} 
                   isChild={isChild}
+                  hasGroup={nodeRules.length > 1}
                   onUpdate={(updates) => onUpdateRule(r.originalIndex, updates)}
                   onDelete={() => onDeleteRule(r.originalIndex)}
                   result={result}
@@ -365,13 +397,13 @@ export default function JsonRuleTreeViewer({
               <Select value={dialogConfig.operator} onValueChange={(val) => setDialogConfig(prev => ({...prev, operator: val}))}>
                 <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="=">같다 (=)</SelectItem>
-                  <SelectItem value="!=">다르다 (!=)</SelectItem>
-                  <SelectItem value=">">크다 (&gt;)</SelectItem>
-                  <SelectItem value="<">작다 (&lt;)</SelectItem>
-                  <SelectItem value=">=">크거나 같다 (&gt;=)</SelectItem>
-                  <SelectItem value="<=">작거나 같다 (&lt;=)</SelectItem>
-                  <SelectItem value="contains">포함한다</SelectItem>
+                  <SelectItem value="=">==</SelectItem>
+                  <SelectItem value="!=">!=</SelectItem>
+                  <SelectItem value=">">&gt;</SelectItem>
+                  <SelectItem value="<">&lt;</SelectItem>
+                  <SelectItem value=">=">&gt;=</SelectItem>
+                  <SelectItem value="<=">&lt;=</SelectItem>
+                  <SelectItem value="contains">has (포함)</SelectItem>
                 </SelectContent>
               </Select>
               <Input 

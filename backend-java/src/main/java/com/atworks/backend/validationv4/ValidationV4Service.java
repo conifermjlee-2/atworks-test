@@ -5,10 +5,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.PathNotFoundException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -277,5 +280,202 @@ public class ValidationV4Service {
             }
         }
         return schema;
+    }
+
+    // ================== [채점 엔진 실행부] ==================
+
+    public ValidationExecutionResponse executeValidation(ValidationExecutionRequest request) {
+        String url = request.getUrl();
+        HttpMethod method = HttpMethod.valueOf(request.getMethod() != null ? request.getMethod().toUpperCase() : "GET");
+        HttpHeaders headers = new HttpHeaders();
+        if (request.getHeaders() != null) {
+            request.getHeaders().forEach(headers::add);
+        }
+
+        HttpEntity<String> entity = new HttpEntity<>("", headers);
+        
+        Integer statusCode = 500;
+        String responseBody = "";
+        
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(url, method, entity, String.class);
+            statusCode = response.getStatusCode().value();
+            responseBody = response.getBody() != null ? response.getBody() : "";
+        } catch (Exception e) {
+            log.error("API Fetch Error", e);
+            responseBody = e.getMessage();
+        }
+
+        ValidationExecutionResponse.ExecutionResult execResult = ValidationExecutionResponse.ExecutionResult.builder()
+                .statusCode(statusCode)
+                .responseBody(responseBody)
+                .build();
+
+        if (request.getRules() == null || request.getRules().isEmpty()) {
+            return ValidationExecutionResponse.builder()
+                    .executionResult(execResult)
+                    .validationResults(new ArrayList<>())
+                    .globalPassed(true)
+                    .build();
+        }
+
+        List<ValidationResultDto> validationResults = new ArrayList<>();
+        JsonNode parsedJson = null;
+        try {
+            parsedJson = objectMapper.readTree(responseBody);
+        } catch (Exception e) {
+            // Not JSON
+        }
+
+        for (ValidationExecutionRuleDto rule : request.getRules()) {
+            String actualValue = "N/A (Invalid JSON)";
+            boolean passed = false;
+
+            if (parsedJson != null) {
+                try {
+                    String path = rule.getFieldPath();
+                    if (path != null && !path.startsWith("$")) {
+                        path = "$" + (path.startsWith("[") ? "" : ".") + path;
+                    }
+
+                    Object resultObj = JsonPath.read(responseBody, path);
+                    if (resultObj != null) {
+                        if (resultObj instanceof java.util.List) {
+                            java.util.List<?> arr = (java.util.List<?>) resultObj;
+                            if (!arr.isEmpty()) {
+                                actualValue = String.valueOf(arr.get(0));
+                            } else {
+                                actualValue = "N/A (Path not found)";
+                            }
+                        } else {
+                            actualValue = String.valueOf(resultObj);
+                        }
+                        
+                        if (!"N/A (Path not found)".equals(actualValue)) {
+                            passed = evaluateCondition(actualValue, rule.getOperator(), rule.getExpectedValue(), rule.getValueType());
+                        }
+                    } else {
+                        actualValue = "N/A (Path not found)";
+                        passed = false;
+                    }
+                } catch (PathNotFoundException e) {
+                    actualValue = "N/A (Path not found)";
+                    passed = false;
+                } catch (Exception e) {
+                    actualValue = "Error: " + e.getMessage();
+                    passed = false;
+                }
+            }
+
+            validationResults.add(ValidationResultDto.builder()
+                    .rule(rule)
+                    .actualValue(actualValue)
+                    .passed(passed)
+                    .build());
+        }
+
+        // Calculate global passed
+        boolean globalPassed = true;
+        boolean currentGroupPassed = true;
+
+        for (int i = 0; i < request.getRules().size(); i++) {
+            ValidationExecutionRuleDto rule = request.getRules().get(i);
+            boolean passed = validationResults.get(i).getPassed();
+
+            if ("NONE".equals(rule.getLogicalOperator()) || rule.getLogicalOperator() == null) {
+                if (!currentGroupPassed) globalPassed = false;
+                currentGroupPassed = passed;
+            } else if ("AND".equals(rule.getLogicalOperator())) {
+                currentGroupPassed = currentGroupPassed && passed;
+            } else if ("OR".equals(rule.getLogicalOperator())) {
+                currentGroupPassed = currentGroupPassed || passed;
+            }
+        }
+        if (!currentGroupPassed) globalPassed = false;
+
+        // Sorting
+        if (parsedJson != null) {
+            List<String> pathOrder = new ArrayList<>();
+            traverseJson(parsedJson, "", pathOrder);
+
+            validationResults.sort((a, b) -> {
+                String pathA = a.getRule().getFieldPath().replaceAll("^\\$\\.?", "");
+                String pathB = b.getRule().getFieldPath().replaceAll("^\\$\\.?", "");
+                int idxA = pathOrder.indexOf(pathA);
+                int idxB = pathOrder.indexOf(pathB);
+                
+                if (idxA == -1 && idxB == -1) return 0;
+                if (idxA == -1) return 1;
+                if (idxB == -1) return -1;
+                if (idxA == idxB) return 0;
+                return Integer.compare(idxA, idxB);
+            });
+        }
+
+        return ValidationExecutionResponse.builder()
+                .executionResult(execResult)
+                .validationResults(validationResults)
+                .globalPassed(globalPassed)
+                .build();
+    }
+
+    private void traverseJson(JsonNode node, String currentPath, List<String> pathOrder) {
+        if (node == null || node.isNull()) return;
+        
+        if (node.isArray()) {
+            for (int i = 0; i < node.size(); i++) {
+                String childPath = currentPath + "[" + i + "]";
+                pathOrder.add(childPath);
+                traverseJson(node.get(i), childPath, pathOrder);
+            }
+        } else if (node.isObject()) {
+            Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> field = fields.next();
+                String key = field.getKey();
+                String childPath = currentPath.isEmpty() ? key : currentPath + "." + key;
+                pathOrder.add(childPath);
+                traverseJson(field.getValue(), childPath, pathOrder);
+            }
+        }
+    }
+
+    private boolean evaluateCondition(String actualStr, String operator, String expectedStr, String valueType) {
+        try {
+            if ("NUMBER".equalsIgnoreCase(valueType)) {
+                double actual = Double.parseDouble(actualStr);
+                double expected = Double.parseDouble(expectedStr);
+                switch (operator) {
+                    case "=": return actual == expected;
+                    case "!=": return actual != expected;
+                    case ">": return actual > expected;
+                    case "<": return actual < expected;
+                    case ">=": return actual >= expected;
+                    case "<=": return actual <= expected;
+                    default: return false;
+                }
+            } else if ("BOOLEAN".equalsIgnoreCase(valueType)) {
+                boolean actual = Boolean.parseBoolean(actualStr);
+                boolean expected = Boolean.parseBoolean(expectedStr);
+                switch (operator) {
+                    case "=": return actual == expected;
+                    case "!=": return actual != expected;
+                    default: return false;
+                }
+            } else {
+                switch (operator) {
+                    case "=": return actualStr.equals(expectedStr);
+                    case "!=": return !actualStr.equals(expectedStr);
+                    case ">": return actualStr.compareTo(expectedStr) > 0;
+                    case "<": return actualStr.compareTo(expectedStr) < 0;
+                    case ">=": return actualStr.compareTo(expectedStr) >= 0;
+                    case "<=": return actualStr.compareTo(expectedStr) <= 0;
+                    case "contains": return actualStr.contains(expectedStr);
+                    default: return false;
+                }
+            }
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

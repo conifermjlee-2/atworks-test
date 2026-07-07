@@ -28,7 +28,8 @@ public class ValidationV2Service {
 
     public ValidationV2Response getRecommendations(String swaggerUrl, String targetUrl, String targetMethod) {
         // 1. 기존 AI 로직을 호출하여 유사 API 목록을 가져옴
-        List<ApiSimilarityResponse> similarApis = apiSimilarityService.findSimilarApis(swaggerUrl, targetUrl, targetMethod);
+        List<ApiSimilarityResponse> similarApis = apiSimilarityService.findSimilarApis(swaggerUrl, targetUrl,
+                targetMethod);
 
         // 모든 유사 API의 룰을 추출할 리스트
         List<ValidationRuleDto> allExtractedRules = new ArrayList<>();
@@ -37,10 +38,26 @@ public class ValidationV2Service {
         List<ApiSimilarityResponse> apisToMix = similarApis.stream()
                 .filter(api -> api.getSimilarityScore() >= 75.0)
                 .toList();
-                
+
         // 만약 75% 이상이 없으면 가장 비슷한 1등만 사용
         if (apisToMix.isEmpty() && !similarApis.isEmpty()) {
             apisToMix = List.of(similarApis.get(0));
+        }
+
+        // Target API를 먼저 호출하여 유효한 필드(Path) 목록을 추출합니다.
+        Set<String> validTargetPaths = new HashSet<>();
+        try {
+            String targetResponse = restTemplate.getForObject(targetUrl, String.class);
+            if (targetResponse != null && !targetResponse.isBlank()) {
+                JsonNode targetNode = objectMapper.readTree(targetResponse);
+                List<ValidationRuleDto> tempRules = new ArrayList<>();
+                extractRulesFromActualResponse("$", targetNode, tempRules, "TARGET");
+                for (ValidationRuleDto r : tempRules) {
+                    validTargetPaths.add(r.getJsonPath());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Target API 호출 실패 (필드 필터링 불가능): {}", targetUrl);
         }
 
         if (!apisToMix.isEmpty()) {
@@ -72,9 +89,14 @@ public class ValidationV2Service {
             }
         }
 
-        // 필드(jsonPath) 단위로 믹스매치(Mix & Match) 진행
+        // 필드(jsonPath) 단위로 믹스매치(Mix & Match) 진행하되, Target API에 없는 필드는 제외
         Map<String, List<ValidationRuleDto>> rulesByPath = new HashMap<>();
         for (ValidationRuleDto rule : allExtractedRules) {
+            // validTargetPaths가 비어있지 않은데(타겟 응답을 정상적으로 받았는데)
+            // 해당 필드가 타겟에 없으면 스킵!
+            if (!validTargetPaths.isEmpty() && !validTargetPaths.contains(rule.getJsonPath())) {
+                continue;
+            }
             rulesByPath.computeIfAbsent(rule.getJsonPath(), k -> new ArrayList<>()).add(rule);
         }
 
@@ -92,7 +114,8 @@ public class ValidationV2Service {
                 .build();
     }
 
-    private void extractRulesFromActualResponse(String currentPath, JsonNode node, List<ValidationRuleDto> rules, String sourceApi) {
+    private void extractRulesFromActualResponse(String currentPath, JsonNode node, List<ValidationRuleDto> rules,
+            String sourceApi) {
         if (node.isObject()) {
             Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
             while (fields.hasNext()) {

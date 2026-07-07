@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
-import JsonRuleTreeViewer, { Rule } from "@/components/validation/JsonRuleTreeViewer";
+import JsonTreeViewer from "@/components/validation/JsonTreeViewer";
+import JsonRuleTreeViewer from "@/components/validation/JsonRuleTreeViewer";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,8 +26,15 @@ export default function Home() {
 
   const [executionResult, setExecutionResult] = useState<any>(null); // 외부 API 실제 호출 결과 (Status, Body)
   const [rules, setRules] = useState<any[]>([]); // 사용자가 등록한 검증 규칙(Rule) 목록
+  const [selectedRuleIdx, setSelectedRuleIdx] = useState<number | null>(null); // 현재 UI에서 '선택 모드(⌖)'가 활성화된 규칙의 인덱스
   const [validationResults, setValidationResults] = useState<any[] | null>(null); // 백엔드 채점 엔진이 반환한 규칙별 합격/불합격 결과
   const [globalPassed, setGlobalPassed] = useState<boolean | null>(null); // AND, OR 연산이 모두 적용된 최종 전체 테스트 통과 여부
+
+  // [UX 기능] 우클릭 하이라이트: 규칙 선택 시 위쪽 JSON 트리에서 해당 경로를 노란색 배경으로 스크롤 및 강조 표시하기 위한 상태
+  const [highlightPath, setHighlightPath] = useState<string | null>(null);
+
+  // [UX 기능] 실시간 값 툴팁: JSON Path 입력창에 마우스를 올렸을 때(hover), 해당 인덱스와 추출된 실제 값을 보여주기 위한 상태
+  const [hoveredInputIdx, setHoveredInputIdx] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);
 
@@ -113,8 +121,8 @@ export default function Home() {
         logicalOperator: r.logicalOperator
       }));
 
-      // Next.js 백엔드 채점 엔진 라우트로 POST 요청 발송
-      const res = await fetch('/api/tester/execute', {
+      // Java 백엔드 채점 엔진 라우트로 POST 요청 발송
+      const res = await fetch('http://localhost:8080/api/tester/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, method, headers: {}, rules: activeRules })
@@ -138,41 +146,70 @@ export default function Home() {
     setLoading(false);
   };
 
-  // ===== [JSON Tree 인라인 규칙 생성 및 수정] =====
+  // ===== [JSON Tree 연동: 규칙 생성 및 수정] =====
+  // 사용자가 상단 JSON Tree에서 특정 노드(값)를 클릭했을 때 호출됩니다.
+  const handleAddRuleFromClick = (path: string, value: any, type: string) => {
+    // 1) 특정 규칙의 '선택 모드(⌖)'가 활성화된 상태라면 -> 새 규칙 추가 대신 기존 규칙의 경로/값을 '덮어쓰기(수정)' 합니다.
+    if (selectedRuleIdx !== null && selectedRuleIdx < rules.length) {
+      const newRules = [...rules];
+      newRules[selectedRuleIdx].fieldPath = path;
+      newRules[selectedRuleIdx].expectedValue = String(value);
+      newRules[selectedRuleIdx].valueType = type;
+
+      // 만약 해당 규칙 아래에 종속된 'AND/OR' 하위 규칙들이 있다면, 부모 경로를 함께 동기화해 줍니다.
+      if (newRules[selectedRuleIdx].logicalOperator === 'NONE') {
+        for (let i = selectedRuleIdx + 1; i < newRules.length; i++) {
+          if (newRules[i].logicalOperator !== 'NONE') {
+            newRules[i].fieldPath = path;
+          } else {
+            break;
+          }
+        }
+      }
+
+      setRules(newRules);
+      setSelectedRuleIdx(null); // 값 입력이 끝났으므로 선택 모드 해제
+      setHighlightPath(null); // 노란색 하이라이트 해제
+    } else {
+      // 2) 선택 모드가 아니라면 -> 트리를 누를 때마다 표 맨 아래에 '새로운 검증 규칙'으로 추가합니다.
+      setRules(prev => [...prev, {
+        fieldPath: path,
+        operator: '=',
+        expectedValue: String(value), // 사용자가 누른 원본 응답값을 기본 기대값(Expected)으로 세팅
+        valueType: type,
+        selected: true,
+        logicalOperator: 'NONE' // 최상위 부모 조건으로 생성
+      }]);
+    }
+  };
+  // ===== [JsonRuleTreeViewer 호환 핸들러들] =====
+  // JsonRuleTreeViewer에서 요구하는 시그니처에 맞는 핸들러 함수들
+
+  // path의 필드에 새 최상위 루룰 생성
   const handleAddRule = (path: string, type: string, expectedValue: string, operator: string) => {
     setRules(prev => [...prev, {
       fieldPath: path,
-      operator: operator,
+      operator: operator || '=',
       expectedValue: expectedValue,
       valueType: type,
       selected: true,
       logicalOperator: 'NONE'
     }]);
+    setValidationResults(null);
   };
 
-  const handleUpdateRule = (index: number, updates: Partial<Rule>) => {
-    setRules(prev => {
-      const newRules = [...prev];
-      newRules[index] = { ...newRules[index], ...updates };
-      return newRules;
-    });
-  };
-
-  const handleDeleteRule = (index: number) => {
-    setRules(prev => prev.filter((_, i) => i !== index));
-  };
-
+  // 부모 루룰 아래에 AND/OR 하위 루룰 생성
   const handleAddChildRule = (path: string, parentIdx: number, logicalOperator: string, operator: string, expectedValue: string) => {
     const parentRule = rules[parentIdx];
     const newRule = {
       fieldPath: path,
-      operator: operator,
+      operator: operator || '=',
       expectedValue: expectedValue,
       valueType: parentRule?.valueType || 'string',
       selected: true,
-      logicalOperator: logicalOperator
+      logicalOperator: logicalOperator || 'AND'
     };
-    
+
     let insertIdx = parentIdx + 1;
     while (insertIdx < rules.length && rules[insertIdx].logicalOperator !== 'NONE') {
       insertIdx++;
@@ -180,6 +217,23 @@ export default function Home() {
     const newRules = [...rules];
     newRules.splice(insertIdx, 0, newRule);
     setRules(newRules);
+    setValidationResults(null);
+  };
+
+  // 특정 루룰 필드 업데이트
+  const handleUpdateRule = (index: number, updates: Partial<typeof rules[0]>) => {
+    setRules(prev => {
+      const newRules = [...prev];
+      newRules[index] = { ...newRules[index], ...updates };
+      return newRules;
+    });
+    setValidationResults(null);
+  };
+
+  // 특정 루룰 삭제
+  const handleDeleteRule = (index: number) => {
+    setRules(prev => prev.filter((_, i) => i !== index));
+    setValidationResults(null);
   };
 
   // ===== JSONPath 기반 실제 값 조회 헬퍼 함수 =====
@@ -263,11 +317,84 @@ export default function Home() {
     }
   };
 
+  const handleAutoRecommend = (isFullRandom: boolean = false) => {
+    if (!executionResult || !executionResult.responseBody) {
+      return toast.info("먼저 API를 실행하여 응답값을 받아주세요.");
+    }
+    try {
+      const parsed = JSON.parse(executionResult.responseBody);
+      const possiblePaths: { path: string, value: any }[] = [];
+
+      const traverse = (obj: any, currentPath: string) => {
+        if (obj !== null && typeof obj === 'object') {
+          if (Array.isArray(obj)) {
+            for (let i = 0; i < obj.length; i++) {
+              traverse(obj[i], currentPath ? `${currentPath}[${i}]` : `[${i}]`);
+            }
+          } else {
+            Object.keys(obj).forEach(key => {
+              const newPath = currentPath ? `${currentPath}.${key}` : key;
+              traverse(obj[key], newPath);
+            });
+          }
+        } else if (obj !== null && obj !== undefined) {
+          possiblePaths.push({ path: currentPath, value: obj });
+        }
+      };
+
+      traverse(parsed, '');
+
+      if (possiblePaths.length === 0) {
+        return toast.info("추천할 만한 유효한 필드를 찾지 못했습니다.");
+      }
+
+      // Shuffle array randomly
+      for (let i = possiblePaths.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [possiblePaths[i], possiblePaths[j]] = [possiblePaths[j], possiblePaths[i]];
+      }
+      // Pick a random amount between 1 and total available paths
+      // (cap at 50 to prevent browser from freezing with too many UI rows)
+      const maxCount = Math.min(possiblePaths.length, 50);
+      const randomCount = Math.floor(Math.random() * maxCount) + 1;
+      const selected = possiblePaths.slice(0, randomCount);
+
+      const ops = ['=', '!=', '>', '<', '>=', '<=', 'contains'];
+      const newRules = selected.map(item => {
+        const type = typeof item.value === 'number' ? 'number' : typeof item.value === 'boolean' ? 'boolean' : 'string';
+        let op = '=';
+        let val = String(item.value);
+
+        if (isFullRandom) {
+          op = ops[Math.floor(Math.random() * ops.length)];
+          // 원본 응답 내 모든 문자열 값을 수집 (문자열 타입 스마트 랜덤에서 참조)
+          const allStringValues = possiblePaths
+            .filter(p => typeof p.value === 'string')
+            .map(p => String(p.value));
+          val = generateSmartRandom(item.value, type, allStringValues);
+        }
+
+        return {
+          fieldPath: item.path,
+          operator: op,
+          expectedValue: val,
+          valueType: type,
+          selected: true,
+          logicalOperator: 'NONE'
+        };
+      });
+
+      setRules(newRules);
+    } catch (e) {
+      toast.error("응답값이 유효한 JSON 형식이 아닙니다.");
+    }
+  };
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [mixMatchData, setMixMatchData] = useState<any>(null);
   const [expandedApis, setExpandedApis] = useState<number[]>([]);
 
-  const handleV4Recommend = async (withRandomOp: boolean = false) => {
+  const handleV4Recommend = async (isRandom: boolean = false) => {
     if (!url) {
       return toast.info("API URL을 먼저 입력해주세요.");
     }
@@ -289,34 +416,25 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' }
       });
       const data = await res.json();
-      
+
       if (res.ok) {
         if (data.recommendedRules && data.recommendedRules.length > 0) {
           setMixMatchData(data);
-          
-          // Randomly select between 1 and max rules
-          const maxRules = data.recommendedRules.length;
-          const randomCount = Math.floor(Math.random() * maxRules) + 1;
-          
-          // Shuffle array to pick random rules
-          const shuffled = [...data.recommendedRules].sort(() => 0.5 - Math.random());
-          const selectedRules = shuffled.slice(0, randomCount);
-          
+
           const ops = ['=', '!=', '>', '<', '>=', '<=', 'contains'];
-          const mappedRules = selectedRules.map((r: any) => ({
+          const mappedRules = data.recommendedRules.map((r: any) => ({
             fieldPath: r.jsonPath,
-            operator: withRandomOp ? ops[Math.floor(Math.random() * ops.length)] : '=',
-            expectedValue: typeof r.exampleValue === 'string' ? r.exampleValue.replace(/^["']|["']$/g, '') : String(r.exampleValue),
+            operator: isRandom ? ops[Math.floor(Math.random() * ops.length)] : '=',
+            expectedValue: r.exampleValue,
             valueType: r.type,
             selected: true,
             logicalOperator: 'NONE',
             isRecommended: true,
             sourceApi: r.sourceApi
           }));
-          
           setRules(mappedRules);
           setValidationResults(null);
-          toast.success(`총 ${maxRules}개의 스펙 중 ${mappedRules.length}개의 룰이 무작위로 추출되어 적용되었습니다!`, { id: toastId });
+          toast.success(`총 ${mappedRules.length}개의 N-Depth 믹스매치 룰이 즉시 적용되었습니다! 옆의 버튼을 눌러 분석 결과를 확인하세요.`, { id: toastId });
         } else {
           toast.info("추천할 만한 검증 룰을 찾지 못했습니다.", { id: toastId });
         }
@@ -328,18 +446,69 @@ export default function Home() {
     }
   };
 
+  const handleRandomizeAll = () => {
+    // 원본 응답에서 모든 문자열 값을 추출 (스마트 랜덤 참조용)
+    let allStringValues: string[] = [];
+    try {
+      if (executionResult?.responseBody) {
+        const parsed = JSON.parse(executionResult.responseBody);
+        const collect = (obj: any) => {
+          if (typeof obj === 'string') allStringValues.push(obj);
+          else if (Array.isArray(obj)) obj.forEach(collect);
+          else if (obj && typeof obj === 'object') Object.values(obj).forEach(collect);
+        };
+        collect(parsed);
+      }
+    } catch (e) { /* JSON 파싱 실패 시 폴백 사용 */ }
+
+    setRules(prev => prev.map(rule => {
+      const type = String(rule.valueType || 'string').toLowerCase();
+      // 원본값을 찾아서 스마트 랜덤 생성
+      const originalValue = rule.expectedValue;
+      const randomVal = generateSmartRandom(originalValue, type, allStringValues);
+      return { ...rule, expectedValue: randomVal };
+    }));
+  };
+
   const handleRandomizeAllOperators = () => {
     const ops = ['=', '!=', '>', '<', '>=', '<=', 'contains'];
-    setRules(prev => prev.map(rule => ({
-      ...rule, operator: ops[Math.floor(Math.random() * ops.length)]
-    })));
-    setValidationResults(null);
+    setRules(prev => prev.map(rule => {
+      return { ...rule, operator: ops[Math.floor(Math.random() * ops.length)] };
+    }));
+  };
+
+  const handleRandomizeAllBoth = () => {
+    const ops = ['=', '!=', '>', '<', '>=', '<=', 'contains'];
+    // 원본 응답에서 모든 문자열 값을 추출 (스마트 랜덤 참조용)
+    let allStringValues: string[] = [];
+    try {
+      if (executionResult?.responseBody) {
+        const parsed = JSON.parse(executionResult.responseBody);
+        const collect = (obj: any) => {
+          if (typeof obj === 'string') allStringValues.push(obj);
+          else if (Array.isArray(obj)) obj.forEach(collect);
+          else if (obj && typeof obj === 'object') Object.values(obj).forEach(collect);
+        };
+        collect(parsed);
+      }
+    } catch (e) { /* JSON 파싱 실패 시 폴백 사용 */ }
+
+    setRules(prev => prev.map(rule => {
+      const type = String(rule.valueType || 'string').toLowerCase();
+      const originalValue = rule.expectedValue;
+      const randomVal = generateSmartRandom(originalValue, type, allStringValues);
+      return {
+        ...rule,
+        operator: ops[Math.floor(Math.random() * ops.length)],
+        expectedValue: randomVal
+      };
+    }));
   };
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-7xl">
       <header className="mb-8 flex items-center gap-3">
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">⚡ API Validation Recommender (V4.1 - Interactive Tree)</h1>
+        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">⚡ API Validation Recommender (V4-1)</h1>
         <button onClick={() => setIsInfoModalOpen(true)} className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-sm font-bold hover:bg-gray-300 transition-colors" title="V3 프로젝트 설명 보기">?</button>
       </header>
 
@@ -450,29 +619,10 @@ export default function Home() {
 
         {executionResult && (
           <Card className="animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-visible">
-            <CardHeader className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm flex flex-col gap-4 pb-4 border-b mb-4 rounded-t-lg shadow-sm">
+            <CardHeader className="flex flex-col gap-4 pb-4 border-b mb-4">
               <div className="flex items-center justify-between w-full">
                 <CardTitle className="text-lg font-semibold">2. 응답 스키마 & 값 검증 (통합 룰 에디터)</CardTitle>
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded px-2 h-8 hidden sm:flex">
-                    <span className="text-xs text-gray-400 font-semibold mr-1">Swagger:</span>
-                    <span className="text-[11px] text-gray-600 font-mono truncate max-w-[150px] md:max-w-[250px]" title={swaggerUrl || ''}>
-                      {swaggerUrl || '미설정'}
-                    </span>
-                    <button 
-                      onClick={() => {
-                        const input = window.prompt("분석할 Swagger JSON URL을 입력하세요.", swaggerUrl || "http://localhost:8080/v3/api-docs");
-                        if (input !== null) { 
-                          setSwaggerUrl(input); 
-                          localStorage.setItem('swaggerUrl', input); 
-                        }
-                      }} 
-                      className="text-gray-400 hover:text-blue-500 ml-1 text-xs" 
-                      title="Swagger 주소 변경"
-                    >
-                      ✏️
-                    </button>
-                  </div>
                   <Button variant="default" size="sm" onClick={() => handleExecute(false)} disabled={loading} className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">▶ 검증 실행</Button>
                 </div>
               </div>
@@ -481,9 +631,6 @@ export default function Home() {
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => handleV4Recommend(false)} className="h-7 text-xs border-purple-200 text-purple-700 hover:bg-purple-50 bg-purple-50/30">✨ AI 스펙 추출 (V4)</Button>
                 <Button variant="outline" size="sm" onClick={() => handleV4Recommend(true)} className="h-7 text-xs border-fuchsia-200 text-fuchsia-700 hover:bg-fuchsia-50 bg-fuchsia-50/30">✨ AI 스펙 추출 (V4) + 조건 랜덤</Button>
-                <div className="h-4 w-px bg-gray-200 mx-1"></div>
-                <Button variant="outline" size="sm" onClick={handleRandomizeAllOperators} className="h-7 text-xs border-sky-200 text-sky-700 hover:bg-sky-50 bg-sky-50/30">🎲 조건 랜덤</Button>
-                <Button variant="outline" size="sm" onClick={() => { if(window.confirm('모든 값 검증 조건을 초기화하시겠습니까?')) { setRules([]); setValidationResults(null); } }} className="h-7 text-xs text-red-500 hover:bg-red-50 border-red-200 ml-auto bg-white">값 검증 조건 초기화</Button>
               </div>
             </CardHeader>
 
@@ -571,7 +718,7 @@ export default function Home() {
               </div>
               {/* V2: AI 유사 스펙 분석 버튼 */}
               <div className="flex gap-2">
-                <Button 
+                <Button
                   onClick={handleAiRecommend}
                   className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0"
                 >
@@ -626,8 +773,8 @@ export default function Home() {
                     const usedRules = mixMatchData?.recommendedRules?.filter((rule: any) => rule.sourceApi === api.path) || [];
                     return (
                       <React.Fragment key={idx}>
-                        <TableRow 
-                          className="cursor-pointer hover:bg-gray-50 transition-colors" 
+                        <TableRow
+                          className="cursor-pointer hover:bg-gray-50 transition-colors"
                           onClick={() => setExpandedApis(prev => prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx])}
                         >
                           <TableCell className="text-center font-medium">{idx + 1}</TableCell>
@@ -692,7 +839,7 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">API 값 검증 V4 (N-Depth 믹스매치)</DialogTitle>
           </DialogHeader>
-          
+
           <div className="bg-blue-50 border border-blue-100 rounded-md p-4 mt-2 mb-6">
             <p className="text-sm text-blue-800 font-medium leading-relaxed">
               💡 타 API의 실제 응답 데이터를 활용해 검증 룰을 자동 조립하는 <strong>데이터 믹스 앤 매치(Mix &amp; Match) 엔진</strong>입니다.

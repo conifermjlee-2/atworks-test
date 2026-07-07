@@ -119,8 +119,8 @@ export default function Home() {
         logicalOperator: r.logicalOperator
       }));
 
-      // Next.js 백엔드 채점 엔진 라우트로 POST 요청 발송
-      const res = await fetch('/api/tester/execute', {
+      // Next.js 백엔드에서 자바 백엔드로 변경됨
+      const res = await fetch('http://localhost:8080/api/tester/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, method, headers: {}, rules: activeRules })
