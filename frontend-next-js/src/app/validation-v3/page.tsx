@@ -121,7 +121,7 @@ export default function Home() {
       }));
 
       // Next.js 백엔드 채점 엔진 라우트로 POST 요청 발송
-      const res = await fetch('/api/tester/execute', {
+      const res = await fetch('http://localhost:8080/api/tester/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, method, headers: {}, rules: activeRules })
@@ -384,11 +384,11 @@ export default function Home() {
         body: JSON.stringify({ swaggerUrl: targetSwaggerUrl, targetPath: url, targetMethod: method })
       });
       const data = await res.json();
-      
+
       if (res.ok) {
         if (data.recommendedRules && data.recommendedRules.length > 0) {
           setMixMatchData(data);
-          
+
           // 규칙을 테이블에 즉시 적용
           const mappedRules = data.recommendedRules.map((r: any) => ({
             fieldPath: r.jsonPath,
@@ -474,9 +474,14 @@ export default function Home() {
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-7xl">
-      <header className="mb-8 flex items-center gap-3">
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">⚡ API Validation Recommender (V3)</h1>
-        <button onClick={() => setIsInfoModalOpen(true)} className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-sm font-bold hover:bg-gray-300 transition-colors" title="V3 프로젝트 설명 보기">?</button>
+      <header className="mb-8 flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">🤖 API Validation Recommender (V3)</h1>
+          <button onClick={() => setIsInfoModalOpen(true)} className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-sm font-bold hover:bg-gray-300 transition-colors" title="프로젝트 설명 보기">?</button>
+        </div>
+        <p className="text-sm text-gray-700 bg-blue-50 border border-blue-100 p-4 rounded-lg shadow-sm">
+          💡<strong>순수 알고리즘(Algorithm)</strong>을 활용하여 N-Depth 다중 계층 구조를 분석하고, 의미적 유사도를 빠르고 정확하게 도출하여 검증 룰을 추천하는 규칙 기반(Rule-based) 엔진입니다.
+        </p>
       </header>
 
       <div className="space-y-6">
@@ -976,7 +981,7 @@ export default function Home() {
               </div>
               {/* V2: AI 유사 스펙 분석 버튼 */}
               <div className="flex gap-2">
-                <Button 
+                <Button
                   onClick={handleAiRecommend}
                   className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0"
                 >
@@ -1031,8 +1036,8 @@ export default function Home() {
                     const usedRules = mixMatchData?.recommendedRules?.filter((rule: any) => rule.sourceApi === api.path) || [];
                     return (
                       <React.Fragment key={idx}>
-                        <TableRow 
-                          className="cursor-pointer hover:bg-gray-50 transition-colors" 
+                        <TableRow
+                          className="cursor-pointer hover:bg-gray-50 transition-colors"
                           onClick={() => setExpandedApis(prev => prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx])}
                         >
                           <TableCell className="text-center font-medium">{idx + 1}</TableCell>
@@ -1097,7 +1102,7 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">API 값 검증 V3 (타입 매칭 기반 믹스매치)</DialogTitle>
           </DialogHeader>
-          
+
           <div className="bg-blue-50 border border-blue-100 rounded-md p-4 mt-2 mb-6">
             <p className="text-sm text-blue-800 font-medium leading-relaxed">
               💡 타 API의 실제 응답 데이터를 활용해 검증 룰을 자동 조립하는 <strong>데이터 믹스 앤 매치(Mix &amp; Match) 엔진</strong>입니다.

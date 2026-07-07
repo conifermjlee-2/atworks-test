@@ -119,7 +119,7 @@ export default function Home() {
       }));
 
       // Next.js 백엔드 채점 엔진 라우트로 POST 요청 발송
-      const res = await fetch('/api/tester/execute', {
+      const res = await fetch('http://localhost:8080/api/tester/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, method, headers: {}, rules: activeRules })
@@ -459,8 +459,13 @@ export default function Home() {
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-7xl">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">✨ API Validation Recommender</h1>
+      <header className="mb-8 flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">🤖 API Validation (V1)</h1>
+        </div>
+        <p className="text-sm text-gray-700 bg-gray-50 border border-gray-200 p-4 rounded-lg shadow-sm">
+          💡 가장 기초적인 <strong>수동 값 검증 엔진</strong>으로, 사용자가 직접 JSON 응답 필드를 지정하고 기댓값을 입력하여 API 응답의 정확성을 채점하는 기본 모듈입니다.
+        </p>
       </header>
 
       <div className="space-y-6">

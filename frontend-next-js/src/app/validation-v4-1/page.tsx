@@ -195,7 +195,6 @@ export default function Home() {
       selected: true,
       logicalOperator: 'NONE'
     }]);
-    setValidationResults(null);
   };
 
   // 부모 루룰 아래에 AND/OR 하위 루룰 생성
@@ -217,7 +216,6 @@ export default function Home() {
     const newRules = [...rules];
     newRules.splice(insertIdx, 0, newRule);
     setRules(newRules);
-    setValidationResults(null);
   };
 
   // 특정 루룰 필드 업데이트
@@ -227,13 +225,11 @@ export default function Home() {
       newRules[index] = { ...newRules[index], ...updates };
       return newRules;
     });
-    setValidationResults(null);
   };
 
   // 특정 루룰 삭제
   const handleDeleteRule = (index: number) => {
     setRules(prev => prev.filter((_, i) => i !== index));
-    setValidationResults(null);
   };
 
   // ===== JSONPath 기반 실제 값 조회 헬퍼 함수 =====
@@ -507,13 +503,18 @@ export default function Home() {
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-7xl">
-      <header className="mb-8 flex items-center gap-3">
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">⚡ API Validation Recommender (V4-1)</h1>
-        <button onClick={() => setIsInfoModalOpen(true)} className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-sm font-bold hover:bg-gray-300 transition-colors" title="V3 프로젝트 설명 보기">?</button>
+      <header className="mb-8 flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">🤖 API Validation Recommender (V4-1)</h1>
+          <button onClick={() => setIsInfoModalOpen(true)} className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-sm font-bold hover:bg-gray-300 transition-colors" title="프로젝트 설명 보기">?</button>
+        </div>
+        <p className="text-sm text-gray-700 bg-fuchsia-50 border border-fuchsia-100 p-4 rounded-lg shadow-sm">
+          💡API 스펙(Swagger)을 동적으로 순회하며, 목표 API와 <strong>100% 동일한 응답 구조(N-Depth) 및 데이터 타입</strong>을 가진 API를 찾아 실제 응답값을 <strong>믹스매치(Mix & Match)</strong>로 추천하는 지능형 스펙 추출 엔진입니다.
+        </p>
       </header>
 
       <div className="space-y-6">
-        <Card>
+        <Card className="relative z-30">
           <CardHeader>
             <CardTitle>1. API Configuration</CardTitle>
           </CardHeader>
@@ -529,7 +530,7 @@ export default function Home() {
                 </SelectContent>
               </Select>
 
-              <div className="relative flex-1">
+              <div className="relative flex-1 z-50">
                 <Input
                   ref={urlInputRef}
                   type="text"
@@ -576,7 +577,7 @@ export default function Home() {
                   className="w-full"
                 />
                 {showUrlSuggestions && suggestedUrls.length > 0 && (
-                  <ul className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                  <ul className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
                     {suggestedUrls.map((s, i) => (
                       <li
                         key={i}
@@ -619,7 +620,7 @@ export default function Home() {
 
         {executionResult && (
           <Card className="animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-visible">
-            <CardHeader className="flex flex-col gap-4 pb-4 border-b mb-4">
+            <CardHeader className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm flex flex-col gap-4 pb-4 pt-6 px-6 border-b mb-4 rounded-t-xl shadow-sm">
               <div className="flex items-center justify-between w-full">
                 <CardTitle className="text-lg font-semibold">2. 응답 스키마 & 값 검증 (통합 룰 에디터)</CardTitle>
                 <div className="flex items-center gap-2">
@@ -853,11 +854,11 @@ export default function Home() {
               <ol className="list-decimal pl-5 space-y-3">
                 <li>
                   <strong>타겟 스펙 파악 (기준점 설정)</strong>
-                  <p className="text-gray-600 mt-1">타겟 API의 Swagger 스펙에서 200 성공 응답의 1-depth 필드 이름과 타입(예: userId: integer)을 추출합니다.</p>
+                  <p className="text-gray-600 mt-1">타겟 API의 Swagger 스펙에서 200 성공 응답의 전체 다중 계층(N-Depth) 경로(jsonPath)와 타입(예: $.user.address.zipcode: integer)을 빠짐없이 추출합니다.</p>
                 </li>
                 <li>
                   <strong>Swagger 전체 순회 및 교집합 찾기</strong>
-                  <p className="text-gray-600 mt-1">타겟 API <strong>자기 자신을 제외(continue)</strong>한 모든 API를 순회하며, 타겟 API와 '필드 이름'과 '데이터 타입'이 똑같은 필드를 반환하는 API들을 추려냅니다.</p>
+                  <p className="text-gray-600 mt-1">타겟 API <strong>자기 자신을 제외(continue)</strong>한 모든 API를 순회하며, 타겟 API와 'N-Depth 경로'와 '데이터 타입'이 완벽히 똑같은 구조를 반환하는 API들을 추려냅니다.</p>
                 </li>
                 <li>
                   <strong>후보 API 실제 호출 시도</strong>
@@ -865,11 +866,11 @@ export default function Home() {
                 </li>
                 <li>
                   <strong>실제 데이터 조각 수집 (추출)</strong>
-                  <p className="text-gray-600 mt-1">정상 응답이 온 후보 API에서 교집합에 해당하는 1-depth 필드의 실제 값만 뽑아와 룰 조각으로 만듭니다.</p>
+                  <p className="text-gray-600 mt-1">정상 응답이 온 후보 API에서 교집합에 해당하는 N-Depth 경로의 실제 값만 쏙 뽑아와 룰 조각으로 만듭니다.</p>
                 </li>
                 <li>
                   <strong>믹스 앤 매치 (Mix &amp; Match)</strong>
-                  <p className="text-gray-600 mt-1">각 필드별로 수집된 여러 API의 실제 값들 중 하나를 랜덤으로 뽑아, 최종적인 1-depth 테스트 룰 목록으로 조합하여 프론트엔드에 전달합니다.</p>
+                  <p className="text-gray-600 mt-1">각 경로별로 수집된 여러 API의 실제 값들 중 하나를 랜덤으로 뽑아, 최종적인 다중 계층(N-Depth) 테스트 룰 목록으로 조합하여 프론트엔드에 전달합니다.</p>
                 </li>
               </ol>
             </section>
