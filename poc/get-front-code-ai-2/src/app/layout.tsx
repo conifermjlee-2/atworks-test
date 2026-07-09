@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "프론트엔드 코드 분석기",
-  description: "React/Next.js 저장소를 정적으로 분석하여 뷰-API 매핑 및 흐름을 추출합니다.",
+  title: "(Local AI) 프론트엔드 코드 분석기",
+  description: "로컬 AI를 활용하여 프론트엔드 코드를 분석하고 뷰-API 매핑 및 흐름을 추출합니다.",
 };
 
 export default function RootLayout({

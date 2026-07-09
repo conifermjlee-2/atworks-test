@@ -4,6 +4,11 @@
       "id": 1,
       "name": "이름1",
       "password": "123"
+    },
+    {
+      "id": 2,
+      "name": "name2",
+      "password": "123"
     }
   ]
 }

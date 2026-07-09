@@ -48,8 +48,9 @@ export async function analyzeRepo(repoUrl: string): Promise<string> {
         if (pageRoute === 'index') pageRoute = '/';
         else pageRoute = '/' + pageRoute;
       } else if (pageRoute.includes('src/app/') || pageRoute.includes('app/')) {
-        pageRoute = pageRoute.split('app/')[1].replace(/\/page\.(js|jsx|ts|tsx)$/, '');
-        pageRoute = '/' + pageRoute;
+        let appRoute = pageRoute.split('app/')[1];
+        appRoute = appRoute.replace(/(^|\/)page\.(js|jsx|ts|tsx)$/, '');
+        pageRoute = appRoute ? '/' + appRoute : '/';
       } else {
         pageRoute = path.basename(file);
       }
@@ -68,8 +69,16 @@ export async function analyzeRepo(repoUrl: string): Promise<string> {
             let isApiCall = false;
             let apiEndpoint = '';
 
+            let apiMethod = 'GET';
             if (callee.type === 'Identifier' && callee.name === 'fetch') {
               isApiCall = true;
+              const options = path.node.arguments[1];
+              if (options && options.type === 'ObjectExpression') {
+                const methodProp = options.properties.find((p: any) => p.key && (p.key.name === 'method' || p.key.value === 'method'));
+                if (methodProp && methodProp.value.type === 'StringLiteral') {
+                  apiMethod = methodProp.value.value.toUpperCase();
+                }
+              }
             } else if (callee.type === 'MemberExpression') {
               const obj = callee.object;
               const prop = callee.property;
@@ -78,9 +87,17 @@ export async function analyzeRepo(repoUrl: string): Promise<string> {
                 (obj.name === 'axios' || obj.name === 'api' || obj.name === 'client')
               ) {
                 isApiCall = true;
+                if (prop.type === 'Identifier' && ['get', 'post', 'put', 'delete', 'patch'].includes(prop.name)) {
+                  apiMethod = prop.name.toUpperCase();
+                }
               }
-            } else if (callee.type === 'Identifier' && (callee.name === 'useQuery' || callee.name === 'useMutation')) {
+            } else if (callee.type === 'Identifier' && (callee.name === 'useQuery')) {
               isApiCall = true;
+              apiMethod = 'GET';
+              apiEndpoint = 'ReactQuery Hook';
+            } else if (callee.type === 'Identifier' && (callee.name === 'useMutation')) {
+              isApiCall = true;
+              apiMethod = 'MUTATION';
               apiEndpoint = 'ReactQuery Hook';
             }
 
@@ -90,14 +107,78 @@ export async function analyzeRepo(repoUrl: string): Promise<string> {
                 if (arg0.type === 'StringLiteral') {
                   apiEndpoint = arg0.value;
                 } else if (arg0.type === 'TemplateLiteral') {
-                  apiEndpoint = arg0.quasis.map((q: any) => q.value.raw).join('${...}');
+                  let templateStr = '';
+                  arg0.quasis.forEach((q: any, i: number) => {
+                    templateStr += q.value.raw;
+                    if (i < arg0.expressions.length) {
+                      const expr = arg0.expressions[i];
+                      if (expr.type === 'Identifier') {
+                        templateStr += `\${${expr.name}}`;
+                      } else if (expr.type === 'MemberExpression' && expr.property.type === 'Identifier') {
+                        templateStr += `\${...${expr.property.name}}`;
+                      } else {
+                        templateStr += '${...}';
+                      }
+                    }
+                  });
+                  apiEndpoint = templateStr;
+                } else if (arg0.type === 'Identifier') {
+                  const binding = path.scope.getBinding(arg0.name);
+                  let resolved = false;
+                  if (binding && binding.path.isVariableDeclarator()) {
+                    const init = binding.path.node.init;
+                    if (init) {
+                      if (init.type === 'StringLiteral') {
+                        apiEndpoint = init.value;
+                        resolved = true;
+                      } else if (init.type === 'TemplateLiteral') {
+                        let templateStr = '';
+                        init.quasis.forEach((q: any, i: number) => {
+                          templateStr += q.value.raw;
+                          if (i < init.expressions.length) {
+                            const expr = init.expressions[i];
+                            if (expr.type === 'Identifier') {
+                              templateStr += `\${${expr.name}}`;
+                            } else if (expr.type === 'MemberExpression' && expr.property.type === 'Identifier') {
+                              templateStr += `\${...${expr.property.name}}`;
+                            } else {
+                              templateStr += '${...}';
+                            }
+                          }
+                        });
+                        apiEndpoint = templateStr;
+                        resolved = true;
+                      }
+                    }
+                  }
+                  if (!resolved) {
+                    let origin = '';
+                    if (binding) {
+                      if (binding.kind === 'module') origin = ' (Import됨)';
+                      else if (binding.kind === 'param') origin = ' (파라미터/Prop)';
+                      else origin = ` (Line ${binding.path.node.loc?.start.line || '?'})`;
+                    } else {
+                      origin = ' (전역/외부변수)';
+                    }
+                    apiEndpoint = `{변수: ${arg0.name}${origin}}`;
+                  }
+                } else if (arg0.type === 'MemberExpression') {
+                  apiEndpoint = `{객체속성 참조}`;
+                } else if (arg0.type === 'BinaryExpression') {
+                  apiEndpoint = `{문자열 연산 조합}`;
+                } else if (arg0.type === 'CallExpression') {
+                  const calleeName = arg0.callee.type === 'Identifier' ? arg0.callee.name : '함수';
+                  apiEndpoint = `{함수호출: ${calleeName}()}`;
+                } else if (arg0.type === 'ConditionalExpression' || arg0.type === 'LogicalExpression') {
+                  apiEndpoint = `{조건부 URL}`;
                 } else {
-                  apiEndpoint = 'Dynamic URL';
+                  apiEndpoint = `{동적 할당 (Dynamic URL)}`;
                 }
               }
 
               if (apiEndpoint) {
-                fileApis.add(apiEndpoint);
+                const fullEndpoint = `[${apiMethod}] ${apiEndpoint}`;
+                fileApis.add(fullEndpoint);
                 
                 const awaitParent = path.findParent((p: any) => p.isAwaitExpression());
                 if (awaitParent) {
@@ -105,7 +186,7 @@ export async function analyzeRepo(repoUrl: string): Promise<string> {
                   if (blockParent) {
                     blockParent.traverse({
                       CallExpression(routePath: any) {
-                        checkRouting(routePath, pageRoute, apiEndpoint, flows);
+                        checkRouting(routePath, pageRoute, fullEndpoint, flows);
                       }
                     });
                   }
@@ -117,7 +198,7 @@ export async function analyzeRepo(repoUrl: string): Promise<string> {
                   if (callParent && callParent.isCallExpression()) {
                     callParent.traverse({
                       CallExpression(routePath: any) {
-                        checkRouting(routePath, pageRoute, apiEndpoint, flows);
+                        checkRouting(routePath, pageRoute, fullEndpoint, flows);
                       }
                     });
                   }
@@ -139,6 +220,7 @@ export async function analyzeRepo(repoUrl: string): Promise<string> {
     let markdown = '# 📊 Frontend Code Analysis Result\n\n';
     
     markdown += '## 1. API 화면 묶음 (View-API Mapping)\n\n';
+
     if (viewMappings.size === 0) {
       markdown += '> 발견된 API 호출 내역이 없습니다.\n\n';
     } else {

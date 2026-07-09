@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Loader2, Search, HelpCircle } from 'lucide-react';
+import { Loader2, Search, BrainCircuit, HelpCircle } from 'lucide-react';
 
 const Github = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -41,9 +41,7 @@ export default function Home() {
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
       });
 
@@ -65,47 +63,56 @@ export default function Home() {
     <main className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="text-center">
-          <Github className="mx-auto h-12 w-12 text-slate-900" />
+          <div className="flex justify-center items-center gap-4">
+            <Github className="h-12 w-12 text-slate-900" />
+            <BrainCircuit className="h-12 w-12 text-blue-600" />
+          </div>
           <div className="flex items-center justify-center gap-2 mt-4">
             <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              프론트엔드 코드 분석기
+              <span className="text-blue-600">(Gemini AI)</span> 프론트엔드 코드 분석기
             </h1>
             <button 
               onClick={() => setShowHelp(!showHelp)} 
               className="text-slate-400 hover:text-blue-500 transition-colors focus:outline-none" 
-              title="동적 변수 설명 보기"
+              title="AI 분석 설명 보기"
             >
               <HelpCircle className="h-7 w-7" />
             </button>
           </div>
           <p className="mt-4 text-lg text-slate-600">
-            React/Next.js 저장소를 분석하여 뷰-API 매핑 및 컴포넌트 흐름을 추출합니다
+            강력한 클라우드 AI(Gemini 2.5 Flash)를 통해 React/Next.js 저장소를 분석하여 <br/>상태 관리를 포함한 뷰-API 매핑 및 컴포넌트 흐름을 정확히 추출합니다.
           </p>
 
           {showHelp && (
             <div className="mt-6 max-w-2xl mx-auto p-5 bg-blue-50 rounded-xl text-left text-sm text-slate-700 border border-blue-100 shadow-sm animate-in fade-in slide-in-from-top-2">
               <p className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-                💡 동적 변수(?)란?
+                🤖 Gemini AI 분석 방식이란?
               </p>
-              <p className="mb-3 text-slate-600">정적 분석 중 변수 값을 확정할 수 없을 때, 변수의 출처를 표시합니다:</p>
+              <p className="mb-3 text-slate-600">정적 분석기로는 찾기 힘든 복잡한 흐름을 Gemini가 전체 문맥을 파악해 찾아냅니다:</p>
               <ul className="space-y-2">
                 <li className="flex flex-wrap items-center gap-2">
                   <code className="bg-white border border-blue-100 px-1.5 py-0.5 rounded text-blue-700 font-mono text-xs">
-                    [GET] {`{변수: ... (파라미터/Prop)}`}
+                    추상화된 컴포넌트 파악
                   </code> 
-                  <span>➡️ 컴포넌트의 Props나 파라미터로 외부에서 받아온 주소</span>
+                  <span>➡️ 훅(Hook)이나 공통 함수로 숨겨져 있는 API 호출까지 문맥을 읽고 추출합니다.</span>
                 </li>
                 <li className="flex flex-wrap items-center gap-2">
                   <code className="bg-white border border-blue-100 px-1.5 py-0.5 rounded text-blue-700 font-mono text-xs">
-                    [GET] {`{변수: ... (Import됨)}`}
+                    동적 주소 유추
                   </code> 
-                  <span>➡️ 다른 모듈에서 import 해온 주소</span>
+                  <span>➡️ 문자열 조합으로 생성되는 복잡한 라우팅 주소를 맥락상으로 유추합니다.</span>
                 </li>
                 <li className="flex flex-wrap items-center gap-2">
                   <code className="bg-white border border-blue-100 px-1.5 py-0.5 rounded text-blue-700 font-mono text-xs">
-                    [GET] {`{변수: ... (Line 25)}`}
+                    상태 관리 도구 지원
                   </code> 
-                  <span>➡️ 같은 파일 25번째 줄 등에서 복잡하게 계산/재할당된 주소</span>
+                  <span>➡️ Redux, Zustand 등의 전역 상태 관리 흐름을 논리적으로 추론합니다.</span>
+                </li>
+                <li className="flex flex-wrap items-center gap-2">
+                  <code className="bg-white border border-blue-100 px-1.5 py-0.5 rounded text-emerald-600 font-mono text-xs text-opacity-80">
+                    대규모 코드 분석 (Max 1M Tokens)
+                  </code> 
+                  <span>➡️ 압도적인 컨텍스트 크기로 거대한 저장소도 잘림 없이 한 번에 분석합니다.</span>
                 </li>
               </ul>
             </div>
@@ -136,7 +143,7 @@ export default function Home() {
                 {loading ? (
                   <>
                     <Loader2 className="animate-spin -ml-1 mr-2 h-5 w-5" />
-                    분석 중...
+                    AI 추론 중...
                   </>
                 ) : (
                   '분석'
