@@ -5,13 +5,14 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Loader2, Search, FolderOpen, Globe, Copy, Check } from 'lucide-react';
 
-type AnalysisType = 'view-api' | 'api-flow' | 'state-flow';
+type AnalysisType = 'view-api' | 'api-flow' | 'state-flow' | 'scenario';
 type InputMode = 'local' | 'github';
 
 const ANALYSIS_TABS: { type: AnalysisType; icon: string; label: string }[] = [
   { type: 'view-api', icon: '🔌', label: 'View-API 매핑' },
   { type: 'api-flow', icon: '🔄', label: 'API 연계 흐름' },
   { type: 'state-flow', icon: '📦', label: '상태 관리 흐름' },
+  { type: 'scenario', icon: '💡', label: '시나리오 추천' },
 ];
 
 export default function Home() {
