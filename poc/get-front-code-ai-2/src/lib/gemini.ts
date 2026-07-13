@@ -13,7 +13,7 @@ export async function promptGemini(promptText: string) {
         console.log("Starting Gemini API inference...");
         
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.5-pro',
             contents: promptText,
             config: {
                 temperature: 0.2, // Low temperature for more deterministic analysis

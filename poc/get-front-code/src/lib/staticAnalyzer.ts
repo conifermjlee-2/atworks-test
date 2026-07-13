@@ -126,9 +126,11 @@ async function runStaticAnalysis(
     case 'view-api':
       return generateViewApiMarkdown(viewFiles, hookFiles, hookMap, baseDir);
     case 'api-flow':
-      return generateApiFlowMarkdown(viewFiles, hookMap, baseDir);
+      return generateApiFlowMarkdown(endpoints, viewFiles, hookMap, baseDir);
     case 'state-flow':
       return generateStateFlowMarkdown(endpoints, viewFiles, hookMap, baseDir);
+    case 'scenario':
+      return generateScenarioMarkdown(endpoints, viewFiles, hookMap, baseDir);
     default:
       return '알 수 없는 분석 타입입니다.';
   }
@@ -240,17 +242,32 @@ function extractBracketBlock(code: string, startIndex: number): string | null {
 
 /** 블록 내에서 url 속성 추출 */
 function extractUrl(block: string): string {
-  // 패턴 1: url: `/tasks/${taskCode}` (템플릿 리터럴)
-  const templateMatch = block.match(/url:\s*`([^`]+)`/);
+  // 패턴 1: url: `/tasks/${taskCode}` 또는 query: (id) => `/tasks/${id}`
+  const templateMatch = block.match(/(?:url|query)\s*[:=].*?`([^`]+)`/s);
   if (templateMatch) {
-    // ${variable} → {variable} 변환 (Swagger 스타일)
     return templateMatch[1].replace(/\$\{(\w+)\}/g, '{$1}');
   }
 
   // 패턴 2: url: '/tasks' (문자열 리터럴)
-  const stringMatch = block.match(/url:\s*['"]([^'"]+)['"]/);
+  const stringMatch = block.match(/(?:url|query)\s*[:=].*?['"]([^'"]+)['"]/s);
   if (stringMatch) {
     return stringMatch[1];
+  }
+
+  // 패턴 3: 문자열 내에 슬래시(/)가 포함된 경로 형태 찾기 (예: `${baseUrl}/tasks/preset`)
+  // 공백이나 줄바꿈이 없는 경로 형태의 문자열을 찾아 URL로 간주
+  const fallbackMatch = block.match(/[`'"]([^`'"\n\s]*?\/[^`'"\n\s]+)[`'"]/);
+  if (fallbackMatch) {
+    let extracted = fallbackMatch[1].replace(/\$\{(\w+)\}/g, '{$1}');
+    // {baseUrl} 같은 변수가 앞에 붙은 경우 깔끔하게 / 로 치환
+    extracted = extracted.replace(/^\{[a-zA-Z0-9_]+\}\/?/, '/');
+    return extracted.startsWith('/') ? extracted : `/${extracted}`;
+  }
+
+  // 패턴 4: 그 외 동적 변수나 표현식 (예: url: arg.url)
+  const dynamicMatch = block.match(/url:\s*([^,}\n]+)/);
+  if (dynamicMatch) {
+    return `(동적: ${dynamicMatch[1].trim()})`;
   }
 
   return '(동적 URL)';
@@ -495,10 +512,22 @@ function generateViewApiMarkdown(
 // ─── 2. API Flow 생성 ───────────────────────────────────────
 
 function generateApiFlowMarkdown(
+  endpoints: EndpointInfo[],
   viewFiles: string[],
   hookMap: Map<string, EndpointInfo>,
   baseDir: string
 ): string {
+  // tag → 영향을 받는 query 매핑 사전 (자동 갱신 추론용)
+  const tagToQueries = new Map<string, EndpointInfo[]>();
+  for (const ep of endpoints) {
+    if (ep.type === 'query' && ep.providesTags.length > 0) {
+      for (const tag of ep.providesTags) {
+        if (!tagToQueries.has(tag)) tagToQueries.set(tag, []);
+        tagToQueries.get(tag)!.push(ep);
+      }
+    }
+  }
+
   const flows: ApiFlowItem[] = [];
 
   for (const filePath of viewFiles) {
@@ -512,11 +541,13 @@ function generateApiFlowMarkdown(
     // .unwrap() 호출이 있는 파일만 분석
     if (!code.includes('.unwrap()')) continue;
 
-    // 이 파일에서 사용 중인 mutation 훅 식별
+    // 이 파일에서 사용 중인 mutation 및 query 훅 식별
     const usedMutations: EndpointInfo[] = [];
+    const usedQueries: EndpointInfo[] = [];
     for (const [hookName, endpoint] of hookMap) {
-      if (endpoint.type === 'mutation' && code.includes(hookName)) {
-        usedMutations.push(endpoint);
+      if (code.includes(hookName)) {
+        if (endpoint.type === 'mutation') usedMutations.push(endpoint);
+        if (endpoint.type === 'query') usedQueries.push(endpoint);
       }
     }
 
@@ -541,7 +572,7 @@ function generateApiFlowMarkdown(
           const varPatterns = [mut.name, hookToVarName(mut.hookName)];
           if (varPatterns.some(v => v && line.includes(v))) {
             currentMutationContext = mut;
-            flowSteps = ['**API 실행**'];
+            flowSteps = [`**[${mut.method}] ${mut.url} 호출**`];
             inUnwrapBlock = true;
             braceDepth = 0;
             break;
@@ -550,67 +581,74 @@ function generateApiFlowMarkdown(
         // 특정 mutation 매칭 실패 시, 첫번째 mutation으로 폴백
         if (!currentMutationContext && usedMutations.length > 0) {
           currentMutationContext = usedMutations[0];
-          flowSteps = ['**API 실행**'];
+          flowSteps = [`**[${currentMutationContext.method}] ${currentMutationContext.url} 호출**`];
           inUnwrapBlock = true;
           braceDepth = 0;
         }
       }
 
       if (inUnwrapBlock && currentMutationContext) {
-        // navigate 패턴
-        const navMatch = line.match(/navigate\s*\(\s*[`'"](.*?)[`'"]/);
-        if (navMatch) {
-          const target = navMatch[1].replace(/\$\{(\w+)\}/g, '{$1}');
-          flowSteps.push(`**상세페이지(\`${target}\`) 이동**`);
-        }
+        // 불필요한 UI 동작(모달 닫기, 알림 등)은 기획 관점에서 노이즈가 되므로 제거
+        // 오로지 API -> API 연쇄 흐름만 추출합니다.
 
-        // react-router state 전달 (모달 유지 등)
-        if (line.includes('openSetupModal') || line.includes('state:')) {
-          const stateMatch = line.match(/(\w+):\s*true/);
-          if (stateMatch && stateMatch[1] !== 'state') {
-            flowSteps.push(`**${camelToKorean(stateMatch[1])} 유지**`);
-          }
-        }
-
-        // setIs...(false) → 모달/다이얼로그 닫기
-        const closeMatch = line.match(/setIs(\w+)\(false\)/);
-        if (closeMatch) {
-          flowSteps.push(`**${camelToKorean(closeMatch[1])} 닫기**`);
-        }
-
-        // setIs...(true) → 모달/다이얼로그 열기
-        const openMatch = line.match(/setIs(\w+)\(true\)/);
-        if (openMatch) {
-          flowSteps.push(`**${camelToKorean(openMatch[1])} 열기**`);
-        }
-
-        // set...Visible(false)
-        const visibleMatch = line.match(/set(\w+Visible)\(false\)/);
-        if (visibleMatch) {
-          flowSteps.push(`**${camelToKorean(visibleMatch[1])} 숨기기**`);
-        }
-
-        // modal.info / modal.delete 등
-        const modalMatch = line.match(/modal\.(info|delete|confirm|warning|success)\(/);
-        if (modalMatch) {
-          flowSteps.push(`**'${getModalLabel(modalMatch[1])}' 알림 모달 노출**`);
-        }
-
-        // refetch 호출
+        // 수동 refetch 호출 감지 (최대 1개만 기록)
         const refetchMatch = line.match(/refetch(\w*)\(/);
-        if (refetchMatch) {
-          flowSteps.push(`**데이터 재조회(refetch)**`);
+        if (refetchMatch && !flowSteps.some(s => s.includes('수동 갱신'))) {
+          const queryName = refetchMatch[1];
+          if (queryName) {
+            let foundEp = hookMap.get(`use${queryName}Query`) || hookMap.get(`useGet${queryName}Query`);
+            if (!foundEp) {
+              for (const [hName, ep] of hookMap) {
+                if (ep.type === 'query' && hName.toLowerCase().includes(queryName.toLowerCase())) {
+                  foundEp = ep;
+                  break;
+                }
+              }
+            }
+            if (foundEp) {
+              flowSteps.push(`**[GET] ${foundEp.url} 수동 갱신**`);
+            } else {
+              flowSteps.push(`**[GET] ${queryName} 수동 갱신**`);
+            }
+          } else {
+            flowSteps.push(`**[GET] 연관 데이터 수동 갱신**`);
+          }
         }
 
         // 블록 종료 감지 (try-catch의 } catch 등)
         if (line.includes('} catch') || line.includes('} finally')) {
-          if (currentMutationContext && flowSteps.length > 1) {
-            flows.push({
-              viewFile: relPath,
-              viewLabel,
-              triggerApi: `\`[${currentMutationContext.method}] ${currentMutationContext.url}\``,
-              flowSteps: [...flowSteps],
-            });
+          if (currentMutationContext && flowSteps.length > 0) {
+            // RTK Query invalidatesTags로 인한 자동 연계 API 추가 (대표 1개만)
+            let autoAdded = false;
+            for (const tag of currentMutationContext.invalidatesTags) {
+               if (autoAdded) break;
+               const queries = tagToQueries.get(tag) || [];
+               for (const q of queries) {
+                 if (usedQueries.some(uq => uq.name === q.name)) {
+                   flowSteps.push(`**[GET] ${q.url} 자동 갱신**`);
+                   autoAdded = true;
+                   break;
+                 }
+               }
+            }
+            
+            // 현재 화면에서 갱신되는 쿼리가 없다면 가장 대표적인 1개만 노출
+            if (!autoAdded && currentMutationContext.invalidatesTags.length > 0) {
+               const firstTag = currentMutationContext.invalidatesTags[0];
+               const firstQuery = (tagToQueries.get(firstTag) || [])[0];
+               if (firstQuery) {
+                 flowSteps.push(`**[GET] ${firstQuery.url} 등 백그라운드 갱신**`);
+               }
+            }
+
+            if (flowSteps.length > 1) {
+              flows.push({
+                viewFile: relPath,
+                viewLabel,
+                triggerApi: `\`[${currentMutationContext.method}] ${currentMutationContext.url}\``,
+                flowSteps: [...flowSteps],
+              });
+            }
           }
           currentMutationContext = null;
           flowSteps = [];
@@ -620,13 +658,37 @@ function generateApiFlowMarkdown(
     }
 
     // 블록이 끝나지 않은 채 파일이 끝난 경우
-    if (currentMutationContext && flowSteps.length > 1) {
-      flows.push({
-        viewFile: relPath,
-        viewLabel,
-        triggerApi: `\`[${currentMutationContext.method}] ${currentMutationContext.url}\``,
-        flowSteps: [...flowSteps],
-      });
+    if (currentMutationContext && flowSteps.length > 0) {
+      // RTK Query invalidatesTags로 인한 자동 연계 API 추가 (대표 1개만)
+      let autoAdded = false;
+      for (const tag of currentMutationContext.invalidatesTags) {
+         if (autoAdded) break;
+         const queries = tagToQueries.get(tag) || [];
+         for (const q of queries) {
+           if (usedQueries.some(uq => uq.name === q.name)) {
+             flowSteps.push(`**[GET] ${q.url} 자동 갱신**`);
+             autoAdded = true;
+             break;
+           }
+         }
+      }
+      
+      if (!autoAdded && currentMutationContext.invalidatesTags.length > 0) {
+         const firstTag = currentMutationContext.invalidatesTags[0];
+         const firstQuery = (tagToQueries.get(firstTag) || [])[0];
+         if (firstQuery) {
+           flowSteps.push(`**[GET] ${firstQuery.url} 등 백그라운드 갱신**`);
+         }
+      }
+
+      if (flowSteps.length > 1) {
+        flows.push({
+          viewFile: relPath,
+          viewLabel,
+          triggerApi: `\`[${currentMutationContext.method}] ${currentMutationContext.url}\``,
+          flowSteps: [...flowSteps],
+        });
+      }
     }
   }
 
@@ -843,4 +905,207 @@ function deduplicateFlows(flows: ApiFlowItem[]): ApiFlowItem[] {
     seen.add(key);
     return true;
   });
+}
+
+// ─── 4. 시나리오 추천 생성 (AI 배제) ──────────────────────────
+
+function generateScenarioMarkdown(
+  endpoints: EndpointInfo[],
+  viewFiles: string[],
+  hookMap: Map<string, EndpointInfo>,
+  baseDir: string
+): string {
+  const tagToQueries = new Map<string, EndpointInfo[]>();
+  for (const ep of endpoints) {
+    if (ep.type === 'query' && ep.providesTags.length > 0) {
+      for (const tag of ep.providesTags) {
+        if (!tagToQueries.has(tag)) tagToQueries.set(tag, []);
+        tagToQueries.get(tag)!.push(ep);
+      }
+    }
+  }
+
+  interface ScenarioItem {
+    viewLabel: string;
+    triggerApi: string;
+    flowSteps: string[];
+    purpose: string;
+  }
+  const flows: ScenarioItem[] = [];
+
+  for (const filePath of viewFiles) {
+    const code = safeReadFile(filePath);
+    if (!code) continue;
+
+    const relPath = path.relative(baseDir, filePath).replace(/\\/g, '/');
+    const fileName = path.basename(filePath);
+    const viewLabel = formatViewLabel(relPath, fileName);
+
+    if (!code.includes('.unwrap()')) continue;
+
+    const usedMutations: EndpointInfo[] = [];
+    const usedQueries: EndpointInfo[] = [];
+    for (const [hookName, endpoint] of hookMap) {
+      if (code.includes(hookName)) {
+        if (endpoint.type === 'mutation') usedMutations.push(endpoint);
+        if (endpoint.type === 'query') usedQueries.push(endpoint);
+      }
+    }
+
+    if (usedMutations.length === 0) continue;
+
+    const lines = code.split('\n');
+    let currentMutationContext: EndpointInfo | null = null;
+    let flowSteps: string[] = [];
+    let inUnwrapBlock = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      if (line.includes('.unwrap()')) {
+        for (const mut of usedMutations) {
+          const varPatterns = [mut.name, hookToVarName(mut.hookName)];
+          if (varPatterns.some(v => v && line.includes(v))) {
+            currentMutationContext = mut;
+            flowSteps = [`**[${mut.method}]** \`${mut.url}\` 호출`];
+            inUnwrapBlock = true;
+            break;
+          }
+        }
+        if (!currentMutationContext && usedMutations.length > 0) {
+          currentMutationContext = usedMutations[0];
+          flowSteps = [`**[${currentMutationContext.method}]** \`${currentMutationContext.url}\` 호출`];
+          inUnwrapBlock = true;
+        }
+      }
+
+      if (inUnwrapBlock && currentMutationContext) {
+        const refetchMatch = line.match(/refetch(\w*)\(/);
+        if (refetchMatch && !flowSteps.some(s => s.includes('수동 갱신'))) {
+          const queryName = refetchMatch[1];
+          if (queryName) {
+            let foundEp = hookMap.get(`use${queryName}Query`) || hookMap.get(`useGet${queryName}Query`);
+            if (!foundEp) {
+              for (const [hName, ep] of hookMap) {
+                if (ep.type === 'query' && hName.toLowerCase().includes(queryName.toLowerCase())) {
+                  foundEp = ep;
+                  break;
+                }
+              }
+            }
+            if (foundEp) {
+              flowSteps.push(`**[GET]** \`${foundEp.url}\` 수동 갱신`);
+            } else {
+              flowSteps.push(`**[GET]** \`${queryName}\` 수동 갱신`);
+            }
+          } else {
+            flowSteps.push(`**[GET]** 연관 데이터 수동 갱신`);
+          }
+        }
+
+        if (line.includes('} catch') || line.includes('} finally')) {
+          if (currentMutationContext && flowSteps.length > 0) {
+            let autoAdded = false;
+            for (const tag of currentMutationContext.invalidatesTags) {
+               if (autoAdded) break;
+               const queries = tagToQueries.get(tag) || [];
+               for (const q of queries) {
+                 if (usedQueries.some(uq => uq.name === q.name)) {
+                   flowSteps.push(`**[GET]** \`${q.url}\` 자동 갱신`);
+                   autoAdded = true;
+                   break;
+                 }
+               }
+            }
+            if (!autoAdded && currentMutationContext.invalidatesTags.length > 0) {
+               const firstTag = currentMutationContext.invalidatesTags[0];
+               const firstQuery = (tagToQueries.get(firstTag) || [])[0];
+               if (firstQuery) {
+                 flowSteps.push(`**[GET]** \`${firstQuery.url}\` 등 백그라운드 갱신`);
+               }
+            }
+
+            if (flowSteps.length > 1) {
+              flows.push({
+                viewLabel,
+                triggerApi: `\`[${currentMutationContext.method}] ${currentMutationContext.url}\``,
+                flowSteps: [...flowSteps],
+                purpose: generateDescription(currentMutationContext) + ' 시나리오'
+              });
+            }
+          }
+          currentMutationContext = null;
+          flowSteps = [];
+          inUnwrapBlock = false;
+        }
+      }
+    }
+
+    if (currentMutationContext && flowSteps.length > 0) {
+      let autoAdded = false;
+      for (const tag of currentMutationContext.invalidatesTags) {
+         if (autoAdded) break;
+         const queries = tagToQueries.get(tag) || [];
+         for (const q of queries) {
+           if (usedQueries.some(uq => uq.name === q.name)) {
+             flowSteps.push(`**[GET]** \`${q.url}\` 자동 갱신`);
+             autoAdded = true;
+             break;
+           }
+         }
+      }
+      if (!autoAdded && currentMutationContext.invalidatesTags.length > 0) {
+         const firstTag = currentMutationContext.invalidatesTags[0];
+         const firstQuery = (tagToQueries.get(firstTag) || [])[0];
+         if (firstQuery) {
+           flowSteps.push(`**[GET]** \`${firstQuery.url}\` 등 백그라운드 갱신`);
+         }
+      }
+
+      if (flowSteps.length > 1) {
+        flows.push({
+          viewLabel,
+          triggerApi: `\`[${currentMutationContext.method}] ${currentMutationContext.url}\``,
+          flowSteps: [...flowSteps],
+          purpose: generateDescription(currentMutationContext) + ' 시나리오'
+        });
+      }
+    }
+  }
+
+  if (flows.length === 0) {
+    return '## 💡 시나리오 추천\n\n> 추출된 시나리오 흐름이 없습니다.\n';
+  }
+
+  const seen = new Set<string>();
+  const uniqueFlows = flows.filter(f => {
+    const key = `${f.viewLabel}|${f.triggerApi}|${f.flowSteps.join('|')}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  let md = '## 💡 시나리오 흐름 (Sequence)\n\n';
+  md += '| 시작 화면 | 트리거 API | 전체 시나리오 흐름 (Sequence) | 목적/설명 |\n';
+  md += '|---|---|---|---|\n';
+
+  const groupedFlows = groupBy(uniqueFlows, f => f.viewLabel);
+  const sortedFlowKeys = Array.from(groupedFlows.keys()).sort();
+
+  for (const viewLabel of sortedFlowKeys) {
+    const items = groupedFlows.get(viewLabel)!;
+    let isFirst = true;
+    for (const flow of items) {
+      const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
+      const flowSequenceStr = flow.flowSteps
+        .map((step, idx) => `${emojis[Math.min(idx, emojis.length - 1)]} ${step}`)
+        .join(' ⬇️ ');
+
+      const displayLabel = isFirst ? `**\`${flow.viewLabel}\`**` : `〃`;
+      md += `| ${displayLabel} | ${flow.triggerApi} | ${flowSequenceStr} | ${flow.purpose} |\n`;
+      isFirst = false;
+    }
+  }
+
+  return md;
 }

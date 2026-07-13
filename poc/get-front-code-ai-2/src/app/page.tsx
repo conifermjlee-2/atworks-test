@@ -1,9 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Loader2, Search, BrainCircuit, HelpCircle, Copy, Check } from 'lucide-react';
+import { Loader2, Search, BrainCircuit, HelpCircle, Copy, Check, ArrowRight } from 'lucide-react';
+
+type AnalysisType = 'view-api' | 'api-flow' | 'scenario' | 'state-flow';
+
+const ANALYSIS_TABS: { type: AnalysisType; icon: string; label: string }[] = [
+  { type: 'view-api', icon: '🔌', label: 'View-API 매핑' },
+  { type: 'api-flow', icon: '🔄', label: 'API 연계 흐름' },
+  { type: 'scenario', icon: '💡', label: '시나리오 추천' },
+  { type: 'state-flow', icon: '📦', label: '상태 관리 흐름' },
+];
 
 const Github = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -25,7 +34,7 @@ const Github = (props: React.SVGProps<SVGSVGElement>) => (
 
 export default function Home() {
   const [mode, setMode] = useState<'local' | 'github'>('local');
-  const [analysisType, setAnalysisType] = useState<'view-api' | 'api-flow' | 'state-flow'>('view-api');
+  const [analysisType, setAnalysisType] = useState<'view-api' | 'api-flow' | 'scenario' | 'state-flow'>('view-api');
   const [url, setUrl] = useState('C:\\Users\\lee\\Desktop\\atworks\\ai\\davis-frontend\\apps\\agent-bt');
   const [loading, setLoading] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -87,7 +96,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-[95%] mx-auto space-y-8">
         <div className="text-center">
           <div className="flex justify-center items-center gap-4">
             <Github className="h-12 w-12 text-slate-900" />
@@ -106,7 +115,7 @@ export default function Home() {
             </button>
           </div>
           <p className="mt-4 text-lg text-slate-600">
-            강력한 클라우드 AI(Gemini 2.5 Flash)를 통해 React/Next.js 저장소를 분석하여 <br/>상태 관리를 포함한 뷰-API 매핑 및 컴포넌트 흐름을 정확히 추출합니다.
+            강력한 클라우드 AI(Gemini 2.5 Pro)를 통해 React/Next.js 저장소를 분석하여 <br/>상태 관리를 포함한 뷰-API 매핑 및 컴포넌트 흐름을 정확히 추출합니다.
           </p>
 
           {showHelp && (
@@ -183,28 +192,22 @@ export default function Home() {
 
               {/* 분석 항목 선택 */}
               <div className="flex flex-col sm:flex-row gap-4 mt-2">
-                <div className="flex-grow flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setAnalysisType('view-api')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors border ${analysisType === 'view-api' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                  >
-                    🔌 View-API 매핑
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAnalysisType('api-flow')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors border ${analysisType === 'api-flow' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                  >
-                    🔄 API 연계 흐름
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAnalysisType('state-flow')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors border ${analysisType === 'state-flow' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                  >
-                    📦 상태 관리 흐름
-                  </button>
+                <div className="flex-grow flex gap-2 flex-wrap sm:flex-nowrap">
+                  {ANALYSIS_TABS.map((tab) => (
+                    <button
+                      key={tab.type}
+                      type="button"
+                      onClick={() => setAnalysisType(tab.type as any)}
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                        analysisType === tab.type
+                          ? 'bg-slate-900 text-white shadow-md'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      <span>{tab.icon}</span>
+                      <span className="whitespace-nowrap">{tab.label}</span>
+                    </button>
+                  ))}
                 </div>
 
                 <button
@@ -260,17 +263,116 @@ export default function Home() {
               <h3 className="text-sm font-semibold text-slate-700">분석 결과</h3>
               <button
                 onClick={handleCopy}
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors"
-                title="마크다운 텍스트 복사"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
               >
-                {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
-                {copied ? <span className="text-emerald-600">복사 완료!</span> : '결과 복사'}
+                {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                {copied ? '복사 완료!' : '마크다운 복사'}
               </button>
             </div>
-            <div className="p-8 prose prose-slate max-w-none text-slate-800 prose-headings:text-slate-900 prose-p:text-slate-800 prose-li:text-slate-800 prose-a:text-blue-600 prose-table:table-auto prose-table:min-w-[1000px] prose-th:bg-slate-50 prose-th:p-3 prose-td:p-3 prose-th:border prose-td:border prose-th:border-slate-200 prose-td:border-slate-200 overflow-x-auto">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {result}
-              </ReactMarkdown>
+            <div className="overflow-auto max-h-[calc(100vh-250px)] w-full rounded-b-xl border-t border-slate-200 bg-slate-50/30">
+              <div className="p-4 sm:p-6 prose prose-slate max-w-none text-slate-800 prose-headings:text-slate-900">
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    table: ({ children, ...props }: any) => (
+                      <div className="w-full overflow-x-auto shadow-sm rounded-xl border border-slate-200 my-4 bg-white">
+                        <table className="w-full text-left border-collapse text-sm" {...props}>
+                          {children}
+                        </table>
+                      </div>
+                    ),
+                    thead: ({ children, ...props }: any) => (
+                      <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium" {...props}>
+                        {children}
+                      </thead>
+                    ),
+                    th: ({ children, ...props }: any) => (
+                      <th className="px-4 py-3.5 whitespace-nowrap sticky top-0 bg-slate-50 z-10" {...props}>
+                        {children}
+                      </th>
+                    ),
+                    tr: ({ children, ...props }: any) => (
+                      <tr className="border-b border-slate-100 last:border-0 even:bg-slate-50/50 hover:bg-blue-50/40 transition-colors" {...props}>
+                        {children}
+                      </tr>
+                    ),
+                    td: ({ children, ...props }: any) => {
+                      // 화살표 시각화 처리
+                      const renderChildren = (node: any): any => {
+                        if (typeof node === 'string' && node.includes('➡️')) {
+                          const parts = node.split('➡️');
+                          return parts.map((part, i) => (
+                            <span key={i} className="flex items-center gap-1.5 shrink-0">
+                              <span className="py-1">{part}</span>
+                              {i < parts.length - 1 && (
+                                <span className="text-slate-400 mx-1 flex-shrink-0">
+                                  <ArrowRight className="w-4 h-4" />
+                                </span>
+                              )}
+                            </span>
+                          ));
+                        }
+                        if (Array.isArray(node)) {
+                          const hasArrow = node.some(n => typeof n === 'string' && n.includes('➡️'));
+                          const mapped = node.map((n, i) => <React.Fragment key={i}>{renderChildren(n)}</React.Fragment>);
+                          return hasArrow ? <div className="flex flex-wrap items-center gap-x-1 gap-y-2">{mapped}</div> : mapped;
+                        }
+                        return node;
+                      };
+                      return <td className="px-4 py-3 align-middle leading-relaxed break-words max-w-xl" {...props}>{renderChildren(children)}</td>;
+                    },
+                    code: ({ inline, className, children, ...props }: any) => {
+                      const text = String(children).trim();
+                      
+                      // HTTP Method 뱃지
+                      const methodMatch = text.match(/^\[(GET|POST|DELETE|PUT|PATCH)\]/);
+                      if (methodMatch) {
+                        const method = methodMatch[1];
+                        const rest = text.replace(`[${method}]`, '').trim();
+                        let colorClass = 'bg-slate-100 text-slate-700 border-slate-200';
+                        let dotClass = 'bg-slate-400';
+                        
+                        if (method === 'GET') { colorClass = 'bg-green-100 text-green-700 border-green-200'; dotClass = 'bg-green-500'; }
+                        else if (method === 'POST') { colorClass = 'bg-blue-100 text-blue-700 border-blue-200'; dotClass = 'bg-blue-500'; }
+                        else if (method === 'DELETE') { colorClass = 'bg-red-100 text-red-700 border-red-200'; dotClass = 'bg-red-500'; }
+                        else if (method === 'PUT' || method === 'PATCH') { colorClass = 'bg-amber-100 text-amber-700 border-amber-200'; dotClass = 'bg-amber-500'; }
+                        
+                        return (
+                          <span className="inline-flex items-center gap-2 bg-white border border-slate-100 rounded-md px-1.5 py-1 shadow-sm shrink-0">
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold tracking-wide ${colorClass} border`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`}></span>
+                              {method}
+                            </span>
+                            <code className="text-slate-600 bg-transparent text-[13px] pr-1" {...props}>{rest}</code>
+                          </span>
+                        );
+                      }
+                      
+                      // 파일 경로 스마트 포맷팅 (디렉토리와 파일명 분리)
+                      if (text.includes('/') && text.includes('.') && !text.includes(' ')) {
+                        const parts = text.split('/');
+                        const filename = parts.pop();
+                        const dir = parts.join('/');
+                        return (
+                          <div className="flex flex-col gap-0.5 w-max max-w-[280px]">
+                            <span className="font-semibold text-slate-800 truncate text-[13px]" title={filename}>{filename}</span>
+                            {dir && <span className="text-[11px] text-slate-400 truncate" title={dir}>{dir}/</span>}
+                          </div>
+                        );
+                      }
+                      
+                      // 기본 코드 블록
+                      return (
+                        <code className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[13px] font-mono border border-slate-200 shrink-0" {...props}>
+                          {children}
+                        </code>
+                      );
+                    }
+                  }}
+                >
+                  {result}
+                </ReactMarkdown>
+              </div>
             </div>
           </div>
         )}
