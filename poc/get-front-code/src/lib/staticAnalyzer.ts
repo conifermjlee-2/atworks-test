@@ -693,13 +693,13 @@ function generateApiFlowMarkdown(
   }
 
   if (flows.length === 0) {
-    return '## 🔄 API 연계 흐름 (Cross-Screen Flow)\n\n> API 호출 후 연계 동작이 발견되지 않았습니다.\n';
+    return '## 🔄 연계 흐름 (Flow)\n\n> API 호출 후 연계 동작이 발견되지 않았습니다.\n';
   }
 
   // 중복 제거
   const uniqueFlows = deduplicateFlows(flows);
 
-  let md = '## 🔄 API 연계 흐름 (Cross-Screen Flow)\n\n';
+  let md = '## 🔄 연계 흐름 (Flow)\n\n';
   md += '| 시작 화면 | API | 연계 흐름 (Flow) |\n';
   md += '|---|---|---|\n';
 
@@ -1074,7 +1074,7 @@ function generateScenarioMarkdown(
   }
 
   if (flows.length === 0) {
-    return '## 💡 시나리오 추천\n\n> 추출된 시나리오 흐름이 없습니다.\n';
+    return '## 💡 전체 시나리오 흐름 (Sequence)\n\n> 추출된 시나리오 흐름이 없습니다.\n';
   }
 
   const seen = new Set<string>();
@@ -1085,7 +1085,7 @@ function generateScenarioMarkdown(
     return true;
   });
 
-  let md = '## 💡 시나리오 흐름 (Sequence)\n\n';
+  let md = '## 💡 전체 시나리오 흐름 (Sequence)\n\n';
   md += '| 시작 화면 | 트리거 API | 전체 시나리오 흐름 (Sequence) | 목적/설명 |\n';
   md += '|---|---|---|---|\n';
 

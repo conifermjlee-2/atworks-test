@@ -15,12 +15,12 @@ const ANALYSIS_TABS: { type: AnalysisType; icon: string; label: string; desc: st
     purpose: '프론트엔드 화면과 백엔드 API 간의 의존성을 직관적으로 파악하고, 특정 화면에서 어떤 데이터를 읽고 쓰는지 식별하기 위함입니다.'
   },
   { 
-    type: 'api-flow', icon: '🔄', label: 'API 연계 흐름',
+    type: 'api-flow', icon: '🔄', label: '연계 흐름 (Flow)',
     desc: 'API 호출 후 RTK Query의 캐시 무효화(invalidatesTags)나 명시적 재호출(refetch)로 인해 자동으로 이어지는 연쇄 호출을 추적합니다.',
     purpose: '단일 동작이 화면 전체 데이터에 미치는 파급 효과(Side-effect)를 파악하여, 데이터 동기화 누락이나 불필요한 중복 갱신을 방지하기 위함입니다.'
   },
   { 
-    type: 'scenario', icon: '💡', label: '시나리오 추천',
+    type: 'scenario', icon: '💡', label: '전체 시나리오 흐름 (Sequence)',
     desc: '추출된 API 연계 흐름을 바탕으로 사용자의 행동(Action)이 어떤 결과(Result)를 낳는지 E2E 시나리오 형태로 제공합니다.',
     purpose: '단순한 API 목록을 넘어 실제 비즈니스 로직 기반의 통합 테스트 시나리오를 자동 도출하고, QA 및 테스트 케이스 작성 비용을 획기적으로 줄이기 위함입니다.'
   },
@@ -156,45 +156,83 @@ export default function Home() {
               </button>
             </form>
 
-            {/* 분석 타입 탭 (로컬 모드에서만 표시) */}
+            {/* 빠른 입력 (로컬 모드) */}
             {inputMode === 'local' && (
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                  {ANALYSIS_TABS.map((tab) => (
-                    <button
-                      key={tab.type}
-                      onClick={() => setAnalysisType(tab.type)}
-                      className={`flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                        analysisType === tab.type
-                          ? 'bg-slate-900 text-white shadow-md'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      <span>{tab.icon}</span>
-                      <span>{tab.label}</span>
-                    </button>
-                  ))}
-                </div>
+              <div className="flex items-center gap-2 mt-[-10px] pl-2">
+                <span className="text-xs text-slate-400">💡 추천 경로:</span>
+                <button
+                  type="button"
+                  onClick={() => setUrl('C:\\Users\\lee\\Desktop\\atworks\\ai\\davis-frontend\\apps\\agent-bt')}
+                  className="text-xs text-slate-500 hover:text-blue-600 hover:underline transition-colors focus:outline-none cursor-pointer"
+                >
+                  C:\Users\lee\Desktop\atworks\ai\davis-frontend\apps\agent-bt
+                </button>
+              </div>
+            )}
 
-                {/* 선택된 탭의 목적/설명 패널 */}
-                <div className="p-4 bg-blue-50/60 rounded-xl border border-blue-100/60 flex gap-3.5 shadow-sm">
-                  <div className="text-2xl pt-0.5 opacity-90">
-                    {ANALYSIS_TABS.find(t => t.type === analysisType)?.icon}
-                  </div>
-                  <div className="space-y-1.5">
-                    <p className="text-sm font-semibold text-slate-800">
-                      {ANALYSIS_TABS.find(t => t.type === analysisType)?.label} 기능 설명
-                    </p>
-                    <p className="text-[13px] text-slate-600 leading-relaxed">
-                      {ANALYSIS_TABS.find(t => t.type === analysisType)?.desc}
-                    </p>
-                    <p className="text-[13px] text-blue-700 font-semibold pt-1 border-t border-blue-100/50 mt-2">
-                      🎯 작업 목적: {ANALYSIS_TABS.find(t => t.type === analysisType)?.purpose}
-                    </p>
-                  </div>
+            {/* 빠른 입력 (GitHub 모드) */}
+            {inputMode === 'github' && (
+              <div className="flex flex-col gap-1.5 mt-[-10px] pl-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400 min-w-[70px]">💡 예제 1:</span>
+                  <button
+                    type="button"
+                    onClick={() => setUrl('https://github.com/johnpooch/rtk-query-example-app.git')}
+                    className="text-xs text-slate-500 hover:text-blue-600 hover:underline transition-colors focus:outline-none cursor-pointer truncate text-left"
+                  >
+                    https://github.com/johnpooch/rtk-query-example-app.git
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400 min-w-[70px]">💡 예제 2:</span>
+                  <button
+                    type="button"
+                    onClick={() => setUrl('https://github.com/skccmygit/davis-frontend/tree/develop/apps/agent-bt')}
+                    className="text-xs text-slate-500 hover:text-blue-600 hover:underline transition-colors focus:outline-none cursor-pointer truncate text-left"
+                  >
+                    https://github.com/skccmygit/davis-frontend/tree/develop/apps/agent-bt
+                  </button>
                 </div>
               </div>
             )}
+
+            {/* 분석 타입 탭 */}
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                {ANALYSIS_TABS.map((tab) => (
+                  <button
+                    key={tab.type}
+                    onClick={() => setAnalysisType(tab.type)}
+                    className={`flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      analysisType === tab.type
+                        ? 'bg-slate-900 text-white shadow-md'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <span>{tab.icon}</span>
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* 선택된 탭의 목적/설명 패널 */}
+              <div className="p-4 bg-blue-50/60 rounded-xl border border-blue-100/60 flex gap-3.5 shadow-sm">
+                <div className="text-2xl pt-0.5 opacity-90">
+                  {ANALYSIS_TABS.find(t => t.type === analysisType)?.icon}
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-sm font-semibold text-slate-800">
+                    {ANALYSIS_TABS.find(t => t.type === analysisType)?.label} 기능 설명
+                  </p>
+                  <p className="text-[13px] text-slate-600 leading-relaxed">
+                    {ANALYSIS_TABS.find(t => t.type === analysisType)?.desc}
+                  </p>
+                  <p className="text-[13px] text-blue-700 font-semibold pt-1 border-t border-blue-100/50 mt-2">
+                    🎯 작업 목적: {ANALYSIS_TABS.find(t => t.type === analysisType)?.purpose}
+                  </p>
+                </div>
+              </div>
+            </div>
 
             {/* 에러 표시 */}
             {error && (
@@ -318,10 +356,10 @@ export default function Home() {
                         let colorClass = 'bg-slate-100 text-slate-700 border-slate-200';
                         let dotClass = 'bg-slate-400';
                         
-                        if (method === 'GET') { colorClass = 'bg-green-100 text-green-700 border-green-200'; dotClass = 'bg-green-500'; }
-                        else if (method === 'POST') { colorClass = 'bg-blue-100 text-blue-700 border-blue-200'; dotClass = 'bg-blue-500'; }
-                        else if (method === 'DELETE') { colorClass = 'bg-red-100 text-red-700 border-red-200'; dotClass = 'bg-red-500'; }
-                        else if (method === 'PUT' || method === 'PATCH') { colorClass = 'bg-amber-100 text-amber-700 border-amber-200'; dotClass = 'bg-amber-500'; }
+                        if (method === 'GET') { colorClass = 'bg-emerald-50/80 text-emerald-500 border-emerald-100/50'; dotClass = 'bg-emerald-500'; }
+                        else if (method === 'POST') { colorClass = 'bg-blue-50/80 text-blue-500 border-blue-100/50'; dotClass = 'bg-blue-500'; }
+                        else if (method === 'DELETE') { colorClass = 'bg-red-50/80 text-red-500 border-red-100/50'; dotClass = 'bg-red-500'; }
+                        else if (method === 'PUT' || method === 'PATCH') { colorClass = 'bg-amber-50/80 text-amber-500 border-amber-100/50'; dotClass = 'bg-amber-500'; }
                         
                         return (
                           <span className="inline-flex items-center gap-2 bg-white border border-slate-100 rounded-md px-1.5 py-1 shadow-sm shrink-0">
