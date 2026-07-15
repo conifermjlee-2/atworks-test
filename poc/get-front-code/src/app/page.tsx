@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Loader2, Search, FolderOpen, Globe, Copy, Check, ArrowRight } from 'lucide-react';
+import { Loader2, Search, FolderOpen, Globe, Copy, Check, ArrowRight, ArrowDown } from 'lucide-react';
 
 type AnalysisType = 'view-api' | 'api-flow' | 'state-flow' | 'scenario';
 type InputMode = 'local' | 'github';
@@ -262,134 +262,191 @@ export default function Home() {
                   remarkPlugins={[remarkGfm]}
                   components={{
                     table: ({ children, ...props }: any) => (
-                      <div className="w-full overflow-x-auto shadow-sm rounded-xl border border-slate-200 my-4 bg-white">
-                        <table className="w-full text-left border-collapse text-sm" {...props}>
+                      <div className="w-full overflow-x-auto shadow-sm rounded-2xl border border-slate-200/80 my-6 bg-white">
+                        <table className="w-full text-left border-collapse text-[15px] min-w-[800px]" {...props}>
                           {children}
                         </table>
                       </div>
                     ),
                     thead: ({ children, ...props }: any) => (
-                      <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium" {...props}>
+                      <thead className="bg-slate-50/80 border-b border-slate-200/80 text-slate-600 font-semibold" {...props}>
                         {children}
                       </thead>
                     ),
                     th: ({ children, ...props }: any) => (
-                      <th className="px-4 py-3.5 whitespace-nowrap sticky top-0 bg-slate-50 z-10" {...props}>
+                      <th className="px-5 py-4 whitespace-nowrap sticky top-0 bg-slate-50/80 z-10 first:rounded-tl-2xl last:rounded-tr-2xl" {...props}>
                         {children}
                       </th>
                     ),
                     tr: ({ children, ...props }: any) => (
-                      <tr className="border-b border-slate-100 last:border-0 even:bg-slate-50/50 hover:bg-blue-50/40 transition-colors" {...props}>
+                      <tr className="group border-b border-slate-100 last:border-0 hover:bg-slate-50/60 transition-colors" {...props}>
                         {children}
                       </tr>
                     ),
                     td: ({ children, ...props }: any) => {
+                      const renderTextWithBadges = (text: string) => {
+                        if (typeof text !== 'string') return text;
+                        // 매칭: [GET], [POST] 등을 캡처하여 분리
+                        const regex = /(\[(?:GET|POST|DELETE|PUT|PATCH)\])/;
+                        const parts = text.split(regex);
+                        if (parts.length === 1) return text;
+                        
+                        return parts.map((part, i) => {
+                          const methodMatch = part.match(/^\[(GET|POST|DELETE|PUT|PATCH)\]$/);
+                          if (methodMatch) {
+                            const method = methodMatch[1];
+                            let colorClass = 'text-slate-600 bg-slate-50 border-slate-200';
+                            let dotClass = 'bg-slate-500';
+                            if (method === 'GET') { colorClass = 'text-blue-600 bg-blue-50 border-blue-200'; dotClass = 'bg-blue-500'; }
+                            else if (method === 'POST') { colorClass = 'text-emerald-600 bg-emerald-50 border-emerald-200'; dotClass = 'bg-emerald-500'; }
+                            else if (method === 'DELETE') { colorClass = 'text-rose-600 bg-rose-50 border-rose-200'; dotClass = 'bg-rose-500'; }
+                            else if (method === 'PUT' || method === 'PATCH') { colorClass = 'text-amber-600 bg-amber-50 border-amber-200'; dotClass = 'bg-amber-500'; }
+                            
+                            return (
+                              <span key={i} className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-[12px] font-bold tracking-wide shadow-sm transition-all hover:shadow-md mx-1 align-text-bottom ${colorClass}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${dotClass} animate-pulse`}></span>
+                                {method}
+                              </span>
+                            );
+                          }
+                          return <span key={i}>{part}</span>;
+                        });
+                      };
+
                       const renderChildren = (node: any): any => {
-                        if (typeof node === 'string' && node.includes('➡️')) {
-                          const parts = node.split('➡️');
-                          return parts.map((part, i) => (
-                            <span key={i} className="flex items-center gap-1.5 shrink-0">
-                              <span className="py-1">{part}</span>
-                              {i < parts.length - 1 && (
-                                <span className="text-slate-400 mx-1 flex-shrink-0">
-                                  <ArrowRight className="w-4 h-4" />
-                                </span>
-                              )}
-                            </span>
-                          ));
+                        if (typeof node === 'string') {
+                          return renderTextWithBadges(node);
                         }
                         if (Array.isArray(node)) {
-                          const hasArrow = node.some(n => typeof n === 'string' && n.includes('➡️'));
-                          const mapped = node.map((n, i) => <React.Fragment key={i}>{renderChildren(n)}</React.Fragment>);
-                          return hasArrow ? <div className="flex flex-wrap items-center gap-x-1 gap-y-2">{mapped}</div> : mapped;
+                          return node.map((n, i) => <React.Fragment key={i}>{renderChildren(n)}</React.Fragment>);
                         }
                         return node;
                       };
 
-                      // ⬇️ 수직 시퀀스 그룹화 로직
+                      // 수직/수평 시퀀스 그룹화 로직 (⬇️ 또는 ➡️)
                       const groups: any[][] = [[]];
                       React.Children.forEach(children, (child) => {
-                        if (typeof child === 'string' && child.includes('⬇️')) {
-                          const parts = child.split('⬇️');
+                        let processedChild = child;
+                        if (typeof child === 'string') {
+                          processedChild = child.replace(/[1-9]️⃣\s*/g, '');
+                        }
+                        if (typeof processedChild === 'string' && (processedChild.includes('⬇️') || processedChild.includes('➡️'))) {
+                          const parts = processedChild.split(/⬇️|➡️/);
                           groups[groups.length - 1].push(parts[0]);
                           for (let i = 1; i < parts.length; i++) {
                             groups.push([parts[i]]);
                           }
                         } else {
-                          groups[groups.length - 1].push(child);
+                          groups[groups.length - 1].push(processedChild);
                         }
                       });
 
                       if (groups.length > 1) {
                          return (
-                           <td className="px-4 py-4 align-middle leading-relaxed break-words max-w-xl" {...props}>
-                             <div className="flex flex-col gap-4 py-2">
+                           <td className="px-5 py-6 align-top leading-relaxed break-words max-w-xl text-slate-800" {...props}>
+                             <div className="flex flex-col gap-3">
                                {groups.map((grp, i) => (
-                                 <div key={i} className="flex flex-col gap-3">
-                                   <div className="flex flex-wrap items-center gap-x-1 gap-y-1">
-                                      {grp.map((n, j) => <React.Fragment key={j}>{renderChildren(n)}</React.Fragment>)}
+                                 <React.Fragment key={i}>
+                                   <div className="flex items-start gap-3">
+                                     {/* Number Badge */}
+                                     <div className="flex-shrink-0 flex items-center justify-center w-7 h-7 mt-0.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 shadow-sm text-sm font-bold font-mono">
+                                       {i + 1}
+                                     </div>
+                                     <div className="flex-1 min-w-0 mt-1 leading-relaxed break-words">
+                                        {grp.map((n, j) => <React.Fragment key={j}>{renderChildren(n)}</React.Fragment>)}
+                                     </div>
                                    </div>
                                    {i < groups.length - 1 && (
-                                     <div className="flex justify-start pl-6 w-full mt-[-4px] mb-[-4px]">
-                                       <div className="bg-slate-100 p-1.5 rounded-full ring-4 ring-white shadow-sm z-10">
-                                         <ArrowRight className="w-4 h-4 text-blue-500 rotate-90" />
-                                       </div>
+                                     <div className="flex w-7 justify-center text-blue-300 my-1">
+                                       <ArrowDown className="w-5 h-5 animate-bounce" />
                                      </div>
                                    )}
-                                 </div>
+                                 </React.Fragment>
                                ))}
                              </div>
                            </td>
                          );
                       }
 
-                      return <td className="px-4 py-3 align-middle leading-relaxed break-words max-w-xl" {...props}>{renderChildren(children)}</td>;
+                      return <td className="px-5 py-6 align-middle leading-relaxed break-words max-w-xl text-slate-800" {...props}>{renderChildren(children)}</td>;
+                    },
+                    strong: ({ children, ...props }: any) => {
+                      const text = String(children).trim();
+                      const regex = /(\[(?:GET|POST|DELETE|PUT|PATCH)\])/;
+                      if (regex.test(text)) {
+                        const parts = text.split(regex);
+                        const mapped = parts.map((part, i) => {
+                          const methodMatch = part.match(/^\[(GET|POST|DELETE|PUT|PATCH)\]$/);
+                          if (methodMatch) {
+                            const method = methodMatch[1];
+                            let colorClass = 'text-slate-600 bg-slate-50 border-slate-200';
+                            let dotClass = 'bg-slate-500';
+                            if (method === 'GET') { colorClass = 'text-blue-600 bg-blue-50 border-blue-200'; dotClass = 'bg-blue-500'; }
+                            else if (method === 'POST') { colorClass = 'text-emerald-600 bg-emerald-50 border-emerald-200'; dotClass = 'bg-emerald-500'; }
+                            else if (method === 'DELETE') { colorClass = 'text-rose-600 bg-rose-50 border-rose-200'; dotClass = 'bg-rose-500'; }
+                            else if (method === 'PUT' || method === 'PATCH') { colorClass = 'text-amber-600 bg-amber-50 border-amber-200'; dotClass = 'bg-amber-500'; }
+                            
+                            return (
+                              <span key={i} className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-[12px] font-bold tracking-wide shadow-sm transition-all hover:shadow-md mx-1 align-text-bottom ${colorClass}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${dotClass} animate-pulse`}></span>
+                                {method}
+                              </span>
+                            );
+                          }
+                          return <span key={i}>{part}</span>;
+                        });
+                        return <strong className="font-semibold text-slate-800" {...props}>{mapped}</strong>;
+                      }
+                      return <strong className="font-semibold text-slate-900" {...props}>{children}</strong>;
                     },
                     code: ({ inline, className, children, ...props }: any) => {
                       const text = String(children).trim();
                       
-                      // HTTP Method 뱃지
+                      // HTTP Method 뱃지 매칭
                       const methodMatch = text.match(/^\[(GET|POST|DELETE|PUT|PATCH)\]/);
                       if (methodMatch) {
                         const method = methodMatch[1];
                         const rest = text.replace(`[${method}]`, '').trim();
-                        let colorClass = 'bg-slate-100 text-slate-700 border-slate-200';
-                        let dotClass = 'bg-slate-400';
                         
-                        if (method === 'GET') { colorClass = 'bg-emerald-50/80 text-emerald-500 border-emerald-100/50'; dotClass = 'bg-emerald-500'; }
-                        else if (method === 'POST') { colorClass = 'bg-blue-50/80 text-blue-500 border-blue-100/50'; dotClass = 'bg-blue-500'; }
-                        else if (method === 'DELETE') { colorClass = 'bg-red-50/80 text-red-500 border-red-100/50'; dotClass = 'bg-red-500'; }
-                        else if (method === 'PUT' || method === 'PATCH') { colorClass = 'bg-amber-50/80 text-amber-500 border-amber-100/50'; dotClass = 'bg-amber-500'; }
+                        let colorClass = 'text-slate-600 bg-slate-50 border-slate-200';
+                        let dotClass = 'bg-slate-500';
+                        
+                        if (method === 'GET') { colorClass = 'text-blue-600 bg-blue-50 border-blue-200'; dotClass = 'bg-blue-500'; }
+                        else if (method === 'POST') { colorClass = 'text-emerald-600 bg-emerald-50 border-emerald-200'; dotClass = 'bg-emerald-500'; }
+                        else if (method === 'DELETE') { colorClass = 'text-rose-600 bg-rose-50 border-rose-200'; dotClass = 'bg-rose-500'; }
+                        else if (method === 'PUT' || method === 'PATCH') { colorClass = 'text-amber-600 bg-amber-50 border-amber-200'; dotClass = 'bg-amber-500'; }
                         
                         return (
-                          <span className="inline-flex items-center gap-2 bg-white border border-slate-100 rounded-md px-1.5 py-1 shadow-sm shrink-0">
-                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold tracking-wide ${colorClass} border`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`}></span>
+                          <span className="inline-flex items-center gap-2 shrink-0 mr-1">
+                            <span className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-lg border text-[13px] font-bold tracking-wide shadow-sm transition-all hover:shadow-md ${colorClass}`}>
+                              <span className={`w-2 h-2 rounded-full ${dotClass} animate-pulse`}></span>
                               {method}
                             </span>
-                            <code className="text-slate-600 bg-transparent text-[13px] pr-1" {...props}>{rest}</code>
+                            <code className="text-[14px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-800 font-mono font-medium shadow-sm border border-slate-200" {...props}>
+                              {rest}
+                            </code>
                           </span>
                         );
                       }
                       
-                      // 파일 경로 스마트 포맷팅 (디렉토리와 파일명 분리)
+                      // 파일 경로 스마트 포맷팅
                       if (text.includes('/') && text.includes('.') && !text.includes(' ')) {
                         const parts = text.split('/');
                         const filename = parts.pop();
                         const dir = parts.join('/');
                         return (
                           <div className="flex flex-col gap-0.5 w-max max-w-[280px]">
-                            <span className="font-semibold text-slate-800 truncate text-[13px]" title={filename}>{filename}</span>
-                            {dir && <span className="text-[11px] text-slate-400 truncate" title={dir}>{dir}/</span>}
+                            <span className="font-bold text-slate-900 text-[14px]" title={filename}>{filename}</span>
+                            {dir && <span className="text-[12px] font-mono text-slate-400 truncate" title={dir}>{dir}/</span>}
                           </div>
                         );
                       }
                       
-                      // 기본 코드 블록
+                      // 일반 액션 텍스트 또는 뱃지 없는 텍스트
                       return (
-                        <code className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[13px] font-mono border border-slate-200 shrink-0" {...props}>
+                        <span className="text-[14px] font-medium text-slate-700 px-1" {...props}>
                           {children}
-                        </code>
+                        </span>
                       );
                     }
                   }}

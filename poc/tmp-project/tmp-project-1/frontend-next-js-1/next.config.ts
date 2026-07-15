@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["node-llama-cpp"]
+  /* config options here */
 };
 
 export default nextConfig;
