@@ -1,0 +1,78 @@
+{
+  "targetDir": "C:\\Users\\lee\\Desktop\\atworks-test\\poc\\get-front-code-3\\sample-react",
+  "totalApiCalls": 6,
+  "results": [
+    {
+      "file": "src/pages/Dashboard.tsx",
+      "viewName": "Dashboard",
+      "callType": "Client",
+      "api": {
+        "method": "GET",
+        "endpoint": "/notices",
+        "isDynamic": false,
+        "rawUrl": "/notices"
+      },
+      "callLocation": "AST Extracted"
+    },
+    {
+      "file": "src/pages/Dashboard.tsx",
+      "viewName": "Dashboard",
+      "callType": "Client",
+      "api": {
+        "method": "PATCH",
+        "endpoint": "/users/{userId}",
+        "isDynamic": true,
+        "rawUrl": "/users/{userId}"
+      },
+      "callLocation": "AST Extracted"
+    },
+    {
+      "file": "src/pages/Dashboard.tsx",
+      "viewName": "Dashboard",
+      "callType": "Client",
+      "api": {
+        "method": "GET",
+        "endpoint": "/users/{userId}/profile",
+        "isDynamic": true,
+        "rawUrl": "/users/{userId}/profile"
+      },
+      "callLocation": "AST Extracted"
+    },
+    {
+      "file": "src/pages/Dashboard.tsx",
+      "viewName": "Dashboard",
+      "callType": "Client",
+      "api": {
+        "method": "POST",
+        "endpoint": "/logs/view",
+        "isDynamic": false,
+        "rawUrl": "/logs/view"
+      },
+      "callLocation": "AST Extracted"
+    },
+    {
+      "file": "src/pages/Dashboard.tsx",
+      "viewName": "Dashboard",
+      "callType": "Client",
+      "api": {
+        "method": "GET",
+        "endpoint": "/reports",
+        "isDynamic": false,
+        "rawUrl": "/reports"
+      },
+      "callLocation": "AST Extracted"
+    },
+    {
+      "file": "src/pages/Dashboard.tsx",
+      "viewName": "Dashboard",
+      "callType": "Client",
+      "api": {
+        "method": "GET",
+        "endpoint": "/notifications",
+        "isDynamic": false,
+        "rawUrl": "/notifications"
+      },
+      "callLocation": "AST Extracted"
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 # dependencies
 **/node_modules/
+**/.pnp
+**/.pnp.js
 
 # testing
 **/coverage/
@@ -7,19 +9,32 @@
 # Next.js
 **/.next/
 **/out/
+**/.vercel/
+**/next-env.d.ts
 
 # production
 **/build/
 **/dist/
 
+# typescript
+**/*.tsbuildinfo
+
 # misc
 **/.DS_Store
 **/*.pem
 
-# debug
+# debug & logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
+dev-server.log
+dev-server.err.log
+**/.npm-cache/
+**/api-report*.json
+
+# env
+**/.env
 **/.env.local
 **/.env.development.local
 **/.env.test.local

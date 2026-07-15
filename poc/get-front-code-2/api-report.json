@@ -1,0 +1,82 @@
+{
+  "coverage": {
+    "totalFiles": 1,
+    "successFiles": 1,
+    "failedFiles": 0,
+    "successRate": "100.0%"
+  },
+  "results": [
+    {
+      "file": "src\\pages\\Dashboard.tsx",
+      "viewName": "Dashboard",
+      "callType": "Client",
+      "api": {
+        "method": "GET",
+        "endpoint": "/users/{userId}/profile",
+        "isDynamic": true,
+        "rawUrl": "/users/{userId}/profile"
+      },
+      "callLocation": "AST Extracted"
+    },
+    {
+      "file": "src\\pages\\Dashboard.tsx",
+      "viewName": "Dashboard",
+      "callType": "Client",
+      "api": {
+        "method": "POST",
+        "endpoint": "/logs/view",
+        "isDynamic": false,
+        "rawUrl": "/logs/view"
+      },
+      "callLocation": "AST Extracted"
+    },
+    {
+      "file": "src\\pages\\Dashboard.tsx",
+      "viewName": "Dashboard",
+      "callType": "Client",
+      "api": {
+        "method": "GET",
+        "endpoint": "/stats",
+        "isDynamic": false,
+        "rawUrl": "/stats"
+      },
+      "callLocation": "AST Extracted"
+    },
+    {
+      "file": "src\\pages\\Dashboard.tsx",
+      "viewName": "Dashboard",
+      "callType": "Client",
+      "api": {
+        "method": "GET",
+        "endpoint": "/reports",
+        "isDynamic": false,
+        "rawUrl": "/reports"
+      },
+      "callLocation": "AST Extracted"
+    },
+    {
+      "file": "src\\pages\\Dashboard.tsx",
+      "viewName": "Dashboard",
+      "callType": "Client",
+      "api": {
+        "method": "GET",
+        "endpoint": "/reports",
+        "isDynamic": false,
+        "rawUrl": "/reports"
+      },
+      "callLocation": "AST Extracted"
+    },
+    {
+      "file": "src\\pages\\Dashboard.tsx",
+      "viewName": "Dashboard",
+      "callType": "Client",
+      "api": {
+        "method": "GET",
+        "endpoint": "/notifications",
+        "isDynamic": false,
+        "rawUrl": "/notifications"
+      },
+      "callLocation": "AST Extracted"
+    }
+  ]
+}
