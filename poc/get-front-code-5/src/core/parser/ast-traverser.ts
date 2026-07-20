@@ -1,13 +1,12 @@
 import traverse from '@babel/traverse';
 import * as t from '@babel/types';
-import { ApiCallInfo } from '../types';
+import { ApiCallInfo, HookResolver } from '../../types';
 import { isAllowedUrl } from './filter';
-import { HookResolver } from './resolvers/types';
 
 /**
- * 기획서 6.1.4: Import Specifier Alias 역매핑 테이블 수집
- * import { useGetScenariosQuery as useScenarios } from './api'
- * => { 'useScenarios' => 'useGetScenariosQuery' } 형태로 저장
+ * 기획서 6.3절 RTK: Import Specifier Alias 역매핑 테이블 수집
+ * import { useGetUsersQuery as useUsers } from './api'
+ * → Map { 'useUsers' => 'useGetUsersQuery' }
  */
 function buildImportAliasMap(ast: t.File): Map<string, string> {
   const aliasMap = new Map<string, string>();
@@ -20,7 +19,6 @@ function buildImportAliasMap(ast: t.File): Map<string, string> {
             ? specifier.imported.name
             : specifier.imported.value;
           const localName = specifier.local.name;
-          // 이름이 다를 때만(alias가 있을 때만) 저장
           if (importedName !== localName) {
             aliasMap.set(localName, importedName);
           }
@@ -32,10 +30,15 @@ function buildImportAliasMap(ast: t.File): Map<string, string> {
   return aliasMap;
 }
 
+/**
+ * 기획서 7.1절: 책임 연쇄 패턴(Chain of Responsibility) + 배타적 소유권 규칙
+ * - 고수준 리졸버(React Query, RTK Query)가 먼저 낚아채면 path.skip()으로 하위 탐색 차단
+ * - 고수준 리졸버가 URL 추출에 실패하면(부분 실패) 다음 리졸버에게 위임
+ */
 export function findApiCalls(ast: t.File, resolvers: HookResolver[] = []): ApiCallInfo[] {
   const calls: ApiCallInfo[] = [];
 
-  // 기획서 6.1.4: 파일 내 import alias 역매핑 테이블을 먼저 수집
+  // Import alias 역매핑 테이블 사전 수집
   const importAliasMap = buildImportAliasMap(ast);
 
   traverse(ast, {
@@ -57,21 +60,20 @@ export function findApiCalls(ast: t.File, resolvers: HookResolver[] = []): ApiCa
 
       if (!calleeName) return;
 
-      // 기획서 6.1.4: alias 역매핑 적용 (useScenarios → useGetScenariosQuery)
+      // alias 역매핑 (useUsers → useGetUsersQuery)
       const resolvedName = importAliasMap.get(calleeName) ?? calleeName;
 
-      // 기획서 7.1: 책임 연쇄 패턴 + 배타적 소유권 규칙
+      // 책임 연쇄 패턴
       for (const resolver of resolvers) {
-        const result = resolver.resolve(resolvedName, node.arguments);
+        const result = resolver.resolve(resolvedName, node.arguments as any[]);
         if (result) {
-          // 고수준 훅이 매칭했지만 URL 추출에 성공한 경우 -> 즉시 채택, 중복 차단
           if (result.endpoint && isAllowedUrl(result.endpoint)) {
             calls.push(result);
-            path.skip(); // 핵심: 하위 AST(예: queryFn 내부의 axios.get) 탐색을 원천 차단하여 중복 추출 방지
+            // 핵심: 고수준 훅 매칭 성공 → 하위 AST(queryFn 내부 axios.get 등) 중복 차단
+            path.skip();
             return;
           }
-          // 고수준 훅이 매칭했으나 URL 추출 실패(부분 실패) -> 배타적 차단 해제, 다음 resolver 시도
-          // (기획서 7.1: 부분 실패 예외 Fallback - 조용히 유실되지 않도록)
+          // 부분 실패 Fallback: URL 추출 실패 → 다음 리졸버에게 위임
           continue;
         }
       }

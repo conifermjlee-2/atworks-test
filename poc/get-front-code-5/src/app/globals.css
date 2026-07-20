@@ -1,0 +1,47 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: #f9fafb;
+  color: #09090b;
+}
+
+/* HTTP Method 배지 색상 (기획서 9.2절) */
+.bg-blue-100    { background-color: #dbeafe; }
+.text-blue-800  { color: #1e40af; }
+.border-blue-200 { border-color: #bfdbfe; }
+
+.bg-emerald-100 { background-color: #d1fae5; }
+.text-emerald-800 { color: #065f46; }
+.border-emerald-200 { border-color: #a7f3d0; }
+
+.bg-amber-100   { background-color: #fef3c7; }
+.text-amber-800 { color: #92400e; }
+.border-amber-200 { border-color: #fde68a; }
+
+.bg-rose-100    { background-color: #ffe4e6; }
+.text-rose-800  { color: #9f1239; }
+.border-rose-200 { border-color: #fecdd3; }
+
+.bg-fuchsia-100 { background-color: #fae8ff; }
+.text-fuchsia-800 { color: #86198f; }
+.border-fuchsia-200 { border-color: #f5d0fe; }
+
+.bg-zinc-100    { background-color: #f4f4f5; }
+.text-zinc-600  { color: #52525b; }
+.border-zinc-200 { border-color: #e4e4e7; }
+
+/* callType 배지 색상 (기획서 5.1절) */
+.bg-sky-100     { background-color: #e0f2fe; }
+.text-sky-800   { color: #075985; }
+
+.bg-violet-100  { background-color: #ede9fe; }
+.text-violet-800 { color: #5b21b6; }
+
+.bg-orange-100  { background-color: #ffedd5; }
+.text-orange-800 { color: #9a3412; }
+
+.bg-zinc-500    { color: #71717a; }
