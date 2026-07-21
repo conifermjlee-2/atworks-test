@@ -5,43 +5,43 @@
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  background: #f9fafb;
-  color: #09090b;
+  background: #0b0f19; /* 프리미엄 다크 네이비 배경 */
+  color: #e2e8f0;
 }
 
-/* HTTP Method 배지 색상 (기획서 9.2절) */
-.bg-blue-100    { background-color: #dbeafe; }
-.text-blue-800  { color: #1e40af; }
-.border-blue-200 { border-color: #bfdbfe; }
+/* HTTP Method 배지 색상 (네온/글래스모피즘 느낌) */
+.bg-blue-100    { background-color: rgba(59, 130, 246, 0.15); }
+.text-blue-800  { color: #60a5fa; }
+.border-blue-200 { border-color: rgba(96, 165, 250, 0.3); }
 
-.bg-emerald-100 { background-color: #d1fae5; }
-.text-emerald-800 { color: #065f46; }
-.border-emerald-200 { border-color: #a7f3d0; }
+.bg-emerald-100 { background-color: rgba(16, 185, 129, 0.15); }
+.text-emerald-800 { color: #34d399; }
+.border-emerald-200 { border-color: rgba(52, 211, 153, 0.3); }
 
-.bg-amber-100   { background-color: #fef3c7; }
-.text-amber-800 { color: #92400e; }
-.border-amber-200 { border-color: #fde68a; }
+.bg-amber-100   { background-color: rgba(245, 158, 11, 0.15); }
+.text-amber-800 { color: #fbbf24; }
+.border-amber-200 { border-color: rgba(251, 191, 36, 0.3); }
 
-.bg-rose-100    { background-color: #ffe4e6; }
-.text-rose-800  { color: #9f1239; }
-.border-rose-200 { border-color: #fecdd3; }
+.bg-rose-100    { background-color: rgba(244, 63, 94, 0.15); }
+.text-rose-800  { color: #fb7185; }
+.border-rose-200 { border-color: rgba(251, 113, 133, 0.3); }
 
-.bg-fuchsia-100 { background-color: #fae8ff; }
-.text-fuchsia-800 { color: #86198f; }
-.border-fuchsia-200 { border-color: #f5d0fe; }
+.bg-fuchsia-100 { background-color: rgba(217, 70, 239, 0.15); }
+.text-fuchsia-800 { color: #e879f9; }
+.border-fuchsia-200 { border-color: rgba(232, 121, 249, 0.3); }
 
-.bg-zinc-100    { background-color: #f4f4f5; }
-.text-zinc-600  { color: #52525b; }
-.border-zinc-200 { border-color: #e4e4e7; }
+.bg-zinc-100    { background-color: rgba(113, 113, 122, 0.15); }
+.text-zinc-600  { color: #a1a1aa; }
+.border-zinc-200 { border-color: rgba(161, 161, 170, 0.3); }
 
-/* callType 배지 색상 (기획서 5.1절) */
-.bg-sky-100     { background-color: #e0f2fe; }
-.text-sky-800   { color: #075985; }
+/* callType 배지 색상 */
+.bg-sky-100     { background-color: rgba(14, 165, 233, 0.15); }
+.text-sky-800   { color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
 
-.bg-violet-100  { background-color: #ede9fe; }
-.text-violet-800 { color: #5b21b6; }
+.bg-violet-100  { background-color: rgba(139, 92, 246, 0.15); }
+.text-violet-800 { color: #a78bfa; border: 1px solid rgba(167, 139, 250, 0.3); }
 
-.bg-orange-100  { background-color: #ffedd5; }
-.text-orange-800 { color: #9a3412; }
+.bg-orange-100  { background-color: rgba(249, 115, 22, 0.15); }
+.text-orange-800 { color: #fb923c; border: 1px solid rgba(251, 146, 60, 0.3); }
 
-.bg-zinc-500    { color: #71717a; }
+.bg-zinc-500    { color: #a1a1aa; border: 1px solid rgba(161, 161, 170, 0.3); }

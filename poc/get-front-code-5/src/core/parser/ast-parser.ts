@@ -3,8 +3,8 @@ import { File } from '@babel/types';
 import * as fs from 'fs';
 
 /**
- * 기획서 8절: TypeScript/JSX 소스 코드를 Babel AST 객체로 파싱한다.
- * - errorRecovery: true — JSDoc 내 별표-슬래시 패턴 등 파싱 에러를 크래시 없이 복구 (기획서 7.5절)
+ * plan-v5.md 2장 & 7장: TypeScript/JSX 소스 코드를 Babel AST 객체로 파싱한다.
+ * - errorRecovery: true — 파싱 에러 발생 시 크래시 없이 복구 (Fault Isolation)
  * - 파싱 실패 시 null 반환 (Fail-safe)
  */
 export function parseFile(filePath: string): File | null {

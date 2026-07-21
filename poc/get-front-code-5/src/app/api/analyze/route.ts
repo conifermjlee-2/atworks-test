@@ -4,8 +4,8 @@ import * as path from 'path';
 import { Analyzer } from '../../../core/analyzer';
 
 /**
- * 기획서 4절: 백엔드(API) 역할 — 순수 JSON 데이터만 반환
- * 프론트엔드(UI) 렌더링은 page.tsx가 전담 (관심사 분리)
+ * plan-v5.md 3장 & 5장: 백엔드(API) 역할 — 순수 JSON 데이터만 반환 (SoC 원칙)
+ * 프론트엔드(UI) 렌더링은 page.tsx가 전담
  */
 export async function POST(req: Request) {
   try {
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     const analyzer = new Analyzer();
     const results = await analyzer.run(absoluteDir);
 
-    // 기획서 9.1절: API JSON 응답 규격
+    // plan-v5.md 5장: API JSON 응답 규격
     return NextResponse.json({
       targetDir: absoluteDir,
       results,

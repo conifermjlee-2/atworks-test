@@ -3,7 +3,7 @@ import { ApiCallInfo, HttpMethod, HookResolver } from '../types';
 import { normalizeTemplateLiteral } from '../core/parser/normalizer';
 
 /**
- * 기획서 6.2: React Query Resolver (TanStack Query)
+ * plan-v5.md 4장: React Query Resolver (TanStack Query)
  * 우선순위: queryFn 콜백 내부 추적 → queryKey 배열 휴리스틱(Fallback)
  */
 export class ReactQueryResolver implements HookResolver {
@@ -20,13 +20,13 @@ export class ReactQueryResolver implements HookResolver {
     let method: HttpMethod = calleeName === 'useMutation' ? 'POST' : 'GET';
 
     if (t.isObjectExpression(firstArg)) {
-      // 기획서 6.2 최우선: queryFn 콜백 내부의 실제 HTTP 호출 추적
+      // 최우선: queryFn 콜백 내부의 실제 HTTP 호출 추적
       const queryFnResult = this.extractFromQueryFn(firstArg);
       if (queryFnResult) {
         return queryFnResult;
       }
 
-      // 기획서 6.2 Fallback: queryKey 배열 휴리스틱
+      // Fallback: queryKey 배열 휴리스틱
       endpoint = this.extractQueryKeyUrl(firstArg);
       isDynamic = endpoint.includes('{');
     } else if (t.isArrayExpression(firstArg)) {

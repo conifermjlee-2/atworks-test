@@ -1,4 +1,4 @@
-// 기획서 9.1절: API JSON 응답 규격
+// plan-v5.md 5장: 백엔드 API 응답 및 데이터 규격
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'UNKNOWN';
 
@@ -18,7 +18,7 @@ export interface MappingResult {
   api: ApiCallInfo;
 }
 
-// 기획서 4절: Adapter 레이어 인터페이스
+// plan-v5.md 2장 (1️⃣ 프레임워크 어댑터 레이어 인터페이스)
 export interface BaseAdapter {
   name: string;
   isMatch(): Promise<boolean>;
@@ -26,11 +26,11 @@ export interface BaseAdapter {
   getCallType(filePath: string): CallType;
 }
 
-// 기획서 6절: Resolver(Plugin) 레이어 인터페이스
+// plan-v5.md 2장 (3️⃣ 플러그인 리졸버 레이어 인터페이스)
 export interface HookResolver {
   name: string;
   /** RTK Query처럼 사전 학습이 필요한 Resolver만 구현 */
   init?: (rootDir: string) => Promise<void>;
-  /** 성공 시 ApiCallInfo 반환, 미해당/실패 시 null 반환 (Chain of Responsibility) */
-  resolve(node: any, importAliasMap: Map<string, string>): ApiCallInfo | null;
+  /** 성공 시 ApiCallInfo 반환, 미해당/실패 시 null 반환 (책임 연쇄 패턴) */
+  resolve(calleeName: string, args: any[]): ApiCallInfo | null;
 }

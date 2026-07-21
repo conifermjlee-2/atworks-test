@@ -16,7 +16,7 @@ export interface RtkEndpointInfo {
 export type RtkHookMap = Map<string, RtkEndpointInfo>;
 
 /**
- * 기획서 6.1: RTK Query Resolver
+ * plan-v5.md 4장: RTK Query Resolver
  * - baseQuery의 baseUrl 병합
  * - injectEndpoints 분리 코드 대응
  * - useLazy[Endpoint]Query 훅 네이밍 역산
@@ -27,7 +27,7 @@ export class RtkQueryResolver implements HookResolver {
   private hookMap: RtkHookMap = new Map();
 
   async init(rootDir: string): Promise<void> {
-    // 기획서 6.1.2: injectEndpoints 패턴 및 .api.ts 파일을 모두 스캔
+    // injectEndpoints 패턴 및 .api.ts 파일을 모두 스캔
     const pattern1 = path.join(rootDir, 'src', '**', '*.api.ts').replace(/\\/g, '/');
     const pattern2 = path.join(rootDir, 'src', 'api', '**', '*.ts').replace(/\\/g, '/');
     const pattern3 = path.join(rootDir, 'src', 'store', '**', '*.ts').replace(/\\/g, '/');
@@ -48,14 +48,14 @@ export class RtkQueryResolver implements HookResolver {
           continue;
         }
 
-        // 기획서 6.1.1: baseQuery의 baseUrl 추출
+        // fetchBaseQuery({ baseUrl: '/api' }) 추출
         const baseUrl = extractBaseUrl(code);
 
         const endpoints = extractEndpointBlocks(code, baseUrl);
         const hookExports = extractHookExports(code);
 
         for (const block of endpoints) {
-          // 기획서 6.1.3: 표준 훅 이름 및 lazy 변형 도출
+          // 표준 훅 이름 및 lazy 변형 도출
           const hookName = hookExports.get(block.name) || generateHookName(block.name, block.type);
           const lazyHookName = block.type === 'query'
             ? generateLazyHookName(block.name)
@@ -107,7 +107,6 @@ interface EndpointBlock {
 }
 
 function extractBaseUrl(code: string): string {
-  // 기획서 6.1.1: fetchBaseQuery({ baseUrl: '/api' }) 패턴 추출
   const baseUrlMatch = code.match(/fetchBaseQuery\s*\(\s*\{[^}]*baseUrl\s*:\s*['"`]([^'"`]+)['"`]/);
   return baseUrlMatch ? baseUrlMatch[1] : '';
 }
@@ -126,7 +125,6 @@ function extractEndpointBlocks(code: string, baseUrl: string): EndpointBlock[] {
     if (!blockContent) continue;
 
     const rawUrl = extractUrl(blockContent);
-    // 기획서 6.1.1: baseUrl과 병합
     const url = baseUrl && rawUrl && !rawUrl.startsWith('http')
       ? mergeUrl(baseUrl, rawUrl)
       : rawUrl;
@@ -212,7 +210,6 @@ function extractHookExports(code: string): Map<string, string> {
 }
 
 function hookToEndpointName(hookName: string): string | null {
-  // 기획서 6.1.3: useLazy 변형 포함 역산
   let name = hookName.replace(/^useLazy/, 'use');
   const queryMatch = name.match(/^use(\w+)Query$/);
   if (queryMatch) {

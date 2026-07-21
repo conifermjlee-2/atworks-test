@@ -17,7 +17,7 @@ const CALL_TYPE_BADGE: Record<string, string> = {
   Client:          'bg-sky-100 text-sky-800',
   ServerComponent: 'bg-violet-100 text-violet-800',
   ServerAction:    'bg-orange-100 text-orange-800',
-  Unknown:         'bg-zinc-100 text-zinc-500',
+  Unknown:         'bg-zinc-500',
 };
 
 const CALL_TYPE_LABEL: Record<string, string> = {
@@ -75,7 +75,7 @@ export default function Home() {
   const handleCopy = async () => {
     if (!result?.results?.length) return;
 
-    const grouped = result.results.reduce((acc: Map<string, any[]>, curr: any) => {
+    const grouped: Map<string, any[]> = result.results.reduce((acc: Map<string, any[]>, curr: any) => {
       const key = `${curr.viewName}|${curr.file}|${curr.callType}`;
       if (!acc.has(key)) acc.set(key, []);
       acc.get(key)!.push(curr);
@@ -115,7 +115,7 @@ export default function Home() {
     });
   };
 
-  // ── 결과 그룹핑 ──────────────────────────────────────────────
+  // ── 결과 그룹핑 및 통계 ──────────────────────────────────────
   const grouped: [string, any[]][] = result?.results
     ? Array.from(
         result.results.reduce((acc: Map<string, any[]>, curr: any) => {
@@ -123,36 +123,48 @@ export default function Home() {
           if (!acc.has(key)) acc.set(key, []);
           acc.get(key)!.push(curr);
           return acc;
-        }, new Map<string, any[]>())
+        }, new Map<string, any[]>()) as Map<string, any[]>
       )
     : [];
 
-  return (
-    <main style={{ minHeight: '100vh', background: '#f9fafb', color: '#09090b', fontFamily: 'system-ui, sans-serif' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '2rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+  const totalFiles = result?.results ? new Set(result.results.map((r: any) => r.file)).size : 0;
+  const totalViews = grouped.length;
+  const totalAPIs = result?.results?.length || 0;
 
-        {/* ── 헤더 ──────────────────────────────────────────── */}
-        <header style={{ borderBottom: '1px solid #e4e4e7', paddingBottom: '1.25rem' }}>
-          <p style={{ fontSize: 12, fontWeight: 600, color: '#0d9488', margin: 0 }}>
-            v6 · Offline Static Analyzer · Plugin Dynamic Loading
-          </p>
-          <h1 style={{ fontSize: 28, fontWeight: 600, margin: '0.5rem 0 0.4rem' }}>
-            프론트엔드 프로젝트 자동 분석기
-          </h1>
-          <p style={{ fontSize: 13, color: '#71717a', margin: 0, lineHeight: 1.7 }}>
-            React/Next.js 프로젝트를 AST로 분석하여 화면별 REST API 호출을 추출합니다.<br />
-            RTK Query · React Query · SWR · Axios · Fetch — package.json 의존성 기반 동적 로드
-          </p>
+  return (
+    <main style={{ minHeight: '100vh', background: '#0b0f19', color: '#e2e8f0', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+        {/* ── 헤더 & 통계 위젯 ──────────────────────────────────────────── */}
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #1f2937', paddingBottom: '1.5rem' }}>
+          <div>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#34d399', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>
+              v6 · Premium Static Analyzer
+            </p>
+            <h1 style={{ fontSize: 32, fontWeight: 700, margin: '0.5rem 0 0.4rem', color: '#f8fafc', letterSpacing: '-0.5px' }}>
+              프론트엔드 API 정적 분석기
+            </h1>
+            <p style={{ fontSize: 14, color: '#94a3b8', margin: 0, lineHeight: 1.6 }}>
+              React와 Next.js 소스에서 화면별 REST API 호출을 추적합니다.<br />
+              Fetch, Axios, React Query, SWR, RTK Query를 AST 기반으로 수집합니다.
+            </p>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <StatCard label="Files" value={totalFiles} />
+            <StatCard label="Views" value={totalViews} />
+            <StatCard label="APIs" value={totalAPIs} />
+          </div>
         </header>
 
-        {/* ── 입력 폼 ──────────────────────────────────────── */}
-        <section style={{ display: 'grid', gap: '1rem', gridTemplateColumns: '1fr 320px' }}>
+        {/* ── 입력 폼 & 지원 범위 ──────────────────────────────────────── */}
+        <section style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: '1fr 320px' }}>
           <form onSubmit={handleAnalyze}
-            style={{ border: '1px solid #e4e4e7', background: '#fff', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <label htmlFor="targetPath" style={{ fontSize: 13, fontWeight: 600 }}>
-              분석 대상 로컬 폴더 경로
+            style={{ border: '1px solid #1f2937', background: '#111827', padding: '1.5rem', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}>
+            <label htmlFor="targetPath" style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9' }}>
+              분석 대상 폴더
             </label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
               <input
                 id="targetPath"
                 value={targetPath}
@@ -161,127 +173,131 @@ export default function Home() {
                 autoFocus
                 spellCheck={false}
                 style={{
-                  flex: 1, height: 42, border: '1px solid #d4d4d8', padding: '0 0.75rem',
-                  fontSize: 13, outline: 'none', background: '#fff',
+                  flex: 1, height: 44, border: '1px solid #334155', borderRadius: 6, padding: '0 1rem',
+                  fontSize: 14, outline: 'none', background: '#0f172a', color: '#f8fafc',
+                  boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.2)'
                 }}
               />
               <button
                 type="submit"
                 disabled={loading || !targetPath.trim()}
                 style={{
-                  height: 42, padding: '0 1.25rem', background: '#18181b', color: '#fff',
-                  border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                  opacity: loading || !targetPath.trim() ? 0.5 : 1,
+                  height: 44, padding: '0 1.5rem', background: '#10b981', color: '#022c22',
+                  border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                  opacity: loading || !targetPath.trim() ? 0.6 : 1, transition: 'all 0.2s',
+                  boxShadow: '0 0 10px rgba(16, 185, 129, 0.3)'
                 }}
               >
-                {loading ? '분석 중…' : '분석 실행 (↵ Enter)'}
+                {loading ? '분석 중…' : '분석 실행'}
               </button>
             </div>
 
             {/* ── 예시 원클릭 실행 버튼 ──────────────────── */}
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.25rem', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: '#71717a', fontWeight: 500 }}>빠른 예시 선택:</span>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>빠른 예시:</span>
               <button
                 type="button"
                 onClick={() => handleQuickRun('C:\\Users\\lee\\Desktop\\atworks\\ai\\davis-frontend\\apps\\agent-bt')}
                 style={{
-                  background: '#f4f4f5', border: '1px solid #d4d4d8', borderRadius: 4,
-                  padding: '3px 8px', fontSize: 12, color: '#09090b', cursor: 'pointer', fontWeight: 500
+                  background: '#1e293b', border: '1px solid #334155', borderRadius: 4,
+                  padding: '4px 10px', fontSize: 12, color: '#cbd5e1', cursor: 'pointer', fontWeight: 500, transition: 'background 0.2s'
                 }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#334155'}
+                onMouseOut={(e) => e.currentTarget.style.background = '#1e293b'}
               >
-                📁 agent-bt (davis-frontend)
+                agent-bt
               </button>
               <button
                 type="button"
                 onClick={() => handleQuickRun('C:\\Users\\lee\\Desktop\\atworks-test\\poc\\tmp-project\\tmp-project-2\\frontend')}
                 style={{
-                  background: '#f4f4f5', border: '1px solid #d4d4d8', borderRadius: 4,
-                  padding: '3px 8px', fontSize: 12, color: '#09090b', cursor: 'pointer', fontWeight: 500
+                  background: '#1e293b', border: '1px solid #334155', borderRadius: 4,
+                  padding: '4px 10px', fontSize: 12, color: '#cbd5e1', cursor: 'pointer', fontWeight: 500, transition: 'background 0.2s'
                 }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#334155'}
+                onMouseOut={(e) => e.currentTarget.style.background = '#1e293b'}
               >
-                📁 샘플 예제 (sample-react)
+                sample-react
               </button>
             </div>
 
             {error && (
-              <div style={{ border: '1px solid #fecaca', background: '#fef2f2', padding: '0.75rem', fontSize: 13, color: '#b91c1c', whiteSpace: 'pre-line' }}>
+              <div style={{ border: '1px solid rgba(244, 63, 94, 0.3)', background: 'rgba(244, 63, 94, 0.1)', borderRadius: 6, padding: '1rem', fontSize: 13, color: '#fb7185', whiteSpace: 'pre-line' }}>
                 {error}
               </div>
             )}
           </form>
 
           {/* ── 지원 범위 사이드 패널 ────────────────────── */}
-          <aside style={{ border: '1px solid #e4e4e7', background: '#fff', padding: '1.25rem' }}>
-            <h2 style={{ fontSize: 13, fontWeight: 600, margin: '0 0 0.75rem' }}>Phase 1 지원 범위</h2>
-            <dl style={{ display: 'grid', gridTemplateColumns: '90px 1fr', gap: '0.5rem 0.75rem', fontSize: 13, margin: 0 }}>
-              <dt style={{ color: '#71717a' }}>Framework</dt><dd style={{ margin: 0, fontWeight: 500 }}>React, Next.js</dd>
-              <dt style={{ color: '#71717a' }}>Resolver</dt><dd style={{ margin: 0, fontWeight: 500 }}>RTK Query, React Query, SWR, Axios, Fetch</dd>
-              <dt style={{ color: '#71717a' }}>로드 방식</dt><dd style={{ margin: 0, fontWeight: 500 }}>package.json 기반 동적 로드</dd>
-              <dt style={{ color: '#71717a' }}>Network</dt><dd style={{ margin: 0, fontWeight: 500 }}>폐쇄망 로컬 분석</dd>
-            </dl>
+          <aside style={{ border: '1px solid #1f2937', background: 'transparent', padding: '1.5rem', borderRadius: 8 }}>
+            <h2 style={{ fontSize: 12, fontWeight: 600, margin: '0 0 0.5rem', color: '#94a3b8' }}>지원 범위</h2>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: 14, color: '#f1f5f9', fontWeight: 500, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <li>Next App Router, React, TS/JS</li>
+              <li style={{ color: '#cbd5e1', fontSize: 13 }}>fetch · axios · useQuery · useSWR · createApi</li>
+              <li style={{ color: '#cbd5e1', fontSize: 13 }}>tsconfig paths alias</li>
+            </ul>
           </aside>
         </section>
 
         {/* ── 분석 결과 ────────────────────────────────────── */}
         {result && (
-          <section style={{ border: '1px solid #e4e4e7', background: '#fff' }}>
+          <section style={{ border: '1px solid #1f2937', background: '#111827', borderRadius: 8, overflow: 'hidden', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' }}>
             {/* 툴바 */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e4e4e7', padding: '0.6rem 1.25rem' }}>
-              <h2 style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>
-                분석 결과 &nbsp;
-                <span style={{ color: '#0d9488', fontWeight: 700 }}>
-                  {result.results?.length ?? 0}
-                </span>
-                <span style={{ fontWeight: 400, color: '#71717a' }}>개</span>
-              </h2>
-              <div style={{ display: 'flex', gap: '0.4rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1f2937', padding: '1rem 1.5rem', background: '#0f172a' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#f8fafc' }}>
+                  분석 결과
+                </h2>
+                <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>
+                  {result.targetDir}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <Btn onClick={() => toggleDetails(true)}>모두 펼치기</Btn>
                 <Btn onClick={() => toggleDetails(false)}>모두 접기</Btn>
-                <Btn onClick={handleCopy}>{copied ? '✓ 복사됨' : 'Markdown 복사'}</Btn>
+                <Btn primary onClick={handleCopy}>{copied ? '✓ 복사됨' : 'Markdown 복사'}</Btn>
               </div>
             </div>
 
-            <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {/* 메타 */}
-              <p style={{ fontSize: 12, color: '#71717a', margin: 0 }}>
-                대상: <code style={{ background: '#f4f4f5', padding: '1px 6px', borderRadius: 3 }}>{result.targetDir}</code>
-              </p>
-
+            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {grouped.length > 0 ? grouped.map(([key, items], compIdx) => {
                 const [viewName, file, callType] = key.split('|');
                 const callBadge = CALL_TYPE_BADGE[callType] ?? CALL_TYPE_BADGE.Unknown;
                 const callLabel = CALL_TYPE_LABEL[callType] ?? callType;
 
                 return (
-                  <details key={key} style={{ border: '1px solid #e4e4e7', borderRadius: 6, overflow: 'hidden' }} open>
-                    <summary style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fafafa', padding: '0.55rem 1rem', cursor: 'pointer', listStyle: 'none' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontSize: 12, color: '#a1a1aa', fontWeight: 600, minWidth: 20 }}>{compIdx + 1}.</span>
-                        <strong style={{ fontSize: 13 }}>{viewName}</strong>
+                  <details key={key} style={{ border: '1px solid #1f2937', borderRadius: 6, overflow: 'hidden', background: '#1e293b' }} open>
+                    <summary style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0f172a', padding: '0.75rem 1.25rem', cursor: 'pointer', listStyle: 'none' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span style={{ fontSize: 13, color: '#64748b', fontWeight: 700, minWidth: 20 }}>{String(compIdx + 1).padStart(2, '0')}</span>
+                        <strong style={{ fontSize: 15, color: '#f8fafc' }}>{viewName}</strong>
                         {/* 기획서 5.1절: callType 배지 */}
-                        <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 8px', borderRadius: 999 }} className={callBadge}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 4 }} className={callBadge}>
                           {callLabel}
                         </span>
-                        <span style={{ fontSize: 11, color: '#a1a1aa', fontFamily: 'monospace' }}>{file}</span>
+                        <span style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace' }}>{file}</span>
                       </div>
-                      <span style={{ fontSize: 11, fontWeight: 600, background: '#ccfbf1', color: '#0f766e', borderRadius: 999, padding: '2px 10px' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: 999, padding: '2px 10px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                         {items.length} APIs
                       </span>
                     </summary>
 
-                    <div style={{ borderTop: '1px solid #e4e4e7', padding: '0.75rem 1rem' }}>
-                      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <div style={{ padding: '1rem 1.25rem' }}>
+                      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         {items.map((item: any, idx: number) => (
-                          <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: 13 }}>
-                            <span style={{ color: '#a1a1aa', fontFamily: 'monospace', fontSize: 12, minWidth: 18, textAlign: 'right' }}>{idx + 1}.</span>
+                          <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: 14, background: '#0f172a', padding: '0.5rem 0.75rem', borderRadius: 6, border: '1px solid #1f2937' }}>
                             {/* HTTP Method 배지 */}
-                            <span style={{ fontSize: 11, fontWeight: 700, minWidth: 56, textAlign: 'center', padding: '2px 0', borderRadius: 4, border: '1px solid' }}
+                            <span style={{ fontSize: 11, fontWeight: 700, minWidth: 60, textAlign: 'center', padding: '3px 0', borderRadius: 4, border: '1px solid', letterSpacing: '0.5px' }}
                               className={getMethodBadge(item.api.method)}>
                               {item.api.method}
                             </span>
-                            <code style={{ flex: 1, background: '#f4f4f5', borderRadius: 4, padding: '3px 8px', fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-all' }}>
+                            <code style={{ flex: 1, color: '#f1f5f9', fontFamily: 'monospace', fontSize: 13, wordBreak: 'break-all' }}>
                               {item.api.endpoint}
                             </code>
+                            <span style={{ fontSize: 11, color: '#64748b', minWidth: 70, textAlign: 'right', fontFamily: 'monospace' }}>
+                              {/* 6버전 스타일로 라이브러리 메타 정보 표시 */}
+                              {item.api.isDynamic ? 'dynamic' : 'static'}
+                            </span>
                           </li>
                         ))}
                       </ul>
@@ -289,7 +305,7 @@ export default function Home() {
                   </details>
                 );
               }) : (
-                <p style={{ textAlign: 'center', color: '#71717a', fontSize: 13, padding: '2.5rem 0' }}>
+                <p style={{ textAlign: 'center', color: '#64748b', fontSize: 14, padding: '3rem 0' }}>
                   {result.message || '데이터가 없습니다.'}
                 </p>
               )}
@@ -302,11 +318,41 @@ export default function Home() {
 }
 
 // ── 소형 버튼 컴포넌트 ──────────────────────────────────────────
-function Btn({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+function Btn({ children, onClick, primary = false }: { children: React.ReactNode; onClick: () => void; primary?: boolean }) {
   return (
     <button onClick={onClick}
-      style={{ border: '1px solid #d4d4d8', background: '#fff', padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', borderRadius: 4 }}>
+      style={{ 
+        border: primary ? 'none' : '1px solid #334155', 
+        background: primary ? '#1e293b' : 'transparent', 
+        color: primary ? '#f8fafc' : '#94a3b8',
+        padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', borderRadius: 4,
+        transition: 'all 0.2s',
+        boxShadow: primary ? 'inset 0 1px 0 rgba(255, 255, 255, 0.1)' : 'none'
+      }}
+      onMouseOver={(e) => {
+        if (!primary) {
+          e.currentTarget.style.color = '#f8fafc';
+          e.currentTarget.style.background = '#1e293b';
+        }
+      }}
+      onMouseOut={(e) => {
+        if (!primary) {
+          e.currentTarget.style.color = '#94a3b8';
+          e.currentTarget.style.background = 'transparent';
+        }
+      }}
+      >
       {children}
     </button>
+  );
+}
+
+// ── 통계 카드 컴포넌트 ──────────────────────────────────────────
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div style={{ border: '1px solid #1f2937', background: '#111827', borderRadius: 8, padding: '1rem', minWidth: 100, display: 'flex', flexDirection: 'column', gap: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+      <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>{label}</span>
+      <span style={{ fontSize: 24, color: '#f8fafc', fontWeight: 700, lineHeight: 1 }}>{value}</span>
+    </div>
   );
 }

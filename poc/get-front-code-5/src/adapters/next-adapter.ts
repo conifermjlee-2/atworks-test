@@ -4,10 +4,9 @@ import * as fs from 'fs';
 import { BaseAdapter, CallType } from '../types';
 
 /**
- * 기획서 5.1절: Next.js App Router 분리 규칙 구현
- * - Route Handler (route.ts) 완전 배제
- * - use client / use server 지시어 기반 컴포넌트 분류
- * - 모노레포 Workspace/Alias 지원 (기획서 4.1절)
+ * plan-v5.md 2장 & 3장: Next.js App Router 분리 규칙 구현
+ * - Route Handler (route.ts) 스캔 시 완전 배제
+ * - use client / use server 지시어 기반 컴포넌트 분류 (plan-v5.md 3장 4항)
  */
 export class NextAdapter implements BaseAdapter {
   name = 'Next.js Adapter';
@@ -36,8 +35,7 @@ export class NextAdapter implements BaseAdapter {
         '**/*.test.*',
         '**/*.spec.*',
         '**/*.d.ts',
-        // 기획서 5.1절: Route Handler 완전 배제 (스캔 차단)
-        // JSDoc 내 */ 충돌 방지를 위해 문자열 분리
+        // Route Handler 완전 배제 (스캔 차단)
         '**/api/**/' + 'route.ts',
         '**/api/**/' + 'route.js',
         '**/api/**/' + 'route.tsx',
@@ -48,9 +46,9 @@ export class NextAdapter implements BaseAdapter {
   }
 
   /**
-   * 기획서 5.1절: 지시어(Directive) 기반 컴포넌트 분리 표기
+   * plan-v5.md 3장 (4. 컴포넌트 지시어 판별)
    * - 'use client' → Client Component (브라우저 실행)
-   * - 'use server' → Server Action (폼 제출 등 서버 함수)
+   * - 'use server' → Server Action (서버 함수)
    * - 없음(기본값) → Server Component (서버 렌더링)
    */
   getCallType(filePath: string): CallType {

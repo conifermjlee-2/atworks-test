@@ -12,13 +12,13 @@ import { SwrResolver } from '../resolvers/swr-resolver';
 import { AxiosFetchResolver } from '../resolvers/axios-fetch-resolver';
 
 /**
- * 기획서 4장 아키텍처: 5단계 분석 파이프라인 오케스트레이터
+ * plan-v5.md 2장 아키텍처: 핵심 분석 파이프라인 오케스트레이터
  */
 export class Analyzer {
   private resolvers: HookResolver[] = [];
 
   async run(targetDir: string): Promise<MappingResult[]> {
-    // [1단계] 프레임워크 판별 및 Adapter 로드
+    // [1단계] 프레임워크 판별 및 Adapter 로드 (plan-v5.md 2장 1단계)
     const adapter = await detectFramework(targetDir);
     if (!adapter) {
       throw new Error(
@@ -34,7 +34,7 @@ export class Analyzer {
 
     this.resolvers = [];
 
-    // RTK Query: 사전 학습(init)이 필요하므로 최우선 등록
+    // RTK Query: 사전 학습(init)이 필요하므로 최우선 등록 (plan-v5.md 4장)
     if (deps['@reduxjs/toolkit'] || deps['@rtk-query/core']) {
       console.log('[Analyzer] RTK Query Resolver 로드됨');
       this.resolvers.push(new RtkQueryResolver());
@@ -64,7 +64,7 @@ export class Analyzer {
     }
 
     const results: MappingResult[] = [];
-    // 기획서 7.2절: 단일 화면 내 중복 제거 (화면+메서드+엔드포인트 기준)
+    // plan-v5.md 3장 (2. 중복 카운트 방지 메커니즘): 단일 화면 내 중복 제거 (화면+메서드+엔드포인트 기준)
     const seen = new Set<string>();
 
     // [5단계] 파일별 AST 파싱 및 순회

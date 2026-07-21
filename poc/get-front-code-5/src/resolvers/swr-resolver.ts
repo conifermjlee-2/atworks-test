@@ -3,8 +3,8 @@ import { ApiCallInfo, HookResolver } from '../types';
 import { normalizeTemplateLiteral } from '../core/parser/normalizer';
 
 /**
- * 기획서 6.4절: SWR Resolver (Vercel)
- * useSWR의 첫 번째 인자(키 = URL)를 추출. 메서드는 항상 GET.
+ * plan-v5.md 4장: SWR Resolver (Vercel)
+ * useSWR의 첫 번째 인자(키 = URL)를 추출. 메서드는 기본 GET.
  */
 export class SwrResolver implements HookResolver {
   name = 'SWR Resolver';

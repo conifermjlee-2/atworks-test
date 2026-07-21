@@ -3,7 +3,7 @@ import { ApiCallInfo, HttpMethod, HookResolver } from '../types';
 import { normalizeTemplateLiteral } from '../core/parser/normalizer';
 
 /**
- * 기획서 6.1절: Axios & Fetch Resolver (항상 기본 활성화)
+ * plan-v5.md 4장: Axios & Fetch Resolver (항상 기본 활성화 — 저수준 Fallback)
  * axios.get/post/put/delete/patch(), fetch(), api.get() 등 순수 HTTP 클라이언트 추출
  */
 export class AxiosFetchResolver implements HookResolver {

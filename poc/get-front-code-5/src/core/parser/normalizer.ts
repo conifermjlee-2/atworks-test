@@ -1,7 +1,7 @@
 import * as t from '@babel/types';
 
 /**
- * 기획서 7.3절: 템플릿 리터럴 치환
+ * plan-v5.md 6장: 동적 URL 템플릿 리터럴 정규화
  * `/users/${userId}` → `/users/{userId}` 형태로 정규화
  */
 export function normalizeTemplateLiteral(node: t.TemplateLiteral): string {
@@ -23,16 +23,4 @@ export function normalizeTemplateLiteral(node: t.TemplateLiteral): string {
     }
   }
   return result;
-}
-
-/**
- * 기획서 7.3절: BaseURL 병합
- * baseURL + endpoint 중복 슬래시 없이 병합
- */
-export function mergeBaseUrl(baseURL: string, endpoint: string): string {
-  const cleanBase = baseURL.replace(/\/+$/, '');
-  const cleanEndpoint = endpoint.replace(/^\/+/, '');
-  if (!cleanBase) return `/${cleanEndpoint}`;
-  if (!cleanEndpoint) return cleanBase;
-  return `${cleanBase}/${cleanEndpoint}`;
 }

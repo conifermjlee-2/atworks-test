@@ -1,0 +1,62 @@
+:root {
+  color-scheme: dark;
+  --bg: #07080c;
+  --panel: rgba(18, 22, 31, 0.82);
+  --panel-strong: rgba(24, 29, 40, 0.94);
+  --line: rgba(163, 176, 204, 0.18);
+  --text: #eef2ff;
+  --muted: #9aa7bd;
+  --accent: #20d3b0;
+  --accent-2: #65a3ff;
+  --danger: #fb7185;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 15% 12%, rgba(32, 211, 176, 0.12), transparent 30%),
+    radial-gradient(circle at 82% 8%, rgba(101, 163, 255, 0.13), transparent 32%),
+    linear-gradient(135deg, #07080c 0%, #10131b 54%, #080b10 100%);
+  color: var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 0;
+}
+
+code {
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+}
+
+.method-get { background: rgba(59, 130, 246, 0.16); color: #93c5fd; border-color: rgba(59, 130, 246, 0.35); }
+.method-post { background: rgba(16, 185, 129, 0.16); color: #86efac; border-color: rgba(16, 185, 129, 0.35); }
+.method-put { background: rgba(245, 158, 11, 0.16); color: #fcd34d; border-color: rgba(245, 158, 11, 0.35); }
+.method-delete { background: rgba(244, 63, 94, 0.16); color: #fda4af; border-color: rgba(244, 63, 94, 0.35); }
+.method-patch { background: rgba(168, 85, 247, 0.16); color: #d8b4fe; border-color: rgba(168, 85, 247, 0.35); }
+.method-unknown { background: rgba(148, 163, 184, 0.14); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.28); }
+
+.call-client { color: #7dd3fc; background: rgba(14, 165, 233, 0.12); }
+.call-servercomponent { color: #c4b5fd; background: rgba(139, 92, 246, 0.13); }
+.call-serveraction { color: #fdba74; background: rgba(249, 115, 22, 0.13); }
+.call-unknown { color: #cbd5e1; background: rgba(148, 163, 184, 0.12); }
+
+summary::-webkit-details-marker {
+  display: none;
+}

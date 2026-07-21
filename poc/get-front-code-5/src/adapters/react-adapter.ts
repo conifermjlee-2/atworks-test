@@ -2,6 +2,9 @@ import fg from 'fast-glob';
 import * as path from 'path';
 import { BaseAdapter, CallType } from '../types';
 
+/**
+ * plan-v5.md 2장 (1️⃣ 프레임워크 어댑터 레이어): React SPA 어댑터
+ */
 export class ReactAdapter implements BaseAdapter {
   name = 'React SPA Adapter';
 

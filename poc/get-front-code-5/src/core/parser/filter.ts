@@ -1,5 +1,5 @@
 /**
- * 기획서 7.3절: 노이즈 필터링
+ * plan-v5.md 7장: 노이즈 필터링
  * Sentry, GA 등 API 통신과 무관한 외부 도메인 배제
  */
 export function isAllowedUrl(url: string, ignoreDomains: string[] = []): boolean {
