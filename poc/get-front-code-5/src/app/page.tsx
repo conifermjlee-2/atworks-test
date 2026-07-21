@@ -209,7 +209,7 @@ export default function Home() {
               </button>
               <button
                 type="button"
-                onClick={() => handleQuickRun('C:\\Users\\lee\\Desktop\\atworks-test\\poc\\tmp-project\\tmp-project-2\\frontend')}
+                onClick={() => handleQuickRun('C:\\Users\\lee\\Desktop\\atworks-test\\poc\\tmp-project\\tmp-project-3-combinations')}
                 style={{
                   background: '#1e293b', border: '1px solid #334155', borderRadius: 4,
                   padding: '4px 10px', fontSize: 12, color: '#cbd5e1', cursor: 'pointer', fontWeight: 500, transition: 'background 0.2s'
@@ -217,7 +217,31 @@ export default function Home() {
                 onMouseOver={(e) => e.currentTarget.style.background = '#334155'}
                 onMouseOut={(e) => e.currentTarget.style.background = '#1e293b'}
               >
-                sample-react
+                조합 테스트 (8개)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickRun('C:\\Users\\lee\\Desktop\\atworks-test\\poc\\tmp-project\\tmp-project-2\\frontend-react-1')}
+                style={{
+                  background: '#1e293b', border: '1px solid #334155', borderRadius: 4,
+                  padding: '4px 10px', fontSize: 12, color: '#cbd5e1', cursor: 'pointer', fontWeight: 500, transition: 'background 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#334155'}
+                onMouseOut={(e) => e.currentTarget.style.background = '#1e293b'}
+              >
+                React 5대장
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickRun('C:\\Users\\lee\\Desktop\\atworks-test\\poc\\tmp-project\\tmp-frontend-next-js')}
+                style={{
+                  background: '#1e293b', border: '1px solid #334155', borderRadius: 4,
+                  padding: '4px 10px', fontSize: 12, color: '#cbd5e1', cursor: 'pointer', fontWeight: 500, transition: 'background 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#334155'}
+                onMouseOut={(e) => e.currentTarget.style.background = '#1e293b'}
+              >
+                Next.js 구조
               </button>
             </div>
 

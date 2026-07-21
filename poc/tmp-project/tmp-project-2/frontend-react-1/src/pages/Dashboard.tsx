@@ -24,5 +24,18 @@ export default function Dashboard() {
     axios.delete('/react/axios-endpoint');
   };
 
-  return <div onClick={handleDelete}>React Mixed Test Dashboard</div>;
+  // 5. Native Fetch (이벤트 핸들러 내부)
+  const handleUpdate = async () => {
+    await fetch('/react/native-fetch-endpoint', {
+      method: 'PUT',
+    });
+  };
+
+  return (
+    <div>
+      <h1>React Mixed Test Dashboard</h1>
+      <button onClick={handleDelete}>Axios Delete Test</button>
+      <button onClick={handleUpdate}>Fetch Put Test</button>
+    </div>
+  );
 }

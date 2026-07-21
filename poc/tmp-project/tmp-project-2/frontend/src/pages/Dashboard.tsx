@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import useSWR from 'swr';
 import Sentry from '@sentry/browser';
+import { useGetDashboardStatsQuery } from '../api/rtkApi';
 
 const api = axios.create({ baseURL: '/api/v1' });
 
@@ -32,6 +33,9 @@ export function Dashboard({ userId }: { userId: string }) {
 
   // 6. SWR 전역 fetcher 패턴 (첫 번째 인자가 URL)
   useSWR(['/notifications', userId]);
+
+  // 7. RTK Query 훅 호출
+  useGetDashboardStatsQuery();
 
   return <div>Dashboard</div>;
 }
