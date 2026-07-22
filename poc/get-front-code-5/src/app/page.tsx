@@ -299,7 +299,45 @@ export default function Home() {
                         <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 4 }} className={callBadge}>
                           {callLabel}
                         </span>
-                        <span style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace' }}>{file}</span>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginLeft: '0.25rem' }}>
+                          <button
+                            type="button"
+                            title="주소 복사"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(file);
+                              const btn = e.currentTarget;
+                              btn.innerText = '✓';
+                              btn.style.color = '#10b981';
+                              btn.style.borderColor = '#10b981';
+                              setTimeout(() => {
+                                btn.innerText = '📋';
+                                btn.style.color = '#94a3b8';
+                                btn.style.borderColor = '#334155';
+                              }, 1000);
+                            }}
+                            style={{
+                              background: '#1e293b',
+                              border: '1px solid #334155',
+                              borderRadius: 4,
+                              padding: '2px 5px',
+                              fontSize: 11,
+                              color: '#94a3b8',
+                              cursor: 'pointer',
+                              lineHeight: 1,
+                              transition: 'all 0.2s',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = '#334155'; e.currentTarget.style.color = '#f8fafc'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = '#1e293b'; if (e.currentTarget.innerText === '📋') e.currentTarget.style.color = '#94a3b8'; }}
+                          >
+                            📋
+                          </button>
+                          <span style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace' }}>{file}</span>
+                        </div>
                       </div>
                       <span style={{ fontSize: 12, fontWeight: 700, background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: 999, padding: '2px 10px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                         {items.length} APIs
