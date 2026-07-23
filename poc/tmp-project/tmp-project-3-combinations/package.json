@@ -1,0 +1,12 @@
+{
+  "name": "combinations-test",
+  "version": "1.0.0",
+  "description": "8가지 경우의 수를 검증하기 위한 정적 분석 전용 테스트 프로젝트",
+  "dependencies": {
+    "react": "^18.2.0",
+    "axios": "^1.0.0",
+    "@tanstack/react-query": "^5.0.0",
+    "swr": "^2.0.0",
+    "@reduxjs/toolkit": "^2.0.0"
+  }
+}
