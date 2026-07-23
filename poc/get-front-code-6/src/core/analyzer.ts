@@ -1,7 +1,7 @@
 import { detectFramework } from '../adapters';
 import { parseFile } from './parser/ast-parser';
-import { findApiCalls } from './parser/ast-traverser';
-import { MappingResult, HookResolver } from '../types';
+import { findApiCalls, findScenarios } from './parser/ast-traverser';
+import { MappingResult, HookResolver, ScenarioFlow } from '../types';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -17,7 +17,7 @@ import { AxiosFetchResolver } from '../resolvers/axios-fetch-resolver';
 export class Analyzer {
   private resolvers: HookResolver[] = [];
 
-  async run(targetDir: string): Promise<MappingResult[]> {
+  async run(targetDir: string): Promise<{ results: MappingResult[]; scenarios: ScenarioFlow[] }> {
     // [1단계] 프레임워크 판별 및 Adapter 로드 (plan-v5.md 2장 1단계)
     const adapter = await detectFramework(targetDir);
     if (!adapter) {
@@ -64,6 +64,7 @@ export class Analyzer {
     }
 
     const results: MappingResult[] = [];
+    const scenarios: ScenarioFlow[] = [];
     const seen = new Set<string>();
 
     // [5단계] 파일별 AST 파싱 및 범용 심볼 역추적 (Symbol Tracing) 순회
@@ -90,8 +91,12 @@ export class Analyzer {
           api: call,
         });
       }
+
+      // 시나리오 흐름 분석
+      const fileScenarios = findScenarios(ast, this.resolvers, filePath, targetDir);
+      scenarios.push(...fileScenarios);
     }
 
-    return results;
+    return { results, scenarios };
   }
 }

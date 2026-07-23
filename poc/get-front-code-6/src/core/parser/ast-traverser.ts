@@ -365,3 +365,435 @@ export function findApiCalls(
 
   return calls;
 }
+
+// ── 시나리오 흐름 추출 헬퍼 ─────────────────────────────────────
+
+/** CallExpression에서 calleeName 문자열 추출 */
+function extractCalleeName(callee: t.Expression | t.V8IntrinsicIdentifier): string {
+  if (t.isIdentifier(callee)) return callee.name;
+  if (t.isMemberExpression(callee)) {
+    const obj = t.isIdentifier(callee.object) ? callee.object.name : '';
+    const prop = t.isIdentifier(callee.property) ? callee.property.name : '';
+    return obj && prop ? `${obj}.${prop}` : obj || prop;
+  }
+  return '';
+}
+
+/** 노드에서 문자열 리터럴 값 추출 (캐시 키 등) */
+function extractStringLiteral(node: t.Node): string | null {
+  if (t.isStringLiteral(node)) return node.value;
+  if (t.isTemplateLiteral(node) && node.quasis.length === 1) {
+    return node.quasis[0].value.cooked ?? null;
+  }
+  return null;
+}
+
+/** Array 노드에서 캐시 키 추출 (예: ['cart', userId]) */
+function extractQueryKey(node: t.Node): string {
+  if (t.isArrayExpression(node)) {
+    return node.elements
+      .map(el => (el ? extractStringLiteral(el) ?? '...' : ''))
+      .filter(Boolean)
+      .join(', ');
+  }
+  return extractStringLiteral(node) ?? '?';
+}
+
+/** 이벤트 핸들러 함수명 추출: onClick={handleFoo} → "handleFoo" */
+function extractEventHandlerName(path: any): string | null {
+  const jsxAttr = path.findParent((p: any) => p.isJSXAttribute());
+  if (jsxAttr) {
+    const name = jsxAttr.node.name;
+    if (t.isJSXIdentifier(name)) return name.name; // onClick, onSubmit ...
+  }
+  return null;
+}
+
+/** BlockStatement 내의 모든 API 콜을 line 순서대로 수집 (심볼 역추적 포함) */
+function collectApiCallsInBlock(
+  blockNode: t.BlockStatement,
+  resolvers: HookResolver[],
+  ast: t.File,
+  importMap?: Map<string, { importedName: string; sourcePath: string }>,
+  currentFilePath?: string,
+  rootDir?: string
+): { order: number; method: string; endpoint: string }[] {
+  const results: { order: number; method: string; endpoint: string; line: number }[] = [];
+  let order = 0;
+
+  traverse(t.file(t.program([t.expressionStatement(t.arrowFunctionExpression([], blockNode))])), {
+    CallExpression(p) {
+      const calleeName = extractCalleeName(p.node.callee as t.Expression);
+      if (!calleeName) return;
+
+      // 1단계: 리졸버 직접 매칭
+      for (const resolver of resolvers) {
+        const resolved = resolver.resolve(calleeName, p.node.arguments as any[], ast);
+        if (resolved && resolved.endpoint && isAllowedUrl(resolved.endpoint)) {
+          results.push({
+            order: order++,
+            method: resolved.method,
+            endpoint: resolved.endpoint,
+            line: p.node.loc?.start.line ?? 0,
+          });
+          p.skip();
+          return;
+        }
+      }
+
+      // 2단계: import 심볼 역추적 — 파일 전체가 아닌 해당 함수만 정밀 추출
+      if (importMap && currentFilePath && rootDir && importMap.has(calleeName)) {
+        const { importedName, sourcePath } = importMap.get(calleeName)!;
+        const targetFile = resolveFilePath(currentFilePath, sourcePath, rootDir);
+        if (targetFile) {
+          const targetAst = parseFile(targetFile);
+          if (targetAst) {
+            // ★ 핵심 수정: 파일 전체(findApiCalls) 대신 심볼 함수만(resolveSymbolAstNode) 추출
+            const resolved = resolveSymbolAstNode(targetAst, importedName, targetFile, rootDir);
+            const subAst = resolved ? resolved.ast : null;
+            if (subAst) {
+              const subCalls = findApiCalls(subAst, resolvers, resolved!.file, rootDir);
+              for (const call of subCalls) {
+                if (call.endpoint && isAllowedUrl(call.endpoint)) {
+                  results.push({
+                    order: order++,
+                    method: call.method,
+                    endpoint: call.endpoint,
+                    line: p.node.loc?.start.line ?? 0,
+                  });
+                }
+              }
+              if (subCalls.length > 0) {
+                p.skip();
+                return;
+              }
+            }
+          }
+        }
+      }
+    },
+  });
+
+  // line 기준 정렬 후 order 재부여
+  results.sort((a, b) => a.line - b.line);
+  return results.map((r, i) => ({ order: i + 1, method: r.method, endpoint: r.endpoint }));
+}
+
+/** invalidateQueries / mutate 로 refetch 되는 쿼리 키를 수집 (ObjectExpression 옵션 형태 포함) */
+function collectRefetchKeys(node: t.BlockStatement | t.ObjectExpression): string[] {
+  const keys: string[] = [];
+
+  // ObjectExpression인 경우 (useMutation 옵션 객체): onSuccess 프로퍼티 내부를 탐색
+  const nodesToSearch: t.Node[] = [];
+  if (t.isObjectExpression(node)) {
+    for (const prop of node.properties) {
+      if (
+        t.isObjectProperty(prop) &&
+        t.isIdentifier(prop.key) &&
+        (prop.key.name === 'onSuccess' || prop.key.name === 'onSettled')
+      ) {
+        nodesToSearch.push(prop.value);
+      }
+    }
+  } else {
+    nodesToSearch.push(node);
+  }
+
+  for (const searchNode of nodesToSearch) {
+    const wrapper = t.isBlockStatement(searchNode)
+      ? t.file(t.program([t.expressionStatement(t.arrowFunctionExpression([], searchNode as t.BlockStatement))]))
+      : t.isExpression(searchNode)
+        ? t.file(t.program([t.expressionStatement(searchNode as t.Expression)]))
+        : null;
+    if (!wrapper) continue;
+
+    traverse(wrapper, {
+      CallExpression(p) {
+        const calleeName = extractCalleeName(p.node.callee as t.Expression);
+        if (
+          calleeName === 'queryClient.invalidateQueries' ||
+          calleeName === 'queryClient.resetQueries' ||
+          calleeName === 'mutate' ||
+          calleeName === 'revalidate'
+        ) {
+          const firstArg = p.node.arguments[0];
+          if (firstArg) {
+            if (t.isObjectExpression(firstArg)) {
+              for (const prop of firstArg.properties) {
+                if (
+                  t.isObjectProperty(prop) &&
+                  t.isIdentifier(prop.key) &&
+                  prop.key.name === 'queryKey'
+                ) {
+                  keys.push(extractQueryKey(prop.value as t.Node));
+                }
+              }
+            } else {
+              keys.push(extractQueryKey(firstArg));
+            }
+          }
+        }
+      },
+    });
+  }
+
+  return [...new Set(keys)];
+}
+
+import { ScenarioFlow } from '../../types';
+
+/**
+ * 파일 AST에서 시나리오 흐름을 추출합니다.
+ * - MOUNT: useEffect / useQuery 내부 API 호출
+ * - EVENT: JSX 이벤트 핸들러(onClick 등) 또는 useMutation 내부 API 호출
+ */
+export function findScenarios(
+  ast: t.File,
+  resolvers: HookResolver[],
+  filePath: string,
+  rootDir: string
+): ScenarioFlow[] {
+  const scenarios: ScenarioFlow[] = [];
+  const pathModule = require('path');
+  const viewName = pathModule.basename(filePath, pathModule.extname(filePath));
+  const relativePath = pathModule.relative(rootDir, filePath).replace(/\\/g, '/');
+  const importMap = buildImportMap(ast);
+
+  const MOUNT_HOOKS = new Set(['useEffect', 'useQuery', 'useInfiniteQuery', 'useSWR', 'useQueries']);
+  const EVENT_HOOKS = new Set(['useMutation', 'useCallback']);
+
+  /** 함수 노드(화살표/일반)로부터 BlockStatement를 추출 */
+  function getBlock(node: t.Node): t.BlockStatement | null {
+    if (
+      (t.isArrowFunctionExpression(node) || t.isFunctionExpression(node)) &&
+      t.isBlockStatement(node.body)
+    ) return node.body;
+    return null;
+  }
+
+  /** ObjectExpression({ queryFn, mutationFn }) 에서 함수 값을 가진 특정 키 추출 */
+  function getFnFromOption(obj: t.ObjectExpression, ...keys: string[]): t.BlockStatement | null {
+    for (const prop of obj.properties) {
+      if (
+        t.isObjectProperty(prop) &&
+        t.isIdentifier(prop.key) &&
+        keys.includes(prop.key.name)
+      ) {
+        // () => fetchFn() 형태 또는 () => { ... } 형태
+        const block = getBlock(prop.value as t.Node);
+        if (block) return block;
+        // 표현식 바디 화살표함수: () => fetchFn() → ExpressionStatement로 래핑
+        if (
+          (t.isArrowFunctionExpression(prop.value) || t.isFunctionExpression(prop.value)) &&
+          t.isExpression((prop.value as any).body)
+        ) {
+          // 표현식 body를 BlockStatement로 변환
+          return t.blockStatement([t.expressionStatement((prop.value as any).body)]);
+        }
+      }
+    }
+    return null;
+  }
+
+  /** ObjectExpression에서 queryFn/mutationFn이 심볼 참조인 경우 처리 */
+  function getSymbolNameFromOption(obj: t.ObjectExpression, ...keys: string[]): string | null {
+    for (const prop of obj.properties) {
+      if (
+        t.isObjectProperty(prop) &&
+        t.isIdentifier(prop.key) &&
+        keys.includes(prop.key.name) &&
+        t.isIdentifier(prop.value)
+      ) {
+        return (prop.value as t.Identifier).name;
+      }
+    }
+    return null;
+  }
+
+  traverse(ast, {
+    CallExpression(p) {
+      const calleeName = extractCalleeName(p.node.callee as t.Expression);
+      if (!calleeName) return;
+
+      // ── MOUNT 트리거 ─────────────────────────────────────────
+      if (MOUNT_HOOKS.has(calleeName)) {
+        const firstArg = p.node.arguments[0];
+        if (!firstArg) return;
+
+        let blockNode: t.BlockStatement | null = null;
+        let refetchKeys: string[] = [];
+
+        // A) 전통 형태: useEffect(() => { ... })
+        if (t.isArrowFunctionExpression(firstArg) || t.isFunctionExpression(firstArg)) {
+          blockNode = getBlock(firstArg) ?? null;
+          if (blockNode) refetchKeys = collectRefetchKeys(blockNode);
+        }
+        // B) React Query v5 객체 형태: useQuery({ queryFn: () => ... })
+        else if (t.isObjectExpression(firstArg)) {
+          blockNode = getFnFromOption(firstArg, 'queryFn', 'select');
+          refetchKeys = collectRefetchKeys(firstArg); // onSuccess 등도 탐색
+
+          // queryFn이 심볼 참조인 경우: { queryFn: fetchProducts }
+          if (!blockNode) {
+            const symName = getSymbolNameFromOption(firstArg, 'queryFn');
+            if (symName && importMap.has(symName)) {
+              const { importedName, sourcePath } = importMap.get(symName)!;
+              const targetFile = resolveFilePath(filePath, sourcePath, rootDir);
+              if (targetFile) {
+                const targetAst = parseFile(targetFile);
+                if (targetAst) {
+                  // 파일 전체가 아닌 해당 심볼 함수만 정밀 추출
+                  const resolved = resolveSymbolAstNode(targetAst, importedName, targetFile, rootDir);
+                  const subAst = resolved ? resolved.ast : null;
+                  if (subAst) {
+                    const subCalls = findApiCalls(subAst, resolvers, resolved!.file, rootDir);
+                    if (subCalls.length > 0) {
+                      scenarios.push({
+                        triggerType: 'MOUNT',
+                        triggerSource: calleeName,
+                        file: relativePath,
+                        viewName,
+                        apiCalls: subCalls.map((c, i) => ({ order: i + 1, method: c.method, endpoint: c.endpoint })),
+                        ...(refetchKeys.length > 0 && { triggersRefetch: refetchKeys }),
+                      });
+                      p.skip();
+                      return;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        // C) useSWR(url, fetcher): 첫 번째 인수가 URL 문자열
+        else {
+          const urlStr = extractStringLiteral(firstArg);
+          if (urlStr && isAllowedUrl(urlStr)) {
+            scenarios.push({
+              triggerType: 'MOUNT',
+              triggerSource: calleeName,
+              file: relativePath,
+              viewName,
+              apiCalls: [{ order: 1, method: 'GET', endpoint: urlStr }],
+            });
+          }
+          p.skip();
+          return;
+        }
+
+        if (blockNode) {
+          const apiCalls = collectApiCallsInBlock(blockNode, resolvers, ast, importMap, filePath, rootDir);
+          if (apiCalls.length > 0) {
+            scenarios.push({
+              triggerType: 'MOUNT',
+              triggerSource: calleeName,
+              file: relativePath,
+              viewName,
+              apiCalls,
+              ...(refetchKeys.length > 0 && { triggersRefetch: refetchKeys }),
+            });
+          }
+        }
+        p.skip();
+        return;
+      }
+
+      // ── EVENT 트리거 ─────────────────────────────────────────
+      if (EVENT_HOOKS.has(calleeName)) {
+        const firstArg = p.node.arguments[0];
+        if (!firstArg) return;
+
+        let blockNode: t.BlockStatement | null = null;
+        let refetchKeys: string[] = [];
+
+        // A) 직접 콜백 형태: useMutation(async () => { ... })
+        if (t.isArrowFunctionExpression(firstArg) || t.isFunctionExpression(firstArg)) {
+          blockNode = getBlock(firstArg) ?? null;
+          if (blockNode) refetchKeys = collectRefetchKeys(blockNode);
+        }
+        // B) 객체 형태: useMutation({ mutationFn: ..., onSuccess: ... })
+        else if (t.isObjectExpression(firstArg)) {
+          blockNode = getFnFromOption(firstArg, 'mutationFn');
+          refetchKeys = collectRefetchKeys(firstArg);
+
+          // mutationFn이 심볼 참조인 경우
+          if (!blockNode) {
+            const symName = getSymbolNameFromOption(firstArg, 'mutationFn');
+            if (symName && importMap.has(symName)) {
+              const { importedName, sourcePath } = importMap.get(symName)!;
+              const targetFile = resolveFilePath(filePath, sourcePath, rootDir);
+              if (targetFile) {
+                const targetAst = parseFile(targetFile);
+                if (targetAst) {
+                  // 파일 전체가 아닌 해당 심볼 함수만 정밀 추출
+                  const resolved = resolveSymbolAstNode(targetAst, importedName, targetFile, rootDir);
+                  const subAst = resolved ? resolved.ast : null;
+                  if (subAst) {
+                    const subCalls = findApiCalls(subAst, resolvers, resolved!.file, rootDir);
+                    if (subCalls.length > 0) {
+                      scenarios.push({
+                        triggerType: 'EVENT',
+                        triggerSource: calleeName,
+                        file: relativePath,
+                        viewName,
+                        apiCalls: subCalls.map((c, i) => ({ order: i + 1, method: c.method, endpoint: c.endpoint })),
+                        ...(refetchKeys.length > 0 && { triggersRefetch: refetchKeys }),
+                      });
+                      p.skip();
+                      return;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        if (blockNode) {
+          const apiCalls = collectApiCallsInBlock(blockNode, resolvers, ast, importMap, filePath, rootDir);
+          if (apiCalls.length > 0) {
+            scenarios.push({
+              triggerType: 'EVENT',
+              triggerSource: calleeName,
+              file: relativePath,
+              viewName,
+              apiCalls,
+              ...(refetchKeys.length > 0 && { triggersRefetch: refetchKeys }),
+            });
+          }
+        }
+        p.skip();
+        return;
+      }
+    },
+
+    // ── EVENT 트리거: JSX 이벤트 핸들러 내 직접 async 함수 ─────
+    JSXAttribute(p) {
+      const attrName = t.isJSXIdentifier(p.node.name) ? p.node.name.name : '';
+      const isEventAttr = attrName.startsWith('on') && attrName.length > 2;
+      if (!isEventAttr) return;
+
+      const value = p.node.value;
+      if (!value || !t.isJSXExpressionContainer(value)) return;
+
+      const expr = value.expression;
+      const block = getBlock(expr);
+      if (block) {
+        const apiCalls = collectApiCallsInBlock(block, resolvers, ast, importMap, filePath, rootDir);
+        const refetchKeys = collectRefetchKeys(block);
+        if (apiCalls.length > 0) {
+          scenarios.push({
+            triggerType: 'EVENT',
+            triggerSource: attrName,
+            file: relativePath,
+            viewName,
+            apiCalls,
+            ...(refetchKeys.length > 0 && { triggersRefetch: refetchKeys }),
+          });
+        }
+      }
+    },
+  });
+
+  return scenarios;
+}

@@ -43,3 +43,26 @@ export interface RtkHookDefinition {
 
 export type RtkHookMap = Map<string, RtkHookDefinition[]>;
 
+// ── 시나리오 흐름 분석 타입 ─────────────────────────────────────
+
+export interface ScenarioApiCall {
+  order: number;
+  method: string;
+  endpoint: string;
+}
+
+export interface ScenarioFlow {
+  /** 트리거 유형: 마운트 자동 호출 vs 이벤트(클릭/서밋 등) 수동 호출 */
+  triggerType: 'MOUNT' | 'EVENT';
+  /** 트리거 소스: useEffect, onClick, handlePayment 등 */
+  triggerSource: string;
+  /** 파일 경로 */
+  file: string;
+  /** 화면 이름 */
+  viewName: string;
+  /** 순서대로 정렬된 API 호출 목록 */
+  apiCalls: ScenarioApiCall[];
+  /** 이 시나리오 실행 후 무효화(refetch)되는 쿼리 키 목록 */
+  triggersRefetch?: string[];
+}
+

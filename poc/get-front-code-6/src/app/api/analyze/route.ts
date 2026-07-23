@@ -28,12 +28,13 @@ export async function POST(req: Request) {
     }
 
     const analyzer = new Analyzer();
-    const results = await analyzer.run(absoluteDir);
+    const { results, scenarios } = await analyzer.run(absoluteDir);
 
     // plan-v5.md 5장: API JSON 응답 규격
     return NextResponse.json({
       targetDir: absoluteDir,
       results,
+      scenarios,
       ...(results.length === 0 && {
         message: '분석할 화면 컴포넌트를 찾지 못했거나 매핑 가능한 API 호출이 없습니다.',
       }),
