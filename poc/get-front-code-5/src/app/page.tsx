@@ -91,12 +91,13 @@ export default function Home() {
 
     for (const [key, items] of Array.from(grouped.entries()).sort()) {
       const [viewName, file, callType] = key.split('|');
+      const absoluteFile = `${result.targetDir.replace(/[/\\]$/, '')}\\${file.replace(/\//g, '\\')}`;
       let first = true;
       for (const item of items) {
         md +=
           `| ${first ? `**\`${viewName}\`**` : '〃'} ` +
           `| ${first ? (CALL_TYPE_LABEL[callType] ?? callType) : '〃'} ` +
-          `| ${first ? `\`${file}\`` : '〃'} ` +
+          `| ${first ? `\`${absoluteFile}\`` : '〃'} ` +
           `| \`${item.api.method}\` ` +
           `| \`${item.api.endpoint}\` |\n`;
         first = false;
@@ -243,6 +244,18 @@ export default function Home() {
               >
                 Next.js 구조
               </button>
+              <button
+                type="button"
+                onClick={() => handleQuickRun('C:\\Users\\lee\\Desktop\\atworks-test\\poc\\tmp-project\\tmp-project-5-shopping-mall')}
+                style={{
+                  background: '#1e293b', border: '1px solid #334155', borderRadius: 4,
+                  padding: '4px 10px', fontSize: 12, color: '#cbd5e1', cursor: 'pointer', fontWeight: 500, transition: 'background 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#334155'}
+                onMouseOut={(e) => e.currentTarget.style.background = '#1e293b'}
+              >
+                쇼핑몰 예시 (Next.js)
+              </button>
             </div>
 
             {error && (
@@ -306,7 +319,8 @@ export default function Home() {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              navigator.clipboard.writeText(file);
+                              const absoluteFile = `${result.targetDir.replace(/[/\\]$/, '')}\\${file.replace(/\//g, '\\')}`;
+                              navigator.clipboard.writeText(absoluteFile);
                               const btn = e.currentTarget;
                               btn.innerText = '✓';
                               btn.style.color = '#10b981';
@@ -339,9 +353,60 @@ export default function Home() {
                           <span style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace' }}>{file}</span>
                         </div>
                       </div>
-                      <span style={{ fontSize: 12, fontWeight: 700, background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: 999, padding: '2px 10px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                        {items.length} APIs
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: 999, padding: '2px 10px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                          {items.length} APIs
+                        </span>
+                        <button
+                          type="button"
+                          title="이 카드 내용 복사"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            const absoluteFile = `${result.targetDir.replace(/[/\\]$/, '')}\\${file.replace(/\//g, '\\')}`;
+                            const cardLines = [
+                              String(compIdx + 1).padStart(2, '0'),
+                              viewName,
+                              callLabel,
+                              absoluteFile,
+                              `${items.length} APIs`,
+                              ...items.flatMap((item: any) => [
+                                item.api.method,
+                                item.api.endpoint,
+                                item.api.isDynamic ? 'dynamic' : 'static'
+                              ])
+                            ];
+                            
+                            navigator.clipboard.writeText(cardLines.join('\n'));
+                            
+                            const btn = e.currentTarget;
+                            btn.innerText = '✓ 복사됨';
+                            btn.style.color = '#10b981';
+                            btn.style.borderColor = '#10b981';
+                            setTimeout(() => {
+                              btn.innerText = '복사';
+                              btn.style.color = '#cbd5e1';
+                              btn.style.borderColor = '#334155';
+                            }, 1000);
+                          }}
+                          style={{
+                            background: '#1e293b',
+                            border: '1px solid #334155',
+                            borderRadius: 6,
+                            padding: '2px 8px',
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: '#cbd5e1',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseOver={(e) => { e.currentTarget.style.background = '#334155'; e.currentTarget.style.color = '#f8fafc'; }}
+                          onMouseOut={(e) => { if (e.currentTarget.innerText === '복사') { e.currentTarget.style.background = '#1e293b'; e.currentTarget.style.color = '#cbd5e1'; } }}
+                        >
+                          복사
+                        </button>
+                      </div>
                     </summary>
 
                     <div style={{ padding: '1rem 1.25rem' }}>

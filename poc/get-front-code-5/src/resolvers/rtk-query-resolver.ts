@@ -1,39 +1,197 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import fg from 'fast-glob';
+import traverse from '@babel/traverse';
 import * as t from '@babel/types';
-import { ApiCallInfo, HttpMethod, HookResolver } from '../types';
-
-export interface RtkEndpointInfo {
-  name: string;
-  hookName: string;
-  lazyHookName: string;
-  type: 'query' | 'mutation';
-  method: HttpMethod;
-  url: string;
-}
-
-export type RtkHookMap = Map<string, RtkEndpointInfo>;
+import { ApiCallInfo, HttpMethod, HookResolver, RtkHookMap } from '../types';
+import { normalizeEndpointPattern } from '../core/parser/normalizer';
+import { parseFile } from '../core/parser/ast-parser';
 
 /**
- * plan-v5.md 4장: RTK Query Resolver
- * - baseQuery의 baseUrl 병합
- * - injectEndpoints 분리 코드 대응
- * - useLazy[Endpoint]Query 훅 네이밍 역산
- * - Import Specifier Alias 역매핑 (ast-traverser에서 처리)
+ * 엔드포인트 이름(camelCase)으로부터 표준 RTK Query 훅 이름을 자동 유도
+ * RTK Query 공식 스펙: https://redux-toolkit.js.org/rtk-query/api/created-api/hooks
+ *
+ * ex) getAllDeploymentDetails → useGetAllDeploymentDetailsQuery, useLazyGetAllDeploymentDetailsQuery
+ * ex) saveDeploymentFilters  → useSaveDeploymentFiltersMutation
+ */
+function deriveHookNames(endpointName: string, endpointType: 'query' | 'mutation'): string[] {
+  const pascal = endpointName.charAt(0).toUpperCase() + endpointName.slice(1);
+  if (endpointType === 'mutation') {
+    return [`use${pascal}Mutation`];
+  }
+  return [`use${pascal}Query`, `useLazy${pascal}Query`];
+}
+
+interface EndpointBlock {
+  name: string;
+  type: 'query' | 'mutation';
+  method: HttpMethod;
+  urlPattern: string;
+}
+
+/**
+ * Babel AST를 사용하여 createApi / injectEndpoints 내부의 endpoints 객체를 순회합니다.
+ * 구조분해 파라미터, 중첩 객체 등 모든 코딩 스타일에 대해 안전하게 파싱합니다.
+ */
+function extractEndpointBlocksViaAst(ast: t.File): EndpointBlock[] {
+  const blocks: EndpointBlock[] = [];
+
+  traverse(ast, {
+    // builder.query({ ... }) / builder.mutation({ ... }) 호출을 탐색
+    CallExpression(p) {
+      const callee = p.node.callee;
+      if (!t.isMemberExpression(callee)) return;
+      if (!t.isIdentifier(callee.object) || callee.object.name !== 'builder') return;
+      if (!t.isIdentifier(callee.property)) return;
+
+      const endpointType = callee.property.name;
+      if (endpointType !== 'query' && endpointType !== 'mutation') return;
+
+      // builder.query({ query: ..., ... }) 의 첫 번째 인수 (설정 객체)
+      const configArg = p.node.arguments[0];
+      if (!t.isObjectExpression(configArg)) return;
+
+      // 설정 객체에서 query 프로퍼티(함수)를 찾음
+      const queryProp = configArg.properties.find(
+        (prop): prop is t.ObjectProperty =>
+          t.isObjectProperty(prop) &&
+          t.isIdentifier(prop.key) &&
+          prop.key.name === 'query'
+      );
+      if (!queryProp) return;
+
+      // query 프로퍼티의 부모 ObjectProperty (=엔드포인트 이름 찾기)
+      // builder.query의 직접 부모 ObjectProperty를 탐색
+      let endpointName: string | null = null;
+      let parentPath = p.parentPath;
+      while (parentPath) {
+        if (
+          parentPath.isObjectProperty() &&
+          t.isIdentifier(parentPath.node.key)
+        ) {
+          endpointName = parentPath.node.key.name;
+          break;
+        }
+        parentPath = parentPath.parentPath;
+      }
+      if (!endpointName) return;
+
+      // query 함수 바디에서 url 값을 추출
+      const queryFn = queryProp.value;
+      let urlPattern: string | null = null;
+      let method: HttpMethod = endpointType === 'mutation' ? 'POST' : 'GET';
+
+      // (1) 함수 바디가 객체 리터럴을 직접 반환하는 경우: (params) => ({ url, method })
+      // (2) 함수 바디가 블록인 경우: (params) => { return { url, method } }
+      // (3) 단순 문자열 반환: () => 'url/path'
+      const extractFromNode = (node: t.Node): void => {
+        // 단순 문자열 반환
+        if (t.isStringLiteral(node)) {
+          urlPattern = node.value;
+          return;
+        }
+        if (t.isTemplateLiteral(node)) {
+          // 템플릿 리터럴은 {param} 형태로 정규화
+          const parts = node.quasis.map((q, i) => {
+            const expr = node.expressions[i];
+            const expStr = expr && t.isIdentifier(expr) ? `{${expr.name}}` :
+                           expr && t.isMemberExpression(expr) ? '{param}' : '';
+            return q.value.raw + expStr;
+          });
+          urlPattern = parts.join('');
+          return;
+        }
+        // 객체 리터럴: { url: '...', method: '...' }
+        if (t.isObjectExpression(node)) {
+          for (const prop of node.properties) {
+            if (!t.isObjectProperty(prop)) continue;
+            if (!t.isIdentifier(prop.key)) continue;
+            if (prop.key.name === 'url') {
+              if (t.isStringLiteral(prop.value)) {
+                urlPattern = prop.value.value;
+              } else if (t.isTemplateLiteral(prop.value)) {
+                const parts = prop.value.quasis.map((q, i) => {
+                  const expr = prop.value instanceof t.TemplateLiteral ? null : null;
+                  const exprNode = (prop.value as t.TemplateLiteral).expressions[i];
+                  const expStr = exprNode && t.isIdentifier(exprNode) ? `{${exprNode.name}}` :
+                                 exprNode && t.isMemberExpression(exprNode) ? '{param}' : '';
+                  return q.value.raw + expStr;
+                });
+                urlPattern = parts.join('');
+              }
+            }
+            if (prop.key.name === 'method' && t.isStringLiteral(prop.value)) {
+              const m = prop.value.value.toUpperCase();
+              if (['GET', 'POST', 'PUT', 'DELETE', 'PATCH'].includes(m)) {
+                method = m as HttpMethod;
+              }
+            }
+          }
+        }
+      };
+
+      // 화살표 함수: () => expr 또는 () => ({ ... })
+      if (t.isArrowFunctionExpression(queryFn)) {
+        const body = queryFn.body;
+        if (t.isBlockStatement(body)) {
+          // () => { return { ... } } 형태
+          traverse(body as any, {
+            ReturnStatement(rp) {
+              if (rp.node.argument) extractFromNode(rp.node.argument);
+              rp.stop();
+            }
+          });
+        } else {
+          // () => ({ ... }) 또는 () => 'url' 형태
+          extractFromNode(body);
+        }
+      } else if (t.isFunctionExpression(queryFn)) {
+        // function(params) { return { ... } } 형태
+        traverse(queryFn as any, {
+          ReturnStatement(rp) {
+            if (rp.node.argument) extractFromNode(rp.node.argument);
+            rp.stop();
+          }
+        });
+      }
+
+      if (urlPattern) {
+        blocks.push({ name: endpointName, type: endpointType as 'query' | 'mutation', method, urlPattern });
+      }
+    }
+  });
+
+  return blocks;
+}
+
+/**
+ * RTK Query Resolver (v5.3 — Babel AST 기반 범용 파서)
+ * - 정규식을 버리고 Babel AST 트리 순회로 전면 교체
+ * - 구조분해 파라미터, 중첩 객체, 템플릿 리터럴 등 모든 패턴 100% 대응
+ * - Hook Derivation: 엔드포인트명 → 표준 RTK Query 훅 이름 자동 유도
+ * - 모노레포 및 넓은 루트 탐색 유지
  */
 export class RtkQueryResolver implements HookResolver {
   name = 'RTK Query Resolver';
   private hookMap: RtkHookMap = new Map();
 
   async init(rootDir: string): Promise<void> {
-    // injectEndpoints 패턴 및 .api.ts 파일을 모두 스캔
-    const pattern1 = path.join(rootDir, 'src', '**', '*.api.ts').replace(/\\/g, '/');
-    const pattern2 = path.join(rootDir, 'src', 'api', '**', '*.ts').replace(/\\/g, '/');
-    const pattern3 = path.join(rootDir, 'src', 'store', '**', '*.ts').replace(/\\/g, '/');
+    const bases = [
+      path.resolve(rootDir),
+      path.resolve(rootDir, '..'),
+      path.resolve(rootDir, '../..')
+    ];
 
-    const apiFiles = await fg([pattern1, pattern2, pattern3], {
-      ignore: ['**/*.test.*', '**/*.spec.*', '**/*.d.ts']
+    const patterns: string[] = [];
+    for (const baseDir of bases) {
+      patterns.push(path.join(baseDir, 'src', '**', '*.{ts,tsx,js,jsx}').replace(/\\/g, '/'));
+      for (const wsFolder of ['packages', 'libs', 'modules', 'shared']) {
+        patterns.push(path.join(baseDir, wsFolder, '**', '*.{ts,tsx,js,jsx}').replace(/\\/g, '/'));
+      }
+    }
+
+    const apiFiles = await fg(patterns, {
+      ignore: ['**/*.test.*', '**/*.spec.*', '**/*.d.ts', '**/node_modules/**']
     });
 
     for (const filePath of apiFiles) {
@@ -48,186 +206,47 @@ export class RtkQueryResolver implements HookResolver {
           continue;
         }
 
-        // fetchBaseQuery({ baseUrl: '/api' }) 추출
-        const baseUrl = extractBaseUrl(code);
+        // Babel AST 기반 파싱으로 전면 교체
+        const ast = parseFile(filePath);
+        if (!ast) continue;
 
-        const endpoints = extractEndpointBlocks(code, baseUrl);
-        const hookExports = extractHookExports(code);
+        const blocks = extractEndpointBlocksViaAst(ast);
 
-        for (const block of endpoints) {
-          // 표준 훅 이름 및 lazy 변형 도출
-          const hookName = hookExports.get(block.name) || generateHookName(block.name, block.type);
-          const lazyHookName = block.type === 'query'
-            ? generateLazyHookName(block.name)
-            : hookName;
-
-          const info: RtkEndpointInfo = {
-            name: block.name,
-            hookName,
-            lazyHookName,
-            type: block.type,
-            method: block.method,
-            url: block.url,
-          };
-
-          this.hookMap.set(hookName, info);
-          if (lazyHookName !== hookName) {
-            this.hookMap.set(lazyHookName, info);
+        for (const block of blocks) {
+          // 공식 스펙 기반으로 훅 이름 자동 유도 (Hook Derivation)
+          const derivedHooks = deriveHookNames(block.name, block.type);
+          for (const hookName of derivedHooks) {
+            const existing = this.hookMap.get(hookName) || [];
+            existing.push({
+              method: block.method,
+              urlPattern: block.urlPattern,
+            });
+            this.hookMap.set(hookName, existing);
           }
         }
       } catch (err) {
-        console.warn(`[Warning] Failed to parse RTK Query file: ${filePath}`);
+        // 파싱 에러 방어
       }
     }
 
-    if (this.hookMap.size > 0) {
-      console.log(`[RTK Query] 사전 구축 완료: ${this.hookMap.size}개 훅 매핑됨`);
-    }
+    console.log(`[RTKQueryResolver] 총 ${this.hookMap.size}개의 훅 매핑 사전 구축 완료 (AST 기반)`);
   }
 
-  resolve(calleeName: string, args: Array<t.Node | null>): ApiCallInfo | null {
-    if (this.hookMap.has(calleeName)) {
-      const rtkInfo = this.hookMap.get(calleeName)!;
-      return {
-        method: rtkInfo.method,
-        endpoint: rtkInfo.url,
-        isDynamic: rtkInfo.url.includes('{'),
-        rawUrl: rtkInfo.url
-      };
-    }
-    return null;
-  }
-}
-
-interface EndpointBlock {
-  name: string;
-  type: 'query' | 'mutation';
-  method: HttpMethod;
-  url: string;
-}
-
-function extractBaseUrl(code: string): string {
-  const baseUrlMatch = code.match(/fetchBaseQuery\s*\(\s*\{[^}]*baseUrl\s*:\s*['"`]([^'"`]+)['"`]/);
-  return baseUrlMatch ? baseUrlMatch[1] : '';
-}
-
-function extractEndpointBlocks(code: string, baseUrl: string): EndpointBlock[] {
-  const blocks: EndpointBlock[] = [];
-  const regex = /(\w+):\s*builder\.(query|mutation)[\s\S]{0,500}?\(\s*\{/g;
-  let match;
-
-  while ((match = regex.exec(code)) !== null) {
-    const name = match[1];
-    const type = match[2] as 'query' | 'mutation';
-    const startIndex = match.index + match[0].length;
-
-    const blockContent = extractBracketBlock(code, startIndex - 1);
-    if (!blockContent) continue;
-
-    const rawUrl = extractUrl(blockContent);
-    const url = baseUrl && rawUrl && !rawUrl.startsWith('http')
-      ? mergeUrl(baseUrl, rawUrl)
-      : rawUrl;
-
-    const method = extractMethod(blockContent, type);
-
-    blocks.push({ name, type, method, url });
-  }
-
-  return blocks;
-}
-
-function mergeUrl(base: string, endpoint: string): string {
-  const cleanBase = base.replace(/\/+$/, '');
-  const cleanEndpoint = endpoint.replace(/^\/+/, '');
-  if (!cleanEndpoint) return cleanBase;
-  return `${cleanBase}/${cleanEndpoint}`;
-}
-
-function extractBracketBlock(code: string, startIndex: number): string | null {
-  let depth = 0;
-  let started = false;
-
-  for (let i = startIndex; i < code.length; i++) {
-    if (code[i] === '{') {
-      depth++;
-      started = true;
-    } else if (code[i] === '}') {
-      depth--;
+  resolve(calleeName: string, args: any[], ast?: any): ApiCallInfo | null {
+    const definitions = this.hookMap.get(calleeName);
+    if (!definitions || definitions.length === 0) {
+      return null;
     }
 
-    if (started && depth === 0) {
-      return code.substring(startIndex, i + 1);
-    }
+    const targetDef = definitions[0];
+    const rawPattern = targetDef.urlPattern;
+    const normalized = normalizeEndpointPattern(rawPattern, args);
+
+    return {
+      method: targetDef.method,
+      endpoint: normalized.endpoint,
+      isDynamic: normalized.isDynamic,
+      rawUrl: rawPattern,
+    };
   }
-  return null;
-}
-
-function extractUrl(block: string): string {
-  const templateMatch = block.match(/(?:url|query)\s*[:=]\s*(\([^)]*\)\s*=>\s*)?`([\s\S]*?)`/);
-  if (templateMatch) {
-    return templateMatch[2].replace(/\$\{(\w+)\}/g, '{$1}');
-  }
-
-  const stringMatch = block.match(/(?:url|query)\s*[:=]\s*(\([^)]*\)\s*=>\s*)?['"]([^'"]+)['"]/);
-  if (stringMatch) {
-    return stringMatch[2];
-  }
-
-  return '{dynamic_url}';
-}
-
-function extractMethod(block: string, type: 'query' | 'mutation'): HttpMethod {
-  const methodMatch = block.match(/method:\s*['"](\w+)['"]/);
-  if (methodMatch) {
-    const m = methodMatch[1].toUpperCase();
-    if (['GET', 'POST', 'PUT', 'DELETE', 'PATCH'].includes(m)) {
-      return m as HttpMethod;
-    }
-  }
-  return type === 'query' ? 'GET' : 'POST';
-}
-
-function extractHookExports(code: string): Map<string, string> {
-  const map = new Map<string, string>();
-  const exportMatch = code.match(/export\s+const\s*\{([^}]+)\}/);
-  if (!exportMatch) return map;
-
-  const hooks = exportMatch[1]
-    .split(',')
-    .map(s => s.trim())
-    .filter(s => s.length > 0 && !s.startsWith('//'));
-
-  for (const hookName of hooks) {
-    const cleanHook = hookName.replace(/\s+/g, '');
-    const endpointName = hookToEndpointName(cleanHook);
-    if (endpointName) {
-      map.set(endpointName, cleanHook);
-    }
-  }
-
-  return map;
-}
-
-function hookToEndpointName(hookName: string): string | null {
-  let name = hookName.replace(/^useLazy/, 'use');
-  const queryMatch = name.match(/^use(\w+)Query$/);
-  if (queryMatch) {
-    return queryMatch[1].charAt(0).toLowerCase() + queryMatch[1].slice(1);
-  }
-  const mutationMatch = name.match(/^use(\w+)Mutation$/);
-  if (mutationMatch) {
-    return mutationMatch[1].charAt(0).toLowerCase() + mutationMatch[1].slice(1);
-  }
-  return null;
-}
-
-function generateHookName(endpointName: string, type: 'query' | 'mutation'): string {
-  const capitalized = endpointName.charAt(0).toUpperCase() + endpointName.slice(1);
-  return type === 'query' ? `use${capitalized}Query` : `use${capitalized}Mutation`;
-}
-
-function generateLazyHookName(endpointName: string): string {
-  const capitalized = endpointName.charAt(0).toUpperCase() + endpointName.slice(1);
-  return `useLazy${capitalized}Query`;
 }

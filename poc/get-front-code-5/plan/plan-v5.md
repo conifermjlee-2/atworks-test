@@ -46,7 +46,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │ 3️⃣ 플러그인 리졸버 레이어 [src/resolvers/*]                    │
 │    - ReactQueryResolver, RTKQueryResolver, SWRResolver 등    │
-│    - 파일 간 심볼 역추적 및 경로 해석 (최대 깊이: 3단계 무한루프 방지) │
+│    - 범용 동적 import 심볼 역추적 (상대경로/별칭 추적, 로컬 서비스 파일 파싱) │
 └──────────────────────────┬──────────────────────────────────┘
                            │
                            ▼
@@ -72,8 +72,8 @@
    - `visited` Set을 통해 이미 방문한 노드나 파일은 스킵하여 순환 참조로 인한 무한 루프를 방지합니다.
 4. **컴포넌트 지시어 판별**
    - `'use client'`, `'use server'` 지시어를 탐색하여 컴포넌트 유형을 자동 식별합니다.
-5. **모노레포 및 경로 별칭(Alias) 동적 해석**
-   - `tsconfig.json`의 `paths` 구문을 동적으로 수집하여 `@/api/...` 형태의 심볼을 실제 물리 경로로 해석합니다.
+5. **모노레포 및 동적 Import 심볼 역추적 (Symbol Tracing)**
+   - `tsconfig.json` 별칭(`@/`) 및 상대 경로(`../../`) import를 동적으로 추적하여, 컴포넌트가 사용하는 로컬 서비스 파일(`*.service.ts` 등) 내부의 API 통신까지 연쇄 해석합니다.
 6. **TypeScript 5.9.3 고정**
    - Next.js 및 Babel 파서의 정적 타이핑 호환성 유지를 위해 TS 버전을 강제합니다.
 
@@ -85,9 +85,9 @@
 
 | 리졸버 모듈 | 타겟 라이브러리 | 분석 로직 특징 |
 |:---|:---|:---|
-| 📡 **`AxiosFetchResolver`** | `Axios`, `Fetch` | 기본 활성화. `axios.get()`, `fetch()` 등 순수 HTTP 클라이언트 추출 |
+| 📡 **`AxiosFetchResolver`** | `Axios`, `Fetch` | 기본 활성화. `axios.get()`, `fetch()`, `*HttpClient`, `*Client` 등 커스텀 인스턴스 및 `.download()` 지원 |
 | ⚛️ **`ReactQueryResolver`** | `React Query` | `useQuery` 내부의 `queryFn` 파싱 및 `queryKey` 기반 Fallback |
-| 📦 **`RTKQueryResolver`** | `RTK Query` | `createApi` 엔드포인트 사전 수집(`init()`) 후 훅 매핑 |
+| 📦 **`RTKQueryResolver`** | `RTK Query` | 특정 파일명 규칙 없이 `src/` 전체 소스 범용 스캔(`init()`) 후 표준/Lazy 훅 매핑 |
 | 💧 **`SWRResolver`** | `SWR` | `useSWR` 훅의 key 문자열 및 fetcher 기반 파싱 |
 
 ---

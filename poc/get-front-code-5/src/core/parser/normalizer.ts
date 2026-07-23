@@ -24,3 +24,14 @@ export function normalizeTemplateLiteral(node: t.TemplateLiteral): string {
   }
   return result;
 }
+
+/**
+ * 엔드포인트 패턴 정규화 함수
+ * - `${param}` 이나 `:param` 형태의 플레이스홀더를 `{param}` 형태로 통일
+ */
+export function normalizeEndpointPattern(pattern: string, args?: any[]): { endpoint: string; isDynamic: boolean } {
+  let endpoint = pattern.replace(/\$\{(\w+)\}/g, '{$1}').replace(/:(\w+)/g, '{$1}');
+  const isDynamic = endpoint.includes('{');
+  return { endpoint, isDynamic };
+}
+

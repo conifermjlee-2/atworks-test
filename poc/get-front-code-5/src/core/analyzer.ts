@@ -50,7 +50,7 @@ export class Analyzer {
     // Axios/Fetch: 항상 기본 탑재 (가장 마지막 — 저수준 Fallback)
     this.resolvers.push(new AxiosFetchResolver());
 
-    // [3단계] 플러그인 초기화 (RTK Query는 .api.ts 사전 스캔으로 이름표 사전 구축)
+    // [3단계] 플러그인 초기화 (RTK Query는 파일 사전 스캔으로 이름표 사전 구축)
     for (const resolver of this.resolvers) {
       if (resolver.init) {
         await resolver.init(targetDir);
@@ -64,22 +64,22 @@ export class Analyzer {
     }
 
     const results: MappingResult[] = [];
-    // plan-v5.md 3장 (2. 중복 카운트 방지 메커니즘): 단일 화면 내 중복 제거 (화면+메서드+엔드포인트 기준)
     const seen = new Set<string>();
 
-    // [5단계] 파일별 AST 파싱 및 순회
+    // [5단계] 파일별 AST 파싱 및 범용 심볼 역추적 (Symbol Tracing) 순회
     for (const filePath of files) {
       const ast = parseFile(filePath);
       if (!ast) continue;
 
       const callType = adapter.getCallType(filePath);
-      const apiCalls = findApiCalls(ast, this.resolvers);
+      // 범용 심볼 역추적(filePath, targetDir) 활성화
+      const apiCalls = findApiCalls(ast, this.resolvers, filePath, targetDir);
 
       const relativePath = path.relative(targetDir, filePath);
       const viewName = path.basename(filePath, path.extname(filePath));
 
       for (const call of apiCalls) {
-        const dedupeKey = `${relativePath}:${call.method}:${call.endpoint}`;
+        const dedupeKey = `${relativePath}:${call.method}:${call.endpoint}:${call.calleeName ?? ''}`;
         if (seen.has(dedupeKey)) continue;
         seen.add(dedupeKey);
 

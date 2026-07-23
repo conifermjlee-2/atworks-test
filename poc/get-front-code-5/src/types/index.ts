@@ -9,6 +9,7 @@ export interface ApiCallInfo {
   endpoint: string;
   isDynamic: boolean;
   rawUrl?: string;
+  calleeName?: string; // 훅/심볼 식별용 (dedupe 키, 심볼 트레이싱용)
 }
 
 export interface MappingResult {
@@ -32,5 +33,13 @@ export interface HookResolver {
   /** RTK Query처럼 사전 학습이 필요한 Resolver만 구현 */
   init?: (rootDir: string) => Promise<void>;
   /** 성공 시 ApiCallInfo 반환, 미해당/실패 시 null 반환 (책임 연쇄 패턴) */
-  resolve(calleeName: string, args: any[]): ApiCallInfo | null;
+  resolve(calleeName: string, args: any[], ast?: any): ApiCallInfo | null;
 }
+
+export interface RtkHookDefinition {
+  method: HttpMethod;
+  urlPattern: string;
+}
+
+export type RtkHookMap = Map<string, RtkHookDefinition[]>;
+
