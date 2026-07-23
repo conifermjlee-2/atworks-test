@@ -4,7 +4,8 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Star, ShoppingBag, Eye } from 'lucide-react';
 import { Product } from '@/types';
-import { useCart } from '@/context/CartContext';
+import { addToCartApi } from '@/services/api';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Spinner from '@/components/common/Spinner';
 
 interface ProductCardProps {
@@ -12,10 +13,24 @@ interface ProductCardProps {
   onQuickView?: (product: Product) => void;
 }
 
+/**
+ * [상품 카드 공통 컴포넌트 - src/components/ProductCard.tsx]
+ * [React Query - useMutation] Axios POST /api/cart (장바구니 추가)
+ * onSuccess: invalidateQueries(['cart']) → Header 배지 자동 갱신
+ */
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }) => {
   const router = useRouter();
-  const { addToCart } = useCart();
+  const queryClient = useQueryClient();
   const [isNavigating, setIsNavigating] = React.useState(false);
+
+  // [React Query - useMutation] POST /api/cart
+  const addToCartMutation = useMutation({
+    mutationFn: () => addToCartApi(product, 1),
+    onSuccess: () => {
+      // ['cart'] 캐시 무효화 → Header의 useQuery(['cart'])가 자동 재요청
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
+    },
+  });
 
   // [시나리오 1 후행 액션: 상품 상세 B 화면으로 이동]
   const handleCardClick = () => {
@@ -25,7 +40,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    await addToCart(product, 1);
+    await addToCartMutation.mutateAsync();
   };
 
   const handleQuickViewClick = (e: React.MouseEvent) => {
@@ -56,6 +71,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }
           )}
           <button
             onClick={handleAddToCart}
+            disabled={addToCartMutation.isPending}
             className="add-cart-btn"
             title="장바구니 담기"
           >

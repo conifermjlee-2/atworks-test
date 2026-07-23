@@ -3,7 +3,9 @@
 import React from 'react';
 import Link from 'next/link';
 import { ShoppingBag, ShoppingCart, Search } from 'lucide-react';
-import { useCart } from '@/context/CartContext';
+import { useQuery } from '@tanstack/react-query';
+import { fetchCartItems } from '@/services/api';
+import { CartItem } from '@/types';
 
 interface HeaderProps {
   isCheckoutPage?: boolean;
@@ -13,9 +15,16 @@ interface HeaderProps {
  * [공통 컴포넌트 1: Header - src/components/common/Header.tsx]
  * 사용 위치 1: src/app/layout.tsx (루트 공통 GNB)
  * 사용 위치 2: src/app/checkout/page.tsx (결제 전용 Header)
+ * - useQuery(['cart']): Axios GET /api/cart → 장바구니 배지 숫자 실시간 조회
+ * - invalidateQueries(['cart']) 수신 시 자동 재요청 및 갱신
  */
 export const Header: React.FC<HeaderProps> = ({ isCheckoutPage = false }) => {
-  const { totalCount, setIsCartOpen } = useCart();
+  // [React Query] GET /api/cart → 장바구니 개수 표시
+  const { data: cartItems = [] } = useQuery<CartItem[]>({
+    queryKey: ['cart'],
+    queryFn: fetchCartItems,
+  });
+  const totalCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <header className="site-header">
@@ -40,18 +49,11 @@ export const Header: React.FC<HeaderProps> = ({ isCheckoutPage = false }) => {
 
             {/* 네비게이션 & 장바구니 */}
             <nav className="header-nav">
-              <Link href="/" className="nav-link">
-                홈
-              </Link>
-
-              <button
-                onClick={() => setIsCartOpen(true)}
-                className="cart-button"
-                aria-label="장바구니 열기"
-              >
+              <Link href="/" className="nav-link">홈</Link>
+              <Link href="/checkout" className="cart-button" aria-label="장바구니 / 결제">
                 <ShoppingCart className="cart-icon" />
                 {totalCount > 0 && <span className="cart-badge">{totalCount}</span>}
-              </button>
+              </Link>
             </nav>
           </>
         ) : (

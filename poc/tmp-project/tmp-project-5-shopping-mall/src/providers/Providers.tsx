@@ -2,39 +2,27 @@
 
 import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Provider as ReduxProvider } from 'react-redux';
-import { configureStore } from '@reduxjs/toolkit';
-import { shopApi } from '@/store/rtkApi';
 
 /**
  * [최상위 클라이언트 Provider 래퍼 - src/providers/Providers.tsx]
- * - React Query (QueryClientProvider): 메인 페이지 useQuery 캐시 저장소
- * - Redux + RTK Query (ReduxProvider): 결제 페이지 useGetCartItemsQuery 캐시 저장소
- * ※ 비즈니스 상태(Context) 관리 용도가 아닌, 통신 캐시 초기화 목적
+ * 실무 표준: React Query QueryClientProvider 단독 사용
+ * - Redux/RTK Query Provider 완전 제거
+ * - 모든 서버 데이터 통신은 useQuery / useMutation 으로 통일
  */
-const store = configureStore({
-  reducer: {
-    [shopApi.reducerPath]: shopApi.reducer,
-  },
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(shopApi.middleware),
-});
-
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 30 * 1000, // 30초
-        refetchOnWindowFocus: false,
+        staleTime: 30 * 1000,        // 30초 동안 캐시 데이터를 신선하다고 간주
+        refetchOnWindowFocus: false,  // 탭 전환 시 자동 재요청 비활성화
+        retry: 1,                     // 실패 시 1회 재시도
       },
     },
   }));
 
   return (
-    <ReduxProvider store={store}>
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
-    </ReduxProvider>
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
   );
 }

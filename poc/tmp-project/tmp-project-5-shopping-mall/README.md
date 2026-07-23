@@ -2,51 +2,88 @@
 
 본 프로젝트는 정적 분석 도구(`get-front-code-5`)의 API 추적 및 화면 이동 시나리오 검증을 목적으로 제작된 Next.js 기반의 쇼핑몰 테스트베드입니다.
 
+---
+
 ## 🛠 사용된 라이브러리 및 기술 스택
 
 ### 핵심 프레임워크
-- **Next.js (14.1.0)**: App Router 라우팅, 서버 컴포넌트 및 클라이언트 컴포넌트 혼합 활용, Route Handlers (API 서버 대체)
-- **React (18.2.0) / React DOM (18.2.0)**: UI 구축 및 상태 관리
+- **Next.js (14.1.0)**: App Router 라우팅, Route Handlers (API 서버 역할)
+- **React (18.2.0) / React DOM (18.2.0)**: UI 구축
 - **TypeScript (5.3.3)**: 정적 타입 검사
 
 ### UI 및 아이콘
-- **lucide-react (0.344.0)**: 아이콘 렌더링 (`ShoppingBag`, `Star`, `CreditCard` 등)
+- **lucide-react (0.344.0)**: 아이콘 렌더링
 
-### 상태 관리
-- **React Context API (`useContext`)**: 장바구니 전역 상태 관리 (`CartContext.tsx`)
-
----
-
-## 🎯 화면별 API 시나리오 흐름 (API Call Sequences)
-
-분석 도구가 추적하게 되는 **2가지 핵심 화면별 API 시나리오 흐름**입니다.
-
-### 🛒 시나리오 1: 장바구니 흐름 (Cart Scenario)
-```text
-[1단계: 홈 메인] ➔ (카드 클릭) ➔ [2단계: 제품 상세] ➔ (장바구니 담기) ➔ [3단계: 헤더 장바구니 Drawer 열림]
-```
-- **1단계 (`/`)**: 메인 홈 페이지 렌더링. `GET /api/products` 통신 1회. 후행 액션으로 카드 클릭 시 B화면(상세)으로 이동.
-- **2단계 (`/products/[id]`)**: 상세 B 화면 렌더링. `GET /api/products?id={id}` 통신 1회. 
-- **3단계 (공통 컴포넌트 `Header`)**: 장바구니 버튼 클릭. `POST /api/cart` 통신 후, 전역 Context가 업데이트되며 공통 컴포넌트 장바구니 모달이 열림.
-
-### 💳 시나리오 2: 결제 흐름 (Checkout Scenario)
-```text
-[1단계: 장바구니/상세] ➔ (결제 클릭) ➔ [2단계: 결제 폼] ➔ (모의 결제 승인) ➔ [3단계: 주문 완료 화면]
-```
-- **1단계 (`/products/[id]` 또는 장바구니)**: '바로 구매하기' 클릭 시 결제 폼 화면으로 이동.
-- **2단계 (`/checkout`)**: 결제 폼 화면. `GET /api/cart` 로 장바구니/상품 재검증. "약관 보기" 클릭 시 공통 `Modal` 팝업.
-- **3단계 (`/order-complete`)**: 결제하기 버튼 클릭. `POST /api/checkout` API 승인 완료 시, 최종 주문 완료 C 화면으로 자동 리다이렉션 이동.
-
----
-
-## 📌 파일별 위치 및 API 분석 가이드
-
-| 화면 (View) | 파일 경로 | 설명 및 호출 API |
+### 📡 통신 라이브러리 (실무 표준 단일 체계)
+| 패키지 | 역할 | 사용 위치 |
 |---|---|---|
-| **API 서비스 모듈** | `src/services/api.ts` | 공통 통신 모듈. 원본 API 4종 정의 (`GET /api/products`, `GET /api/cart`, `POST /api/cart`, `POST /api/checkout`) |
-| **전역 장바구니** | `src/context/CartContext.tsx` | 전역 상태 모듈. `GET /api/cart` (초기화), `POST /api/cart` (추가) |
-| **메인 홈 화면** | `src/app/page.tsx` | 메인 페이지. `GET /api/products` 1개 호출 |
-| **상품 상세 화면** | `src/app/products/[id]/page.tsx` | 상세 페이지. `GET /api/products`, `POST /api/checkout` (바로구매) 호출 |
-| **결제 진행 화면** | `src/app/checkout/page.tsx` | 결제 페이지. `GET /api/cart`, `POST /api/checkout` 호출 |
-| **공통 컴포넌트** | `src/components/common/*` | `Modal`(모달 팝업), `Header`(장바구니 드로어 포함), `Spinner`(로딩 UI) |
-| **백엔드 API 서버** | `src/app/api/.../route.ts` | Next.js API Routes. 실제 Node.js 환경에서 목업 데이터를 JSON으로 렌더링하는 역할 |
+| **axios** | HTTP 클라이언트 (모든 API 통신) | `src/services/api.ts` |
+| **@tanstack/react-query** | 서버 상태 관리 (캐싱, 로딩, 재요청 자동화) | 전체 페이지 컴포넌트 |
+
+---
+
+## 🎯 화면별 API 시나리오 흐름
+
+### 🛒 시나리오 1: 장바구니 흐름
+
+```
+[1단계: 홈 메인 /]
+  useQuery(['products', category])
+  → Axios GET /api/products
+  → 후행 액션: 카드 클릭 시 /products/{id} 화면 이동
+
+[2단계: 상품 상세 /products/[id]]
+  useQuery(['product', id])
+  → Axios GET /api/products?id={id}
+
+  useMutation: 장바구니 담기 클릭
+  → Axios POST /api/cart
+  → onSuccess: invalidateQueries(['cart']) → Header 배지 자동 갱신
+
+  useMutation: 바로 구매하기 클릭
+  → Axios POST /api/checkout
+  → onSuccess: router.push('/order-complete')
+```
+
+### 💳 시나리오 2: 결제 흐름
+
+```
+[1단계: 결제 화면 /checkout]
+  useQuery(['cart'])
+  → Axios GET /api/cart (주문 상품 목록)
+  → 약관 보기 클릭 시 Modal 공통 컴포넌트 오픈
+
+[2단계: 결제 승인]
+  useMutation: 결제하기 클릭
+  → Axios POST /api/checkout
+  → onSuccess: router.push('/order-complete?orderId=...')
+```
+
+---
+
+## 📁 파일별 역할 가이드
+
+| 파일 | 역할 | 통신 도구 |
+|---|---|---|
+| `src/services/api.ts` | Axios 인스턴스 기반 공통 API 함수 4종 | Axios |
+| `src/providers/Providers.tsx` | QueryClientProvider 래퍼 (캐시 초기화) | - |
+| `src/app/page.tsx` | 메인 홈 (useQuery + useMutation) | React Query |
+| `src/app/products/[id]/page.tsx` | 상품 상세 (useQuery × 2 + useMutation × 2) | React Query |
+| `src/components/common/Header.tsx` | 공통 헤더, 장바구니 배지 (useQuery) | React Query |
+| `src/app/checkout/page.tsx` | 결제 화면 (useQuery + useMutation) | React Query |
+| `src/app/api/*/route.ts` | 백엔드 API Route Handlers (Node.js 서버) | - |
+| `src/components/common/Modal.tsx` | 공통 팝업 모달 컴포넌트 | - |
+| `src/components/common/Header.tsx` | 공통 GNB 헤더 컴포넌트 | - |
+
+---
+
+## 🚀 실행 방법
+
+```bash
+# 프로덕션 빌드 & 실행 (권장 - 실제 속도 확인용)
+npm run build
+npx next start -p 3004
+
+# 개발 서버 (코드 수정 반영용, 페이지 첫 접속 시 컴파일 딜레이 발생)
+npm run dev
+```

@@ -1,46 +1,46 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Product } from '@/types';
-import { fetchProducts } from '@/services/api';
+import { fetchProducts, addToCartApi } from '@/services/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ProductCard from '@/components/ProductCard';
 import CategoryFilter from '@/components/CategoryFilter';
 import Modal from '@/components/common/Modal';
 import Spinner from '@/components/common/Spinner';
-import { useCart } from '@/context/CartContext';
-import { ShoppingBag, Star } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 
 /**
  * [메인 홈 페이지 - src/app/page.tsx]
- * [시나리오 1 - 1단계] GET /api/products 호출
- * [시나리오 1 - 1단계 후행 액션] 카드 클릭 시 router.push('/products/[id]') 실행으로 상세 B 화면 이동
- * [공통 API 1 호출 위치 1] fetchProducts()
+ * [React Query] useQuery → Axios GET /api/products (상품 목록 캐싱 조회)
+ * [React Query] useMutation → Axios POST /api/cart (장바구니 추가)
  * [공통 컴포넌트 2 사용 위치 1] Modal (Quick View 모달)
  */
 export default function HomePage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const queryClient = useQueryClient();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [loading, setLoading] = useState<boolean>(true);
-
-  // Quick View 모달 상태 (공통 컴포넌트 2 사용)
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
-  const { addToCart } = useCart();
 
-  // [시나리오 1 - 1단계 API 호출: GET /api/products]
-  useEffect(() => {
-    async function loadProducts() {
-      setLoading(true);
-      try {
-        const data = await fetchProducts({ category: selectedCategory });
-        setProducts(data);
-      } catch (error) {
-        console.error('상품 로드 오류:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadProducts();
-  }, [selectedCategory]);
+  // [React Query - useQuery] Axios GET /api/products
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ['products', selectedCategory],
+    queryFn: () => fetchProducts({ category: selectedCategory }),
+  });
+
+  // [React Query - useMutation] Axios POST /api/cart
+  const addToCartMutation = useMutation({
+    mutationFn: ({ product, quantity }: { product: Product; quantity: number }) =>
+      addToCartApi(product, quantity),
+    onSuccess: () => {
+      // 캐시 무효화 → Header의 useQuery(['cart'])가 자동으로 재요청
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
+    },
+  });
+
+  const handleAddToCart = async (product: Product) => {
+    await addToCartMutation.mutateAsync({ product, quantity: 1 });
+    setQuickViewProduct(null);
+  };
 
   return (
     <main className="main-container">
@@ -61,7 +61,7 @@ export default function HomePage() {
       />
 
       {/* 상품 리스트 카드 그리드 */}
-      {loading ? (
+      {isLoading ? (
         <div style={{ textAlign: 'center', padding: '5rem 0' }}>
           <Spinner size={36} text="상품 데이터를 불러오는 중입니다..." />
         </div>
@@ -102,15 +102,13 @@ export default function HomePage() {
                 {quickViewProduct.price.toLocaleString()}원
               </div>
               <button
-                onClick={() => {
-                  addToCart(quickViewProduct, 1);
-                  setQuickViewProduct(null);
-                }}
+                onClick={() => handleAddToCart(quickViewProduct)}
+                disabled={addToCartMutation.isPending}
                 className="checkout-btn"
                 style={{ padding: '0.6rem 1.2rem' }}
               >
                 <ShoppingBag size={18} />
-                <span>장바구니에 담기</span>
+                <span>{addToCartMutation.isPending ? '담는 중...' : '장바구니에 담기'}</span>
               </button>
             </div>
           </div>

@@ -143,7 +143,7 @@ export default function Home() {
               v6 · Premium Static Analyzer
             </p>
             <h1 style={{ fontSize: 32, fontWeight: 700, margin: '0.5rem 0 0.4rem', color: '#f8fafc', letterSpacing: '-0.5px' }}>
-              프론트엔드 API 정적 분석기
+              프론트엔드 API 정적 분석기-6
             </h1>
             <p style={{ fontSize: 14, color: '#94a3b8', margin: 0, lineHeight: 1.6 }}>
               React와 Next.js 소스에서 화면별 REST API 호출을 추적합니다.<br />
