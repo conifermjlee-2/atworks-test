@@ -700,16 +700,22 @@ export default function Home() {
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ fontSize: 14, color: '#64748b' }}>
-                              {collapsedAiScenarios.has(idx) ? '▶' : '▼'}
-                            </span>
-                            <h3 style={{ fontSize: 20, fontWeight: 700, color: '#f8fafc', margin: 0 }}>{sc.title}</h3>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: 14, color: '#64748b', width: 14 }}>
+                                {collapsedAiScenarios.has(idx) ? '▶' : '▼'}
+                              </span>
+                              <span style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 700, background: '#334155', padding: '2px 8px', borderRadius: 12 }}>
+                                {idx + 1}
+                              </span>
+                            </div>
+                            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#f8fafc', margin: 0 }}>{sc.title}</h3>
                           </div>
-                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
                             {sc.tags?.map((tag: string) => (
                               <span key={tag} style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', fontSize: 12, padding: '3px 10px', borderRadius: 12, fontWeight: 700, border: '1px solid rgba(99, 102, 241, 0.2)' }}>#{tag}</span>
                             ))}
+                            <CopyAiScenarioBtn scenario={sc} />
                           </div>
                         </div>
                         <p style={{ fontSize: 14, color: '#94a3b8', margin: 0, lineHeight: 1.6, paddingLeft: '1.5rem' }}>{sc.summary}</p>
@@ -1323,3 +1329,51 @@ function CopyScenarioBtn({ scenario, refetchChains = [] }: {
   );
 }
 
+
+// ── AI 시나리오 복사 버튼 ─────────────────────────────────────────────
+function CopyAiScenarioBtn({ scenario }: { scenario: any }) {
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    let text = '▼\n' + scenario.title + '\n';
+    scenario.tags?.forEach((t: string) => { text += '#' + t + '\n' });
+    text += scenario.summary + '\n\n';
+
+    scenario.steps?.forEach((step: any, idx: number) => {
+      text += (idx + 1) + '\n' + step.route + '\n';
+      if (step.apiFlow && step.apiFlow !== 'API 호출 없음') {
+        text += step.apiFlow + '\n';
+      }
+      text += step.description + '\n\n';
+    });
+
+    await navigator.clipboard.writeText(text.trimEnd());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      title="이 AI 시나리오 복사"
+      style={{
+        background: copied ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+        border: 'none',
+        borderRadius: 5,
+        padding: '3px 6px',
+        fontSize: 14,
+        color: copied ? '#818cf8' : '#64748b',
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+        display: 'flex',
+        alignItems: 'center',
+        marginLeft: '4px'
+      }}
+      onMouseOver={e => { if (!copied) { e.currentTarget.style.color = '#f8fafc'; } }}
+      onMouseOut={e => { if (!copied) { e.currentTarget.style.color = '#64748b'; } }}
+    >
+      {copied ? '✓' : '📋'}
+    </button>
+  );
+}

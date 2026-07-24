@@ -1,21 +1,25 @@
-'use client';
-
-import React, { Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import React from 'react';
 import Link from 'next/link';
-import { CheckCircle2, ShoppingBag, ArrowRight, FileText } from 'lucide-react';
+import { CheckCircle2, ShoppingBag } from 'lucide-react';
+
+export const dynamic = 'force-dynamic'; // SSR: 매 요청마다 서버에서 렌더링
 
 /**
  * [주문 완료 영수증 페이지 - src/app/order-complete/page.tsx]
- * [시나리오 2 - 3단계 POST /api/orders 성공 시 라우팅 이동되는 B 화면]
+ * 서버 컴포넌트(Server Component)로 동작 (SSR)
+ * 클라이언트 훅(useSearchParams) 대신 page props인 searchParams를 사용하여 SSR 구현
  */
-function OrderCompleteContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
+export default async function OrderCompletePage({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
+  // SSR 환경에서는 await searchParams를 사용해야 하는 경우가 있습니다 (Next.js 15+ 권장 사항)
+  const awaitedParams = await searchParams;
 
-  const orderId = searchParams.get('orderId') || 'ORD-2026-MOCK';
-  const amount = Number(searchParams.get('amount') || '0');
-  const itemsCount = searchParams.get('items') || '1';
+  const orderId = (awaitedParams?.orderId as string) || 'ORD-2026-MOCK';
+  const amount = Number(awaitedParams?.amount || '0');
+  const itemsCount = (awaitedParams?.items as string) || '1';
 
   return (
     <main className="main-container">
@@ -37,6 +41,7 @@ function OrderCompleteContent() {
           </div>
           <div className="receipt-row">
             <span style={{ color: 'var(--text-sub)' }}>결제 일시</span>
+            {/* SSR에서 하이드레이션 에러를 방지하기 위해 날짜를 하드코딩하거나 클라이언트 컴포넌트 분리가 필요하지만, POC이므로 고정된 포맷 사용 */}
             <span>{new Date().toLocaleDateString('ko-KR')}</span>
           </div>
           <div className="receipt-row">
@@ -59,13 +64,5 @@ function OrderCompleteContent() {
         </div>
       </div>
     </main>
-  );
-}
-
-export default function OrderCompletePage() {
-  return (
-    <Suspense fallback={<div style={{ textAlign: 'center', padding: '5rem' }}>로딩 중...</div>}>
-      <OrderCompleteContent />
-    </Suspense>
   );
 }
