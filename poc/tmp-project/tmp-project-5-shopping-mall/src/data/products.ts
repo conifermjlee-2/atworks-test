@@ -66,7 +66,7 @@ export const MOCK_PRODUCTS: Product[] = [
     originalPrice: 50000,
     rating: 4.9,
     reviewCount: 312,
-    image: 'https://images.unsplash.com/photo-1596462502278-27bf85033e5a?w=600&auto=format&fit=crop&q=80',
+    image: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=600&auto=format&fit=crop&q=80',
     description: '피부 깊숙이 수분을 공급하고 장벽을 강화해주는 비건 인증 수분 에센스입니다.',
     isBest: true,
   },

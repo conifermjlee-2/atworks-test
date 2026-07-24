@@ -15,7 +15,7 @@ import Link from 'next/link';
  * [React Query - useQuery] Axios GET /api/products?id={id} (상품 상세 조회)
  * [React Query - useQuery] Axios GET /api/products (연관 상품 조회)
  * [React Query - useMutation] Axios POST /api/cart (장바구니 추가)
- * [React Query - useMutation] Axios POST /api/checkout (바로 구매하기)
+ * [React Query - useMutation] Axios POST /api/orders (바로 구매하기)
  */
 export default function ProductDetailPage() {
   const params = useParams();
@@ -50,7 +50,7 @@ export default function ProductDetailPage() {
     },
   });
 
-  // [React Query - useMutation] Axios POST /api/checkout
+  // [React Query - useMutation] Axios POST /api/orders
   const checkoutMutation = useMutation({
     mutationFn: () =>
       requestCheckoutApi({

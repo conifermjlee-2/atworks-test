@@ -6,6 +6,8 @@ import { ApiCallInfo, HookResolver } from '../../types';
 import { isAllowedUrl } from './filter';
 import { parseFile } from './ast-parser';
 
+export { parseFile };
+
 interface ImportInfo {
   importedName: string;
   sourcePath: string;
@@ -653,6 +655,7 @@ export function findScenarios(
                         triggerSource: calleeName,
                         file: relativePath,
                         viewName,
+                        line: p.node.loc?.start.line,
                         apiCalls: subCalls.map((c, i) => ({ order: i + 1, method: c.method, endpoint: c.endpoint })),
                         ...(refetchKeys.length > 0 && { triggersRefetch: refetchKeys }),
                       });
@@ -674,6 +677,7 @@ export function findScenarios(
               triggerSource: calleeName,
               file: relativePath,
               viewName,
+              line: p.node.loc?.start.line,
               apiCalls: [{ order: 1, method: 'GET', endpoint: urlStr }],
             });
           }
@@ -689,6 +693,7 @@ export function findScenarios(
               triggerSource: calleeName,
               file: relativePath,
               viewName,
+              line: p.node.loc?.start.line,
               apiCalls,
               ...(refetchKeys.length > 0 && { triggersRefetch: refetchKeys }),
             });
@@ -736,6 +741,7 @@ export function findScenarios(
                         triggerSource: calleeName,
                         file: relativePath,
                         viewName,
+                        line: p.node.loc?.start.line,
                         apiCalls: subCalls.map((c, i) => ({ order: i + 1, method: c.method, endpoint: c.endpoint })),
                         ...(refetchKeys.length > 0 && { triggersRefetch: refetchKeys }),
                       });
@@ -757,6 +763,7 @@ export function findScenarios(
               triggerSource: calleeName,
               file: relativePath,
               viewName,
+              line: p.node.loc?.start.line,
               apiCalls,
               ...(refetchKeys.length > 0 && { triggersRefetch: refetchKeys }),
             });
@@ -787,6 +794,7 @@ export function findScenarios(
             triggerSource: attrName,
             file: relativePath,
             viewName,
+            line: p.node.loc?.start.line,
             apiCalls,
             ...(refetchKeys.length > 0 && { triggersRefetch: refetchKeys }),
           });
@@ -796,4 +804,169 @@ export function findScenarios(
   });
 
   return scenarios;
+}
+
+/**
+ * [화면별 시나리오] 특정 파일이 로컬 import 구문으로 의존하는 파일들의 절대경로 목록을 반환합니다.
+ * - analyzer.ts의 6단계(라우트 단위 의존성 트리 구축)에서 재귀 호출 시 사용됩니다.
+ * - node_modules 등 외부 패키지는 제외하고 프로젝트 내 로컬 파일만 반환합니다.
+ * @param filePath 분석할 파일의 절대 경로
+ * @param rootDir  프로젝트 루트 디렉토리
+ * @returns 이 파일이 직접 import 하는 로컬 파일들의 절대경로 배열
+ */
+export function getLocalDependencies(filePath: string, rootDir: string): string[] {
+  const ast = parseFile(filePath);
+  if (!ast) return [];
+
+  const deps = new Set<string>();
+
+  traverse(ast, {
+    ImportDeclaration(p) {
+      const sourcePath = p.node.source.value;
+      // resolveFilePath로 실제 파일 경로를 해석 (tsconfig.paths, @/ 별칭 등 모두 지원)
+      const resolved = resolveFilePath(filePath, sourcePath, rootDir);
+      
+      if (resolved && !resolved.includes('node_modules')) {
+        const pathModule = require('path');
+        // Windows 환경 대소문자/슬래시 무시: rootDir 하위에 있는지 검사
+        const relToRoot = pathModule.relative(rootDir, resolved);
+        
+        if (!relToRoot.startsWith('..')) {
+          // 일관성을 위해 모든 경로를 '/' 슬래시로 정규화하여 Set에 추가
+          deps.add(resolved.replace(/\\/g, '/'));
+        }
+      }
+    },
+  });
+
+  return Array.from(deps);
+}
+
+/**
+ * [E2E 시나리오] 특정 파일의 AST를 분석하여, 화면 이동을 유발하는 모든 URL을 추출합니다.
+ * 기존 API 추출 로직(findScenarios, findApiCalls)과 완전히 독립적으로 동작합니다.
+ *
+ * 지원하는 범용 패턴:
+ *   - JSX Link 컴포넌트:  <Link href="/checkout">, <Link to="/products/1">
+ *   - 라우터 함수 호출:   router.push('/checkout'), navigate('/products/1')
+ *   - 브라우저 API:       window.location.href = '/some-path'
+ *   - 동적 템플릿 리터럴: router.push(`/products/${id}`) → '/products/' 접두사로 추출
+ *
+ * @param ast     파싱된 Babel AST 객체
+ * @returns 이 파일 내에서 발견된 이동 대상 URL 문자열 배열 (중복 제거)
+ */
+export function findNavigationTargets(ast: t.File): string[] {
+  const targets = new Set<string>();
+
+  /**
+   * 노드에서 URL 문자열을 추출하는 범용 헬퍼.
+   * - 정적 문자열("..."):        값 그대로 반환
+   * - 템플릿 리터럴(`/path/${x}`): 첫 정적 부분("/path/")만 접두사로 반환
+   */
+  function extractUrl(node: t.Node | null | undefined): string | null {
+    if (!node) return null;
+
+    // 정적 문자열: "/checkout"
+    if (t.isStringLiteral(node)) {
+      const v = node.value;
+      return v.startsWith('/') ? v : null;
+    }
+
+    // 템플릿 리터럴: `/products/${id}` → '/products/'
+    if (t.isTemplateLiteral(node)) {
+      const firstQuasi = node.quasis[0];
+      if (firstQuasi) {
+        const raw = firstQuasi.value.cooked ?? firstQuasi.value.raw;
+        if (raw && raw.startsWith('/')) {
+          // 동적 파라미터가 있으면 정적 접두사만 취함 (예: '/products/')
+          return node.expressions.length > 0 ? raw : raw;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * CallExpression에서 화면 이동 URL을 추출합니다.
+   * 대상: router.push(url), router.replace(url), navigate(url)
+   */
+  function extractFromCall(node: t.CallExpression): string | null {
+    const callee = node.callee;
+    const firstArg = node.arguments[0] as t.Node | undefined;
+
+    // router.push(...) / router.replace(...)
+    if (
+      t.isMemberExpression(callee) &&
+      t.isIdentifier(callee.object) &&
+      (callee.object.name === 'router' || callee.object.name === 'history') &&
+      t.isIdentifier(callee.property) &&
+      (callee.property.name === 'push' || callee.property.name === 'replace')
+    ) {
+      return extractUrl(firstArg);
+    }
+
+    // navigate('/path') — React Router v6
+    if (t.isIdentifier(callee) && callee.name === 'navigate') {
+      return extractUrl(firstArg);
+    }
+
+    return null;
+  }
+
+  traverse(ast, {
+    // ── 패턴 1: <Link href="/..."> / <Link to="/..."> ──────────────────
+    JSXOpeningElement(p) {
+      const name = p.node.name;
+      // <Link ...> 컴포넌트 (이름 불문하고 href/to 속성이 '/'로 시작하면 네비게이션으로 간주)
+      const isLinkLike =
+        (t.isJSXIdentifier(name) && name.name === 'Link') ||
+        (t.isJSXMemberExpression(name)); // <router-link> 형태 대비
+
+      if (!isLinkLike) return;
+
+      for (const attr of p.node.attributes) {
+        if (!t.isJSXAttribute(attr)) continue;
+        const attrName = t.isJSXIdentifier(attr.name) ? attr.name.name : '';
+        if (attrName !== 'href' && attrName !== 'to') continue;
+
+        const val = attr.value;
+        let url: string | null = null;
+
+        if (t.isStringLiteral(val)) {
+          url = extractUrl(val);
+        } else if (t.isJSXExpressionContainer(val)) {
+          url = extractUrl(val.expression as t.Node);
+        }
+
+        if (url) targets.add(url);
+      }
+    },
+
+    // ── 패턴 2: router.push('/...'), navigate('/...') ──────────────────
+    CallExpression(p) {
+      const url = extractFromCall(p.node);
+      if (url) targets.add(url);
+    },
+
+    // ── 패턴 3: window.location.href = '/...' ──────────────────────────
+    AssignmentExpression(p) {
+      const left = p.node.left;
+      if (
+        t.isMemberExpression(left) &&
+        t.isMemberExpression(left.object) &&
+        t.isIdentifier(left.object.object) &&
+        left.object.object.name === 'window' &&
+        t.isIdentifier(left.object.property) &&
+        left.object.property.name === 'location' &&
+        t.isIdentifier(left.property) &&
+        left.property.name === 'href'
+      ) {
+        const url = extractUrl(p.node.right);
+        if (url) targets.add(url);
+      }
+    },
+  });
+
+  return Array.from(targets);
 }

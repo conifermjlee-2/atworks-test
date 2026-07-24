@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ShoppingBag, ShoppingCart, Search } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCartItems } from '@/services/api';
@@ -19,6 +20,9 @@ interface HeaderProps {
  * - invalidateQueries(['cart']) 수신 시 자동 재요청 및 갱신
  */
 export const Header: React.FC<HeaderProps> = ({ isCheckoutPage = false }) => {
+  const pathname = usePathname();
+  const isCheckout = isCheckoutPage || pathname === '/order';
+
   // [React Query] GET /api/cart → 장바구니 개수 표시
   const { data: cartItems = [] } = useQuery<CartItem[]>({
     queryKey: ['cart'],
@@ -35,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({ isCheckoutPage = false }) => {
           <span className="logo-text">LUXE MALL</span>
         </Link>
 
-        {!isCheckoutPage ? (
+        {!isCheckout ? (
           <>
             {/* 검색바 */}
             <div className="header-search">
@@ -50,17 +54,15 @@ export const Header: React.FC<HeaderProps> = ({ isCheckoutPage = false }) => {
             {/* 네비게이션 & 장바구니 */}
             <nav className="header-nav">
               <Link href="/" className="nav-link">홈</Link>
-              <Link href="/checkout" className="cart-button" aria-label="장바구니 / 결제">
+              <Link href="/order" className="cart-button" aria-label="장바구니 / 결제">
                 <ShoppingCart className="cart-icon" />
                 {totalCount > 0 && <span className="cart-badge">{totalCount}</span>}
               </Link>
             </nav>
           </>
         ) : (
-          <div className="checkout-step-indicator">
-            <span className="step active">1. 주문결제</span>
-            <span className="step-arrow">›</span>
-            <span className="step">2. 결제완료</span>
+          <div className="header-utils">
+            <Link href="/" className="util-btn">홈</Link>
           </div>
         )}
       </div>

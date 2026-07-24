@@ -36,8 +36,8 @@ export async function addToCartApi(product: Product, quantity: number = 1): Prom
   return data;
 }
 
-// 4. [공통 API 3] Axios - POST /api/checkout (모의 결제 처리)
+// 4. [공통 API 3] Axios - POST /api/orders (모의 결제 처리)
 export async function requestCheckoutApi(data: CheckoutRequest): Promise<CheckoutResponse> {
-  const { data: responseData } = await axiosClient.post<CheckoutResponse>('api/checkout', data);
+  const { data: responseData } = await axiosClient.post<CheckoutResponse>('api/orders', data);
   return responseData;
 }

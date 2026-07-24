@@ -7,7 +7,7 @@ import { CheckCircle2, ShoppingBag, ArrowRight, FileText } from 'lucide-react';
 
 /**
  * [주문 완료 영수증 페이지 - src/app/order-complete/page.tsx]
- * [시나리오 2 - 3단계 POST /api/checkout 성공 시 라우팅 이동되는 B 화면]
+ * [시나리오 2 - 3단계 POST /api/orders 성공 시 라우팅 이동되는 B 화면]
  */
 function OrderCompleteContent() {
   const searchParams = useSearchParams();

@@ -12,6 +12,7 @@
     "@babel/parser": "^7.24.0",
     "@babel/traverse": "^7.24.0",
     "@babel/types": "^7.24.0",
+    "@google/genai": "^2.13.0",
     "enhanced-resolve": "^5.17.0",
     "fast-glob": "^3.3.2",
     "next": "15.1.0",

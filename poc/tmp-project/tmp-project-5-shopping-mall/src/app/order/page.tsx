@@ -6,14 +6,14 @@ import Header from '@/components/common/Header';
 import Modal from '@/components/common/Modal';
 import Spinner from '@/components/common/Spinner';
 import { fetchCartItems, requestCheckoutApi } from '@/services/api';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CartItem, ShippingInfo } from '@/types';
 import { CreditCard, Lock } from 'lucide-react';
 
 /**
- * [결제 및 주문 작성 페이지 - src/app/checkout/page.tsx]
+ * [결제 및 주문 작성 페이지 - src/app/order/page.tsx]
  * [React Query - useQuery] Axios GET /api/cart (주문할 상품 목록 조회)
- * [React Query - useMutation] Axios POST /api/checkout (모의 결제 처리)
+ * [React Query - useMutation] Axios POST /api/orders (모의 결제 처리)
  * [시나리오 2 - 2단계 후행 액션] 약관 동의 클릭 시 <Modal /> 공통 팝업 모달 오픈
  * [시나리오 2 - 3단계 후행 액션] 결제 승인 완료 후 /order-complete 라우팅 이동
  * [공통 컴포넌트 1 사용 위치 2] Header (isCheckoutPage=true)
@@ -29,6 +29,8 @@ export default function CheckoutPage() {
     detailAddress: 'atworks 빌딩 5층',
     paymentMethod: 'card',
   });
+  
+  const queryClient = useQueryClient();
 
   // [React Query - useQuery] Axios GET /api/cart → 주문할 상품 목록
   const { data: checkoutItems = [], isLoading: isCartLoading } = useQuery<CartItem[]>({
@@ -39,12 +41,15 @@ export default function CheckoutPage() {
     (sum, item) => sum + item.product.price * item.quantity, 0
   );
 
-  // [React Query - useMutation] Axios POST /api/checkout
+  // [React Query - useMutation] Axios POST /api/orders
   const checkoutMutation = useMutation({
     mutationFn: () =>
       requestCheckoutApi({ items: checkoutItems, shippingInfo, totalAmount, buyType: 'CART' }),
     onSuccess: (response) => {
       if (response.success) {
+        // 결제 완료 시 장바구니 비우기
+        queryClient.setQueryData(['cart'], []);
+        
         // ⚡ [시나리오 2 - 3단계 후행 액션]: 주문 완료 화면으로 라우팅 이동
         router.push(
           `/order-complete?orderId=${response.orderId}&amount=${response.totalAmount}&items=${response.itemCount}`
@@ -68,7 +73,6 @@ export default function CheckoutPage() {
   if (isCartLoading) {
     return (
       <div>
-        <Header isCheckoutPage={true} />
         <main className="main-container" style={{ textAlign: 'center', padding: '6rem 0' }}>
           <Spinner size={36} text="장바구니 정보를 불러오는 중입니다..." />
         </main>
@@ -78,9 +82,6 @@ export default function CheckoutPage() {
 
   return (
     <div>
-      {/* [공통 컴포넌트 1 사용 위치 2: Header (결제 헤더)] */}
-      <Header isCheckoutPage={true} />
-
       <main className="main-container">
         <h2 style={{ fontSize: '1.75rem', marginBottom: '2rem' }}>주문 및 결제 작성</h2>
 

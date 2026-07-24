@@ -4,7 +4,7 @@ import { CheckoutRequest, CheckoutResponse } from '@/types';
 export const dynamic = 'force-dynamic';
 
 /**
- * [공통 API 3 Handler: POST /api/checkout]
+ * [공통 API 3 Handler: POST /api/orders]
  * 모의 결제 승인 API
  * 1. 결제 페이지 (src/app/checkout/page.tsx) 최종 승인 시 호출
  * 2. 제품 상세 페이지 (src/app/products/[id]/page.tsx) 바로 구매 시 호출

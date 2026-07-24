@@ -20,7 +20,7 @@ export const CartDrawer: React.FC = () => {
   // [시나리오 2 후행 액션: /checkout 화면으로 이동]
   const handleProceedToCheckout = () => {
     setIsCartOpen(false);
-    router.push('/checkout');
+    router.push('/order');
   };
 
   return (

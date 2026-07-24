@@ -77,4 +77,39 @@ export class NextAdapter implements BaseAdapter {
       return 'Unknown';
     }
   }
+
+  /**
+   * [화면별 시나리오] Next.js App Router 진입점 식별
+   * app/ 폴더 하위의 page.tsx / layout.tsx 파일을 라우트 진입점으로 인식합니다.
+   * 예) src/app/products/[id]/page.tsx -> routePath: '/products/[id]'
+   */
+  getRouteEntryPoints(files: string[]): { routePath: string; filePath: string }[] {
+    const entryPoints: { routePath: string; filePath: string }[] = [];
+    const appDir = path.join(this.rootDir, 'src', 'app');
+    const appDirAlt = path.join(this.rootDir, 'app');
+
+    for (const file of files) {
+      const normalizedFile = file.replace(/\\/g, '/');
+      if (!/(page|layout)\.(tsx?|jsx?)$/.test(normalizedFile)) continue;
+
+      // path.relative는 Windows에서 드라이브 문자 대소문자(C: vs c:) 차이를 알아서 처리해 줍니다.
+      let relPath = path.relative(appDir, file);
+      
+      // 만약 src/app 하위에 없는 파일이면 (경로가 .. 으로 시작하면) app/ 기준인지 확인
+      if (relPath.startsWith('..')) {
+        const relPathAlt = path.relative(appDirAlt, file);
+        if (relPathAlt.startsWith('..')) {
+          continue; // app 폴더 하위가 아님
+        }
+        relPath = relPathAlt;
+      }
+
+      let routePath = relPath.replace(/\\/g, '/');
+      routePath = routePath.replace(/\/?(page|layout)\.(tsx?|jsx?)$/, '') || '/';
+      if (!routePath.startsWith('/')) routePath = '/' + routePath;
+
+      entryPoints.push({ routePath, filePath: file });
+    }
+    return entryPoints;
+  }
 }
