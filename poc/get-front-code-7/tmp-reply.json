@@ -1,0 +1,49 @@
+{
+  "id": "1785134186670",
+  "scenarios": [
+    {
+      "framework": "react",
+      "route": "/공통(Shared)",
+      "sourceFile": "C:/Users/lee/Desktop/atworks-test/poc/tmp-project/tmp-project-5-shopping-mall/src/components/HomeClient.tsx",
+      "trigger": { "type": "event", "name": "onClick" },
+      "calls": [
+        { "order": 1, "method": "GET", "endpoint": "QueryKey: unknown", "callerType": "component", "confidence": "detected", "evidence": "Line 17", "navigatesTo": null },
+        { "order": 2, "method": "MUTATION", "endpoint": "QueryKey: addToCartApi", "callerType": "component", "confidence": "detected", "evidence": "Line 27", "navigatesTo": null }
+      ]
+    },
+    {
+      "framework": "react",
+      "route": "/공통(Shared)",
+      "sourceFile": "C:/Users/lee/Desktop/atworks-test/poc/tmp-project/tmp-project-5-shopping-mall/src/components/ProductCard.tsx",
+      "trigger": { "type": "event", "name": "onClick" },
+      "calls": [
+        { "order": 1, "method": "GET", "endpoint": "QueryKey: unknown", "callerType": "component", "confidence": "detected", "evidence": "Line 23", "navigatesTo": "/products/${product.id}" },
+        { "order": 2, "method": "MUTATION", "endpoint": "QueryKey: addToCartApi", "callerType": "component", "confidence": "detected", "evidence": "Line 27", "navigatesTo": "/products/${product.id}" }
+      ]
+    },
+    {
+      "framework": "unknown",
+      "route": "/공통(Shared)",
+      "sourceFile": "C:/Users/lee/Desktop/atworks-test/poc/tmp-project/tmp-project-5-shopping-mall/src/services/api.ts",
+      "trigger": { "type": "unknown", "name": "Component Render / Unknown" },
+      "calls": [
+        { "order": 1, "method": "GET", "endpoint": "api/products?${params.toString()}", "callerType": "component", "confidence": "detected", "evidence": "Line 23", "navigatesTo": null },
+        { "order": 2, "method": "GET", "endpoint": "api/cart", "callerType": "component", "confidence": "detected", "evidence": "Line 29", "navigatesTo": null },
+        { "order": 3, "method": "POST", "endpoint": "api/cart", "callerType": "component", "confidence": "detected", "evidence": "Line 35", "navigatesTo": null },
+        { "order": 4, "method": "POST", "endpoint": "api/orders", "callerType": "component", "confidence": "detected", "evidence": "Line 41", "navigatesTo": null }
+      ]
+    },
+    {
+      "framework": "react",
+      "route": "/order",
+      "sourceFile": "C:/Users/lee/Desktop/atworks-test/poc/tmp-project/tmp-project-5-shopping-mall/src/app/order/page.tsx",
+      "trigger": { "type": "event", "name": "onClick" },
+      "calls": [
+        { "order": 1, "method": "GET", "endpoint": "QueryKey: unknown", "callerType": "component", "confidence": "detected", "evidence": "Line 33", "navigatesTo": "/order-complete?orderId=${response.orderId}&amount=${response.totalAmount}&items=${response.itemCount}" },
+        { "order": 2, "method": "GET", "endpoint": "QueryKey: fetchCartItems", "callerType": "component", "confidence": "detected", "evidence": "Line 36", "navigatesTo": "/order-complete?orderId=${response.orderId}&amount=${response.totalAmount}&items=${response.itemCount}" },
+        { "order": 3, "method": "MUTATION", "endpoint": "QueryKey: requestCheckoutApi", "callerType": "component", "confidence": "detected", "evidence": "Line 45", "navigatesTo": "/order-complete?orderId=${response.orderId}&amount=${response.totalAmount}&items=${response.itemCount}" }
+      ]
+    }
+  ],
+  "markdown": "[ /공통(Shared) ]\n- onClick : (MUTATION) /api/cart → /products/:id 로 이동 (추정)\n- onClick : (MUTATION) /api/orders → /order-complete 로 이동 (추정)\n\n- /api/products : 상품 목록 조회\n- /api/cart : 장바구니 담기\n- /api/orders : 결제 요청 및 생성\n- /products/:id (추정) : 상품 상세 페이지로 이동\n- /order-complete (추정) : 주문 완료 페이지로 이동\n\n[ /order ]\n- onClick : (MUTATION) /api/orders → /order-complete 로 이동 (추정)\n\n- /api/orders : 장바구니 상품 결제\n- /order-complete (추정) : 주문 완료 페이지로 이동"
+}

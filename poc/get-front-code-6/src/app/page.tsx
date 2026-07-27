@@ -53,6 +53,8 @@ export default function Home() {
   const [collapsedRoutes, setCollapsedRoutes] = useState<Set<string>>(new Set());
   const [collapsedAiScenarios, setCollapsedAiScenarios] = useState<Set<number>>(new Set());
   const [aiCopied, setAiCopied] = useState(false);
+  const [scenarioCopied, setScenarioCopied] = useState(false);
+  const [routeCopied, setRouteCopied] = useState(false);
   const [aiElapsedTime, setAiElapsedTime] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -224,6 +226,136 @@ export default function Home() {
     setTimeout(() => setCopied(false), 1600);
   };
 
+  const handleCopyScenario = async () => {
+    if (!result?.scenarios?.length) return;
+    
+    let md = `## ⚡ 컴포넌트 API 시나리오 흐름\n\n- 대상: \`${result.targetDir}\`\n- 검출 시나리오: ${result.scenarios.length}개\n\n`;
+
+    const grouped: Map<string, any[]> = result.scenarios.reduce((acc: Map<string, any[]>, sc: any) => {
+      if (!acc.has(sc.file)) acc.set(sc.file, []);
+      acc.get(sc.file)!.push(sc);
+      return acc;
+    }, new Map<string, any[]>());
+
+    Array.from(grouped.entries()).forEach(([file, scenarios]) => {
+      md += `### 📄 \`${file}\`\n\n`;
+      scenarios.forEach((scenario: any, idx: number) => {
+        const isMount = scenario.triggerType === 'MOUNT';
+        md += `#### ${String(idx + 1).padStart(2, '0')}. ${isMount ? '⚙ MOUNT' : '👆 EVENT'} \`${scenario.triggerSource}\`${scenario.line ? ` (Line: ${scenario.line})` : ''}\n\n`;
+        
+        scenario.apiCalls.forEach((c: any) => {
+          md += `- **${c.method}** \`${c.endpoint}\`\n`;
+        });
+
+        const refetchChains: { key: string; apiCalls: any[]; file: string }[] = [];
+        const seenEndpoints = new Set<string>();
+        if (scenario.triggersRefetch?.length && result.scenarios.length > 0) {
+          for (const key of scenario.triggersRefetch) {
+            const matched = result.scenarios.filter((s: any) =>
+              s.triggerType === 'MOUNT' &&
+              s.apiCalls?.some((c: any) => c.endpoint?.toLowerCase().includes(key.toLowerCase()))
+            );
+            matched.forEach((m: any) => {
+              const matchedCalls = m.apiCalls.filter((c: any) => {
+                if (!c.endpoint?.toLowerCase().includes(key.toLowerCase())) return false;
+                const sig = `${c.method}:${c.endpoint}`;
+                if (seenEndpoints.has(sig)) return false;
+                seenEndpoints.add(sig);
+                return true;
+              });
+              if (matchedCalls.length > 0) {
+                refetchChains.push({ key, apiCalls: matchedCalls, file: m.file });
+              }
+            });
+          }
+        }
+
+        if (refetchChains.length > 0) {
+          md += `\n> **🔄 onSuccess → invalidateQueries → 자동 재요청**\n`;
+          for (const chain of refetchChains) {
+            for (const call of chain.apiCalls) {
+              md += `> - **${call.method}** \`${call.endpoint}\` (\`${chain.file}\`)\n`;
+            }
+          }
+        } else if (scenario.triggersRefetch?.length) {
+          md += `\n> **🔄 Refetch:** \`[${scenario.triggersRefetch.join(', ')}]\`\n`;
+        }
+        md += `\n`;
+      });
+      md += `---\n\n`;
+    });
+
+    await navigator.clipboard.writeText(md);
+    setScenarioCopied(true);
+    setTimeout(() => setScenarioCopied(false), 1600);
+  };
+
+  const handleCopyRoute = async () => {
+    if (!result?.routeScenarios?.length) return;
+    
+    let md = `## 🖥️ 화면별 시나리오\n\n- 대상: \`${result.targetDir}\`\n- 검출 화면 라우트: ${result.routeScenarios.length}개\n\n`;
+
+    md += `### 🖥️ 단일 화면 시나리오\n\n`;
+    result.routeScenarios.forEach((routeData: any) => {
+      md += `#### \`${routeData.route}\`\n\n`;
+      
+      const sortedScenarios = [...routeData.scenarios].sort((a: any, b: any) => {
+        const fileA = a.file || '';
+        const fileB = b.file || '';
+        if (fileA !== fileB) return fileA.localeCompare(fileB);
+        if (a.triggerType === 'MOUNT' && b.triggerType !== 'MOUNT') return -1;
+        if (a.triggerType !== 'MOUNT' && b.triggerType === 'MOUNT') return 1;
+        return 0;
+      });
+
+      sortedScenarios.forEach((sc: any, idx: number) => {
+        const isMount = sc.triggerType === 'MOUNT';
+        md += `**${String(idx + 1).padStart(2, '0')} ${isMount ? '⚙ MOUNT' : '👆 EVENT'} \`${sc.triggerSource}\`**\n`;
+        if (sc.file) {
+          md += `- 파일: \`${sc.file}\`\n`;
+        }
+        
+        sc.apiCalls.forEach((c: any) => {
+          md += `- **${c.method}** \`${c.endpoint}\`\n`;
+        });
+        md += `\n`;
+      });
+      md += `---\n\n`;
+    });
+
+    const e2eScenarios = result.routeScenarios.flatMap((r: any) => r.e2eScenarios || []);
+    if (e2eScenarios.length > 0) {
+      md += `### 🔗 E2E 사용자 시나리오\n\n`;
+      e2eScenarios.forEach((e2eScenario: any, jIdx: number) => {
+        const title = e2eScenario.steps.map((s: any) => `[ ${s.route} ]`).join(' ➞ ');
+        md += `#### E2E 시나리오: ${title}\n\n`;
+
+        e2eScenario.steps.forEach((step: any, sIdx: number) => {
+          md += `**[STEP ${sIdx + 1}] 🖥️ \`${step.route}\`**\n\n`;
+          if (step.scenarios.length === 0) {
+            md += `> API 호출 없음\n\n`;
+            return;
+          }
+
+          step.scenarios.forEach((scenario: any, i: number) => {
+            const isMount = scenario.triggerType === 'MOUNT';
+            md += `${String(i + 1).padStart(2, '0')}. ${isMount ? '⚙ MOUNT' : '👆 EVENT'} \`${scenario.triggerSource}\`\n`;
+            
+            scenario.apiCalls.forEach((c: any) => {
+              md += `  - **${c.method}** \`${c.endpoint}\`\n`;
+            });
+            md += `\n`;
+          });
+        });
+        md += `---\n\n`;
+      });
+    }
+
+    await navigator.clipboard.writeText(md);
+    setRouteCopied(true);
+    setTimeout(() => setRouteCopied(false), 1600);
+  };
+
   const toggleDetails = (open: boolean) => {
     document.querySelectorAll('details').forEach(el => {
       open ? el.setAttribute('open', '') : el.removeAttribute('open');
@@ -360,6 +492,7 @@ export default function Home() {
                 <div style={{ display: 'flex', gap: '0.5rem', padding: '0.75rem 0', marginLeft: 'auto' }}>
                   <Btn onClick={() => setAllScenarioCollapsed(false)}>모두 펼치기</Btn>
                   <Btn onClick={() => setAllScenarioCollapsed(true)}>모두 접기</Btn>
+                  <Btn primary onClick={handleCopyScenario}>{scenarioCopied ? '✓ 복사됨' : 'Markdown 복사'}</Btn>
                 </div>
               )}
               {activeTab === 'route' && result?.routeScenarios?.length > 0 && (
@@ -372,6 +505,7 @@ export default function Home() {
                     );
                     setCollapsedRoutes(new Set([...singleRoutes, ...e2eScenarioRoutes]));
                   }}>모두 접기</Btn>
+                  <Btn primary onClick={handleCopyRoute}>{routeCopied ? '✓ 복사됨' : 'Markdown 복사'}</Btn>
                 </div>
               )}
               {activeTab === 'ai' && aiResult?.scenarios?.length > 0 && (
