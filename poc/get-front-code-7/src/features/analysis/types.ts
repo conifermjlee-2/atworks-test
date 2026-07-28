@@ -22,9 +22,24 @@ export interface ScenarioIR {
   sourceFile: string;
   trigger: Trigger;
   calls: ApiCall[];
+  triggersRefetch?: string[];
+}
+
+export interface AIScenarioStep {
+  route: string;
+  flow: string;
+  description: string;
+}
+
+export interface AIScenario {
+  title: string;
+  description: string;
+  tags: string[];
+  steps: AIScenarioStep[];
 }
 
 export interface ScenarioReport {
   scenarios: ScenarioIR[];
   markdown: string;
+  aiScenarios?: AIScenario[];
 }

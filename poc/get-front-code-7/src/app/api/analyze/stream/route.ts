@@ -1,18 +1,24 @@
 import * as fs from 'fs';
 import * as pathMod from 'path';
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const targetPath = searchParams.get('path');
+export async function POST(request: Request) {
+  let requestData;
+  try {
+    requestData = await request.json();
+  } catch (err) {
+    return new Response(JSON.stringify({ error: '유효한 JSON 페이로드를 제공해주세요.' }), { status: 400 });
+  }
 
-  if (!targetPath) {
-    return new Response(JSON.stringify({ error: '분석할 경로를 제공해주세요.' }), { status: 400 });
+  const { path: targetPath, scenarios } = requestData;
+
+  if (!targetPath || !scenarios) {
+    return new Response(JSON.stringify({ error: '분석할 경로(path)와 IR 데이터(scenarios)를 모두 제공해주세요.' }), { status: 400 });
   }
 
   const reqId = Date.now().toString();
-  const reqFile = pathMod.resolve(process.cwd(), 'tmp-request.json');
-  const statusFile = pathMod.resolve(process.cwd(), `tmp-status-${reqId}.txt`);
-  const replyFile = pathMod.resolve(process.cwd(), `tmp-reply-${reqId}.json`);
+  const reqFile = pathMod.resolve(process.cwd(), 'tmp', 'tmp-request.json');
+  const statusFile = pathMod.resolve(process.cwd(), 'tmp', `tmp-status-${reqId}.txt`);
+  const replyFile = pathMod.resolve(process.cwd(), 'tmp', `tmp-reply-${reqId}.json`);
 
   const encoder = new TextEncoder();
 
@@ -24,8 +30,11 @@ export async function GET(request: Request) {
 
       try {
         // 1. 상태 메시지 전송 및 에이전트 깨우기
-        sendEvent('progress', JSON.stringify({ message: 'IDE 에이전트에게 분석을 요청합니다...' }));
-        fs.writeFileSync(reqFile, JSON.stringify({ id: reqId, path: targetPath }), 'utf8');
+        sendEvent('progress', JSON.stringify({ message: 'IDE 에이전트에게 AI 시나리오 작성을 요청합니다...' }));
+        
+        // 에이전트에게 IR 데이터 전달
+        fs.writeFileSync(reqFile, JSON.stringify({ id: reqId, path: targetPath, scenarios }), 'utf8');
+        fs.writeFileSync(pathMod.resolve(process.cwd(), 'tmp', 'tmp-latest-req.txt'), reqId, 'utf8');
 
         // 2. 에이전트의 상태 업데이트(tmp-status) 및 완료(tmp-reply) 파일 폴링 대기
         let attempts = 0;

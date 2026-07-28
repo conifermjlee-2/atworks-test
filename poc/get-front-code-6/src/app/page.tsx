@@ -299,57 +299,69 @@ export default function Home() {
     result.routeScenarios.forEach((routeData: any) => {
       md += `#### \`${routeData.route}\`\n\n`;
       
-      const sortedScenarios = [...routeData.scenarios].sort((a: any, b: any) => {
-        const fileA = a.file || '';
-        const fileB = b.file || '';
-        if (fileA !== fileB) return fileA.localeCompare(fileB);
-        if (a.triggerType === 'MOUNT' && b.triggerType !== 'MOUNT') return -1;
-        if (a.triggerType !== 'MOUNT' && b.triggerType === 'MOUNT') return 1;
-        return 0;
-      });
+      const groupedByFile = routeData.scenarios.reduce((acc: Map<string, any[]>, sc: any) => {
+        const file = sc.file || '알 수 없는 파일';
+        if (!acc.has(file)) acc.set(file, []);
+        acc.get(file)!.push(sc);
+        return acc;
+      }, new Map<string, any[]>());
 
-      sortedScenarios.forEach((sc: any, idx: number) => {
-        const isMount = sc.triggerType === 'MOUNT';
-        md += `**${String(idx + 1).padStart(2, '0')} ${isMount ? '⚙ MOUNT' : '👆 EVENT'} \`${sc.triggerSource}\`**\n`;
-        if (sc.file) {
-          md += `- 파일: \`${sc.file}\`\n`;
-        }
+      Array.from(groupedByFile.entries()).sort(([fileA], [fileB]) => fileA.localeCompare(fileB)).forEach(([file, scenarios]) => {
+        md += `##### 📄 \`${file}\`\n\n`;
         
-        sc.apiCalls.forEach((c: any) => {
-          md += `- **${c.method}** \`${c.endpoint}\`\n`;
+        const sortedScenarios = [...scenarios].sort((a: any, b: any) => {
+          if (a.triggerType === 'MOUNT' && b.triggerType !== 'MOUNT') return -1;
+          if (a.triggerType !== 'MOUNT' && b.triggerType === 'MOUNT') return 1;
+          return 0;
         });
-        md += `\n`;
+
+        sortedScenarios.forEach((sc: any, idx: number) => {
+          const isMount = sc.triggerType === 'MOUNT';
+          md += `**[${String(idx + 1).padStart(2, '0')}] ${isMount ? '⚙ MOUNT' : '👆 EVENT'} \`${sc.triggerSource}\`**${sc.line ? ` (Line: ${sc.line})` : ''}\n`;
+          
+          sc.apiCalls.forEach((c: any) => {
+            md += `  - **${c.method}** \`${c.endpoint}\`\n`;
+          });
+
+          // Refetch 연쇄 분석
+          const refetchChains: { key: string; apiCalls: any[]; file: string }[] = [];
+          const seenEndpoints = new Set<string>();
+          if (sc.triggersRefetch?.length && result.scenarios?.length > 0) {
+            for (const key of sc.triggersRefetch) {
+              const matched = result.scenarios.filter((s: any) =>
+                s.triggerType === 'MOUNT' &&
+                s.apiCalls?.some((c: any) => c.endpoint?.toLowerCase().includes(key.toLowerCase()))
+              );
+              matched.forEach((m: any) => {
+                const matchedCalls = m.apiCalls.filter((c: any) => {
+                  if (!c.endpoint?.toLowerCase().includes(key.toLowerCase())) return false;
+                  const sig = `${c.method}:${c.endpoint}`;
+                  if (seenEndpoints.has(sig)) return false;
+                  seenEndpoints.add(sig);
+                  return true;
+                });
+                if (matchedCalls.length > 0) {
+                  refetchChains.push({ key, apiCalls: matchedCalls, file: m.file });
+                }
+              });
+            }
+          }
+
+          if (refetchChains.length > 0) {
+            md += `\n  > **🔄 onSuccess → invalidateQueries → 자동 재요청**\n`;
+            for (const chain of refetchChains) {
+              for (const call of chain.apiCalls) {
+                md += `  > - **${call.method}** \`${call.endpoint}\` (\`${chain.file}\`)\n`;
+              }
+            }
+          } else if (sc.triggersRefetch?.length) {
+            md += `\n  > **🔄 Refetch:** \`[${sc.triggersRefetch.join(', ')}]\`\n`;
+          }
+          md += `\n`;
+        });
       });
       md += `---\n\n`;
     });
-
-    const e2eScenarios = result.routeScenarios.flatMap((r: any) => r.e2eScenarios || []);
-    if (e2eScenarios.length > 0) {
-      md += `### 🔗 E2E 사용자 시나리오\n\n`;
-      e2eScenarios.forEach((e2eScenario: any, jIdx: number) => {
-        const title = e2eScenario.steps.map((s: any) => `[ ${s.route} ]`).join(' ➞ ');
-        md += `#### E2E 시나리오: ${title}\n\n`;
-
-        e2eScenario.steps.forEach((step: any, sIdx: number) => {
-          md += `**[STEP ${sIdx + 1}] 🖥️ \`${step.route}\`**\n\n`;
-          if (step.scenarios.length === 0) {
-            md += `> API 호출 없음\n\n`;
-            return;
-          }
-
-          step.scenarios.forEach((scenario: any, i: number) => {
-            const isMount = scenario.triggerType === 'MOUNT';
-            md += `${String(i + 1).padStart(2, '0')}. ${isMount ? '⚙ MOUNT' : '👆 EVENT'} \`${scenario.triggerSource}\`\n`;
-            
-            scenario.apiCalls.forEach((c: any) => {
-              md += `  - **${c.method}** \`${c.endpoint}\`\n`;
-            });
-            md += `\n`;
-          });
-        });
-        md += `---\n\n`;
-      });
-    }
 
     await navigator.clipboard.writeText(md);
     setRouteCopied(true);
@@ -673,23 +685,41 @@ export default function Home() {
                                 {/* 해당 라우트의 시나리오들 */}
                                 {!isCollapsed && (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1rem', background: '#0b0f19' }}>
-                                    {routeData.scenarios
-                                      .sort((a: any, b: any) => {
-                                        // 1. 파일 이름(경로) 기준으로 먼저 그룹핑
-                                        const fileA = a.file || '';
-                                        const fileB = b.file || '';
-                                        if (fileA !== fileB) return fileA.localeCompare(fileB);
-                                        
-                                        // 2. 같은 파일 안에서는 MOUNT가 위로 오도록
-                                        if (a.triggerType === 'MOUNT' && b.triggerType !== 'MOUNT') return -1;
-                                        if (a.triggerType !== 'MOUNT' && b.triggerType === 'MOUNT') return 1;
-                                        return 0;
-                                      })
-                                      .map((sc: any, idx: number) => (
-                                      <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                        <CompactScenarioCard scenario={sc} index={idx + 1} allScenarios={result.scenarios} showSource={true} />
-                                      </div>
-                                    ))}
+                                    {(() => {
+                                      // 파일별로 시나리오 그룹핑
+                                      const groupedByFile = routeData.scenarios.reduce((acc, sc) => {
+                                        const file = sc.file || '알 수 없는 파일';
+                                        if (!acc.has(file)) acc.set(file, []);
+                                        acc.get(file).push(sc);
+                                        return acc;
+                                      }, new Map());
+
+                                      // 각 파일 그룹을 렌더링
+                                      return Array.from(groupedByFile.entries()).sort(([fileA], [fileB]) => fileA.localeCompare(fileB)).map(([file, scenarios]) => {
+                                        // 파일 내에서는 MOUNT 우선 정렬
+                                        const sortedScenarios = [...scenarios].sort((a, b) => {
+                                          if (a.triggerType === 'MOUNT' && b.triggerType !== 'MOUNT') return -1;
+                                          if (a.triggerType !== 'MOUNT' && b.triggerType === 'MOUNT') return 1;
+                                          return 0;
+                                        });
+
+                                        return (
+                                          <div key={file} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', background: '#0f172a', padding: '1rem', borderRadius: 8, border: '1px solid #1e293b' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px dashed #334155' }}>
+                                              <span style={{ fontSize: 13 }}>📄</span>
+                                              <code style={{ fontSize: 13, color: '#94a3b8', fontFamily: 'monospace', fontWeight: 600 }}>{file}</code>
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                              {sortedScenarios.map((sc, idx) => (
+                                                <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                                  <CompactScenarioCard scenario={sc} index={idx + 1} allScenarios={result.scenarios} showSource={false} />
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        );
+                                      });
+                                    })()}
                                   </div>
                                 )}
                               </div>

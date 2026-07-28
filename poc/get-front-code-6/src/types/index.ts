@@ -10,6 +10,7 @@ export interface ApiCallInfo {
   isDynamic: boolean;
   rawUrl?: string;
   calleeName?: string; // 훅/심볼 식별용 (dedupe 키, 심볼 트레이싱용)
+  triggersRefetch?: string[];
 }
 
 export interface MappingResult {

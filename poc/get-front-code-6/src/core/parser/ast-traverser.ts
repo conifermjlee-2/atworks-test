@@ -617,6 +617,28 @@ export function findScenarios(
       const calleeName = extractCalleeName(p.node.callee as t.Expression);
       if (!calleeName) return;
 
+      // ── RTK Query 트리거 (커스텀 훅 매칭) ──────────────────────
+      if (/^use.*(?:Query|Mutation)$/.test(calleeName)) {
+        for (const resolver of resolvers) {
+          if (resolver.name === 'RTK Query Resolver') {
+            const apiInfo = resolver.resolve(calleeName, p.node.arguments as any[], ast);
+            if (apiInfo) {
+              const isMount = /Query$/.test(calleeName) && !/^useLazy/.test(calleeName);
+              scenarios.push({
+                triggerType: isMount ? 'MOUNT' : 'EVENT',
+                triggerSource: calleeName,
+                file: relativePath,
+                viewName,
+                line: p.node.loc?.start.line,
+                apiCalls: [{ order: 1, method: apiInfo.method, endpoint: apiInfo.endpoint }],
+                ...(apiInfo.triggersRefetch && apiInfo.triggersRefetch.length > 0 && { triggersRefetch: apiInfo.triggersRefetch })
+              });
+              break;
+            }
+          }
+        }
+      }
+
       // ── MOUNT 트리거 ─────────────────────────────────────────
       if (MOUNT_HOOKS.has(calleeName)) {
         const firstArg = p.node.arguments[0];

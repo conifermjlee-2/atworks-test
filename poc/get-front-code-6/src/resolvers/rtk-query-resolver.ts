@@ -27,6 +27,8 @@ interface EndpointBlock {
   type: 'query' | 'mutation';
   method: HttpMethod;
   urlPattern: string;
+  providesTags?: string[];
+  invalidatesTags?: string[];
 }
 
 /**
@@ -59,6 +61,24 @@ function extractEndpointBlocksViaAst(ast: t.File): EndpointBlock[] {
           prop.key.name === 'query'
       );
       if (!queryProp) return;
+
+      // 설정 객체에서 tags를 추출
+      let providesTags: string[] = [];
+      let invalidatesTags: string[] = [];
+      for (const prop of configArg.properties) {
+        if (!t.isObjectProperty(prop)) continue;
+        if (!t.isIdentifier(prop.key)) continue;
+        if (prop.key.name === 'providesTags' || prop.key.name === 'invalidatesTags') {
+          const tags: string[] = [];
+          if (t.isArrayExpression(prop.value)) {
+            for (const el of prop.value.elements) {
+              if (t.isStringLiteral(el)) tags.push(el.value);
+            }
+          }
+          if (prop.key.name === 'providesTags') providesTags = tags;
+          else invalidatesTags = tags;
+        }
+      }
 
       // query 프로퍼티의 부모 ObjectProperty (=엔드포인트 이름 찾기)
       // builder.query의 직접 부모 ObjectProperty를 탐색
@@ -156,7 +176,7 @@ function extractEndpointBlocksViaAst(ast: t.File): EndpointBlock[] {
       }
 
       if (urlPattern) {
-        blocks.push({ name: endpointName, type: endpointType as 'query' | 'mutation', method, urlPattern });
+        blocks.push({ name: endpointName, type: endpointType as 'query' | 'mutation', method, urlPattern, providesTags, invalidatesTags });
       }
     }
   });
@@ -174,12 +194,14 @@ function extractEndpointBlocksViaAst(ast: t.File): EndpointBlock[] {
 export class RtkQueryResolver implements HookResolver {
   name = 'RTK Query Resolver';
   private hookMap: RtkHookMap = new Map();
+  private tagToEndpoints: Map<string, string[]> = new Map();
 
   async init(rootDir: string): Promise<void> {
     const bases = [
       path.resolve(rootDir),
       path.resolve(rootDir, '..'),
-      path.resolve(rootDir, '../..')
+      path.resolve(rootDir, '../..'),
+      path.resolve(rootDir, '../../..')
     ];
 
     const patterns: string[] = [];
@@ -212,7 +234,28 @@ export class RtkQueryResolver implements HookResolver {
 
         const blocks = extractEndpointBlocksViaAst(ast);
 
+        // 1Pass: Collect providesTags
         for (const block of blocks) {
+          if (block.providesTags && block.providesTags.length > 0) {
+            for (const tag of block.providesTags) {
+              const existing = this.tagToEndpoints.get(tag) || [];
+              if (!existing.includes(block.urlPattern)) existing.push(block.urlPattern);
+              this.tagToEndpoints.set(tag, existing);
+            }
+          }
+        }
+
+        // 2Pass: Create hook mappings
+        for (const block of blocks) {
+          let triggersRefetch: string[] = [];
+          if (block.invalidatesTags && block.invalidatesTags.length > 0) {
+            for (const tag of block.invalidatesTags) {
+              const endpoints = this.tagToEndpoints.get(tag) || [];
+              triggersRefetch.push(...endpoints);
+            }
+          }
+          triggersRefetch = [...new Set(triggersRefetch)];
+
           // 공식 스펙 기반으로 훅 이름 자동 유도 (Hook Derivation)
           const derivedHooks = deriveHookNames(block.name, block.type);
           for (const hookName of derivedHooks) {
@@ -220,7 +263,8 @@ export class RtkQueryResolver implements HookResolver {
             existing.push({
               method: block.method,
               urlPattern: block.urlPattern,
-            });
+              ...(triggersRefetch.length > 0 ? { triggersRefetch } : {})
+            } as any);
             this.hookMap.set(hookName, existing);
           }
         }
@@ -247,6 +291,7 @@ export class RtkQueryResolver implements HookResolver {
       endpoint: normalized.endpoint,
       isDynamic: normalized.isDynamic,
       rawUrl: rawPattern,
+      triggersRefetch: (targetDef as any).triggersRefetch
     };
   }
 }

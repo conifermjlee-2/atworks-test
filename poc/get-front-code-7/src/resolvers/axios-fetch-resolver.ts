@@ -77,6 +77,9 @@ export class AxiosFetchResolver implements HookResolver {
     } else if (calleeName === 'axios') {
       isHttpClient = true;
       method = this.extractFetchMethod(args);
+    } else if (calleeName.endsWith('Server')) {
+      // [서버 컴포넌트 특화] 내부가 MOCK 데이터로 되어 있어서 fetch가 없는 서버 유틸 함수 강제 탐지
+      return { method: 'GET', endpoint: `(Server) ${calleeName}`, isDynamic: false, rawUrl: calleeName };
     }
 
     if (!isHttpClient) return null;

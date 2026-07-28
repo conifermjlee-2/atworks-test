@@ -162,7 +162,7 @@ export class Analyzer {
     // ── [7단계] E2E 시나리오 조립 (Post-Processing) ─────────────────
     // 기존 1번 탭(results), 2번 탭(scenarios), 3번 탭 단일 라우트(routeScenarios)에는
     // 아무런 영향 없이, 완성된 routeScenarios 데이터 위에 시나리오 맵을 덧씌웁니다.
-    if (routeScenarios.length > 0) {
+    if (false && routeScenarios.length > 0) {
       // 7-1. 라우트별 네비게이션 대상 URL 수집 (AST에서 독립 추출)
       //      각 라우트에 속하는 파일들을 순회하며 findNavigationTargets() 호출
       const routeNavMap = new Map<string, Set<string>>(); // route -> Set<이동 URL>

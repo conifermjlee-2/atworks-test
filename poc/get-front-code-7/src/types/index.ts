@@ -76,7 +76,6 @@ export interface ScenarioFlow {
   /** 이 시나리오 실행 후 무효화(refetch)되는 쿼리 키 목록 */
   triggersRefetch?: string[];
 }
-}
 
 export interface RouteScenarioFlow {
   route: string;

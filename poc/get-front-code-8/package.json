@@ -1,0 +1,17 @@
+{
+  "name": "frontend-api-scenario-analyzer",
+  "version": "0.1.0",
+  "description": "Node CLI for static frontend API scenario analysis in React and Next.js projects.",
+  "type": "module",
+  "bin": {
+    "api-scenario-analyzer": "./src/cli.js"
+  },
+  "scripts": {
+    "analyze": "node ./src/cli.js",
+    "check": "node --check ./src/cli.js && node --check ./src/analyzer.js && node --check ./src/report.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
