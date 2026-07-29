@@ -26,6 +26,16 @@ app.post('/api/auth/login', (req, res) => {
   }
 });
 
+// 후행 API (A -> B 체이닝 테스트용)
+app.get('/api/user/:id', (req, res) => {
+  const userId = parseInt(req.params.id);
+  if (userId === 1) {
+    res.json({ id: 1, name: 'Admin User', role: 'Administrator' });
+  } else {
+    res.status(404).json({ message: 'User not found' });
+  }
+});
+
 // 2. Notices (SWR 테스트용 - 지연시간 추가)
 app.get('/api/notices', (req, res) => {
   setTimeout(() => {

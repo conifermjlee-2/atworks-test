@@ -1,22 +1,31 @@
 import { useState } from 'react';
-import FileUpload from './FileUpload';
+import { useNavigate } from 'react-router-dom';
 
 export default function LoginForm() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
+  const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // API A 호출: 로그인
       const res = await fetch('http://localhost:4000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
       const data = await res.json();
+      
       if (data.success) {
-        setMessage('Login successful!');
+        // API B 호출: 로그인 성공 후 유저 정보 조회 (A -> B 체이닝)
+        const userRes = await fetch(`http://localhost:4000/api/user/${data.userId}`);
+        const userData = await userRes.json();
+        
+        setMessage(`Login successful! Welcome, ${userData.name} (${userData.role})`);
+        setTimeout(() => navigate('/'), 1000); // 1초 후 홈페이지로 이동
+
       } else {
         setMessage('Login failed: ' + data.message);
       }
@@ -34,9 +43,6 @@ export default function LoginForm() {
         <button type="submit" className="btn" style={{ padding: '12px' }}>Login</button>
       </form>
       {message && <p style={{ marginTop: '16px', color: message.includes('failed') ? 'var(--danger)' : 'var(--success)' }}>{message}</p>}
-
-      <hr style={{ margin: '30px 0', border: 'none', borderBottom: '1px solid var(--border-color)' }} />
-      <FileUpload />
     </div>
   );
 }

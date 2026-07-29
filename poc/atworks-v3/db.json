@@ -1,0 +1,296 @@
+{
+  "collections": [
+    {
+      "id": "1",
+      "name": "Collection-1"
+    },
+    {
+      "id": "BiWNMneqHzw",
+      "name": "col-2"
+    },
+    {
+      "id": "T6l93r11RXM",
+      "name": "전이-1",
+      "mode": "chaining"
+    },
+    {
+      "id": "adlzUuODGGI",
+      "name": "전이-2",
+      "mode": "chaining"
+    }
+  ],
+  "apiItems": [
+    {
+      "id": "1",
+      "collectionId": "1",
+      "method": "GET",
+      "name": "Get Example",
+      "url": "https://jsonplaceholder.typicode.com/posts/1",
+      "body": "{\n  \"key\": \"value\"\n}"
+    },
+    {
+      "id": "8Cr1T7BsP30",
+      "collectionId": null,
+      "name": "GET http://localhost:4000/api/posts",
+      "method": "GET",
+      "endpoint": "http://localhost:4000/api/posts"
+    },
+    {
+      "id": "HBIq9XVNOT4",
+      "collectionId": null,
+      "name": "POST http://localhost:4000/api/posts",
+      "method": "POST",
+      "endpoint": "http://localhost:4000/api/posts"
+    },
+    {
+      "id": "ydzr_VSeQuM",
+      "collectionId": null,
+      "name": "GET /api/unknown",
+      "method": "GET",
+      "endpoint": "/api/unknown"
+    },
+    {
+      "id": "dHpqJ5XQhF4",
+      "collectionId": null,
+      "name": "GET http://localhost:4000/api/posts/${param}",
+      "method": "GET",
+      "endpoint": "http://localhost:4000/api/posts/${param}"
+    },
+    {
+      "id": "za-DVGQzpa8",
+      "collectionId": null,
+      "name": "DELETE http://localhost:4000/api/posts/${param}",
+      "method": "DELETE",
+      "endpoint": "http://localhost:4000/api/posts/${param}"
+    },
+    {
+      "id": "0LWrH1EO47w",
+      "collectionId": null,
+      "name": "GET http://localhost:4000/api/notices",
+      "method": "GET",
+      "endpoint": "http://localhost:4000/api/notices"
+    },
+    {
+      "id": "mMXxOgYb-yg",
+      "collectionId": null,
+      "name": "POST http://localhost:4000/api/auth/login",
+      "method": "POST",
+      "endpoint": "http://localhost:4000/api/auth/login"
+    },
+    {
+      "id": "sg8TjvBnXPM",
+      "collectionId": null,
+      "name": "GET http://localhost:4000/api/user/${param}",
+      "method": "GET",
+      "endpoint": "http://localhost:4000/api/user/${param}"
+    },
+    {
+      "id": "yrBH7vTsJr4",
+      "collectionId": null,
+      "name": "POST http://localhost:4000/api/upload",
+      "method": "POST",
+      "endpoint": "http://localhost:4000/api/upload"
+    },
+    {
+      "id": "QWakxvufR8k",
+      "collectionId": "1",
+      "name": "GET api/products?${param}",
+      "method": "GET",
+      "endpoint": "api/products?${param}",
+      "url": ""
+    },
+    {
+      "id": "vuW1cTwZORo",
+      "collectionId": "1",
+      "name": "GET api/cart",
+      "method": "GET",
+      "endpoint": "api/cart",
+      "url": ""
+    },
+    {
+      "id": "JK_CZUtEg6g",
+      "collectionId": "1",
+      "name": "POST api/cart",
+      "method": "POST",
+      "endpoint": "api/cart",
+      "url": ""
+    },
+    {
+      "id": "Jp05hVsNvoQ",
+      "collectionId": "1",
+      "name": "POST api/orders",
+      "method": "POST",
+      "endpoint": "api/orders",
+      "url": ""
+    },
+    {
+      "id": "j1gAr5-0uoM",
+      "collectionId": "1",
+      "name": "GET /api/unknown",
+      "method": "GET",
+      "endpoint": "/api/unknown",
+      "url": ""
+    },
+    {
+      "id": "fwLJifqXQ_4",
+      "collectionId": "1",
+      "name": "GET /api/unknown",
+      "method": "GET",
+      "endpoint": "/api/unknown",
+      "url": ""
+    },
+    {
+      "id": "S4nYdnHtLSA",
+      "collectionId": null,
+      "name": "GET http://localhost:4000/api/posts",
+      "method": "GET",
+      "endpoint": "http://localhost:4000/api/posts",
+      "url": ""
+    },
+    {
+      "id": "cXwraVBID2U",
+      "collectionId": null,
+      "name": "POST http://localhost:4000/api/posts",
+      "method": "POST",
+      "endpoint": "http://localhost:4000/api/posts",
+      "url": ""
+    },
+    {
+      "id": "mqj4GB4Zcnk",
+      "collectionId": null,
+      "name": "GET /api/unknown",
+      "method": "GET",
+      "endpoint": "/api/unknown",
+      "url": ""
+    },
+    {
+      "id": "nB9EuX5bApA",
+      "collectionId": null,
+      "name": "GET http://localhost:4000/api/posts/${param}",
+      "method": "GET",
+      "endpoint": "http://localhost:4000/api/posts/${param}",
+      "url": ""
+    },
+    {
+      "id": "gZk4mbQD_vA",
+      "collectionId": null,
+      "name": "DELETE http://localhost:4000/api/posts/${param}",
+      "method": "DELETE",
+      "endpoint": "http://localhost:4000/api/posts/${param}",
+      "url": ""
+    },
+    {
+      "id": "v_dpU9npyAA",
+      "collectionId": null,
+      "name": "GET http://localhost:4000/api/notices",
+      "method": "GET",
+      "endpoint": "http://localhost:4000/api/notices",
+      "url": ""
+    },
+    {
+      "id": "KulpZN1CGAU",
+      "collectionId": null,
+      "name": "POST http://localhost:4000/api/auth/login",
+      "method": "POST",
+      "endpoint": "http://localhost:4000/api/auth/login",
+      "url": ""
+    },
+    {
+      "id": "hdAIH6QskR8",
+      "collectionId": null,
+      "name": "GET http://localhost:4000/api/user/${param}",
+      "method": "GET",
+      "endpoint": "http://localhost:4000/api/user/${param}",
+      "url": ""
+    },
+    {
+      "id": "W5Ho56deII4",
+      "collectionId": null,
+      "name": "POST http://localhost:4000/api/upload",
+      "method": "POST",
+      "endpoint": "http://localhost:4000/api/upload",
+      "url": ""
+    },
+    {
+      "id": "pPFqk1hxUns",
+      "collectionId": "BiWNMneqHzw",
+      "name": "GET http://localhost:4000/api/posts",
+      "method": "GET",
+      "url": "http://localhost:4000/api/posts",
+      "body": ""
+    },
+    {
+      "id": "JFCxD9km3bU",
+      "collectionId": "BiWNMneqHzw",
+      "name": "POST http://localhost:4000/api/posts",
+      "method": "POST",
+      "url": "http://localhost:4000/api/posts",
+      "body": ""
+    },
+    {
+      "id": "Hi12N6a9kyk",
+      "collectionId": "BiWNMneqHzw",
+      "name": "GET http://localhost:4000/api/posts/${id}",
+      "method": "GET",
+      "url": "http://localhost:4000/api/posts/${id}",
+      "body": ""
+    },
+    {
+      "id": "OEWZBPEQB7c",
+      "collectionId": "BiWNMneqHzw",
+      "name": "DELETE http://localhost:4000/api/posts/${id}",
+      "method": "DELETE",
+      "url": "http://localhost:4000/api/posts/${id}",
+      "body": ""
+    },
+    {
+      "id": "6UB3GLoLRAY",
+      "collectionId": "BiWNMneqHzw",
+      "name": "GET http://localhost:4000/api/notices",
+      "method": "GET",
+      "url": "http://localhost:4000/api/notices",
+      "body": ""
+    },
+    {
+      "id": "zgf5odq2h5I",
+      "collectionId": "BiWNMneqHzw",
+      "name": "POST http://localhost:4000/api/auth/login",
+      "method": "POST",
+      "url": "http://localhost:4000/api/auth/login",
+      "body": ""
+    },
+    {
+      "id": "puhmwMPAGr4",
+      "collectionId": "BiWNMneqHzw",
+      "name": "GET http://localhost:4000/api/user/${data.userId}",
+      "method": "GET",
+      "url": "http://localhost:4000/api/user/${data.userId}",
+      "body": ""
+    },
+    {
+      "id": "TqHdbSJdcu4",
+      "collectionId": "BiWNMneqHzw",
+      "name": "POST http://localhost:4000/api/upload",
+      "method": "POST",
+      "url": "http://localhost:4000/api/upload",
+      "body": ""
+    },
+    {
+      "id": "FE8-n5HPIGY",
+      "collectionId": "BiWNMneqHzw",
+      "name": "GET comments?postId=${postId}",
+      "method": "GET",
+      "url": "http://localhost:4000/api/comments?postId=1785291136522",
+      "body": ""
+    },
+    {
+      "id": "Eq-81Zxh6KM",
+      "collectionId": "BiWNMneqHzw",
+      "name": "POST comments",
+      "method": "POST",
+      "url": "comments",
+      "body": ""
+    }
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
+}

@@ -1,15 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
-
-const fetchPosts = async () => {
-  const { data } = await axios.get('http://localhost:4000/api/posts');
-  return data;
-};
+import { useNavigate } from 'react-router-dom';
 
 export default function PostList() {
   const queryClient = useQueryClient();
-  const { data: posts, isLoading } = useQuery({ queryKey: ['posts'], queryFn: fetchPosts });
+  const navigate = useNavigate();
+  const { data: posts, isLoading } = useQuery({ 
+    queryKey: ['posts'], 
+    queryFn: async () => {
+      const { data } = await axios.get('http://localhost:4000/api/posts');
+      return data;
+    } 
+  });
+
 
   const createPostMutation = useMutation({
     mutationFn: (newPost: { title: string; content: string }) => {
@@ -35,8 +38,15 @@ export default function PostList() {
       
       <div className="post-list">
         {posts?.map((post: any) => (
-          <div key={post.id} className="post-card">
-            <h3><Link to={`/posts/${post.id}`}>{post.title}</Link></h3>
+          <div 
+            key={post.id} 
+            className="post-card" 
+            onClick={() => navigate(`/posts/${post.id}`)}
+            style={{ cursor: 'pointer' }}
+          >
+            <h3 style={{ color: 'var(--primary)', marginBottom: '8px' }}>
+              {post.title}
+            </h3>
             <p>{post.content}</p>
           </div>
         ))}

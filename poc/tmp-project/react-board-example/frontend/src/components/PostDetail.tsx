@@ -3,19 +3,17 @@ import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 import CommentSection from './CommentSection';
 
-const fetchPost = async (id: string) => {
-  const { data } = await axios.get(`http://localhost:4000/api/posts/${id}`);
-  return data;
-};
-
 export default function PostDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: post, isLoading } = useQuery({ 
+  const { data: post, isLoading, isError, error } = useQuery({ 
     queryKey: ['post', id], 
-    queryFn: () => fetchPost(id!) 
+    queryFn: async () => {
+      const { data } = await axios.get(`http://localhost:4000/api/posts/${id}`);
+      return data;
+    }
   });
 
   const deleteMutation = useMutation({
@@ -27,6 +25,7 @@ export default function PostDetail() {
   });
 
   if (isLoading) return <div>Loading post...</div>;
+  if (isError) return <div>Error: {(error as any)?.message || 'Failed to load post'}</div>;
   if (!post) return <div>Post not found</div>;
 
   return (
