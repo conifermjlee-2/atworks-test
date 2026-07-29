@@ -46,7 +46,7 @@ export default function Home() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<'list' | 'scenario' | 'route' | 'ai'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'scenario' | 'route' | 'transition' | 'ai'>('list');
   const [aiResult, setAiResult] = useState<any>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [collapsedFiles, setCollapsedFiles] = useState<Set<string>>(new Set());
@@ -105,12 +105,12 @@ export default function Home() {
 
   const handleGenerateAI = async () => {
     console.log('✨ AI 번역 생성 시작...');
-    const allE2EScenarios = result?.routeScenarios?.flatMap((r: any) => r.e2eScenarios || []) || [];
-    console.log('추출된 E2EScenarios:', allE2EScenarios);
+    const routeScenarios = result?.routeScenarios || [];
+    console.log('추출된 routeScenarios:', routeScenarios);
     
-    if (allE2EScenarios.length === 0) {
-      console.warn('분석된 E2E 시나리오 데이터가 없습니다. (allE2EScenarios is empty)');
-      alert('분석된 E2E 시나리오 데이터가 없습니다. 먼저 분석을 정상적으로 실행하여 E2E 시나리오 탭에 시나리오가 나오는지 확인해주세요.');
+    if (routeScenarios.length === 0) {
+      console.warn('분석된 화면 시나리오 데이터가 없습니다.');
+      alert('분석된 화면 시나리오 데이터가 없습니다. 먼저 분석을 정상적으로 실행하여 화면별 시나리오 탭에 시나리오가 나오는지 확인해주세요.');
       return;
     }
 
@@ -123,7 +123,7 @@ export default function Home() {
       const res = await fetch('/api/analyze-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ e2eScenarios: allE2EScenarios }),
+        body: JSON.stringify({ routeScenarios }),
         signal: abortControllerRef.current.signal,
       });
       console.log('AI 응답 상태코드:', res.status);
@@ -391,6 +391,26 @@ export default function Home() {
   const totalAPIs = result?.results?.length || 0;
   const totalScenarios = result?.scenarios?.length || 0;
 
+  // 전이(Transition) 시나리오 카운트 계산
+  let transitionScenariosCount = 0;
+  if (result?.routeScenarios && result?.scenarios) {
+    result.routeScenarios.forEach((r: any) => {
+      r.scenarios.forEach((sc: any) => {
+        let hasRefetch = false;
+        if (sc.triggersRefetch?.length) {
+          for (const key of sc.triggersRefetch) {
+            const matched = result.scenarios.filter((s: any) =>
+              s.triggerType === 'MOUNT' &&
+              s.apiCalls?.some((c: any) => c.endpoint?.toLowerCase().includes(key.toLowerCase()))
+            );
+            if (matched.length > 0) hasRefetch = true;
+          }
+        }
+        if (hasRefetch) transitionScenariosCount++;
+      });
+    });
+  }
+
   return (
     <main style={{ minHeight: '100vh', background: '#0b0f19', color: '#e2e8f0', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -447,7 +467,8 @@ export default function Home() {
                 { label: '조합 테스트 (8개)', path: 'C:\\Users\\lee\\Desktop\\atworks-test\\poc\\tmp-project\\tmp-project-3-combinations' },
                 { label: 'React 5대장', path: 'C:\\Users\\lee\\Desktop\\atworks-test\\poc\\tmp-project\\tmp-project-2\\frontend-react-1' },
                 { label: 'Next.js 구조', path: 'C:\\Users\\lee\\Desktop\\atworks-test\\poc\\tmp-project\\tmp-frontend-next-js' },
-                { label: '쇼핑몰 예시', path: 'C:\\Users\\lee\\Desktop\\atworks-test\\poc\\tmp-project\\tmp-project-5-shopping-mall' },
+                { label: '쇼핑몰 예시', path: 'C:\\Users\\lee\\Desktop\\atworks-test\\poc\\tmp-project\\shopping-mall-next-js' },
+                { label: 'React 게시판 예시 (5종 API)', path: 'C:\\Users\\lee\\Desktop\\atworks-test\\poc\\tmp-project\\react-board-example\\frontend' },
               ].map(({ label, path }) => (
                 <QuickBtn key={label} onClick={() => handleQuickRun(path)}>{label}</QuickBtn>
               ))}
@@ -488,6 +509,9 @@ export default function Home() {
                 </TabButton>
                 <TabButton active={activeTab === 'route'} onClick={() => setActiveTab('route')} accent>
                   🖥️ 화면별 시나리오 <TabCount count={result?.routeScenarios?.length || 0} accent />
+                </TabButton>
+                <TabButton active={activeTab === 'transition'} onClick={() => setActiveTab('transition')} accent>
+                  🔄 API 전이 흐름 <TabCount count={transitionScenariosCount} accent />
                 </TabButton>
                 <TabButton active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} accent>
                   🤖 AI 추천 비즈니스 시나리오
@@ -817,6 +841,149 @@ export default function Home() {
                     <div style={{ textAlign: 'center', padding: '3rem 0' }}>
                       <p style={{ color: '#64748b', fontSize: 14, marginBottom: '0.5rem' }}>화면별 시나리오를 구성할 수 없습니다.</p>
                       <p style={{ color: '#475569', fontSize: 12 }}>page.tsx나 layout.tsx 같은 라우트 진입점을 찾을 수 없거나 의존성 트리에 시나리오가 없습니다.</p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* ── 탭 4: API 전이 흐름 ──────────────────────── */}
+              {activeTab === 'transition' && (
+                <>
+                  <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
+                    {result.targetDir} · API 전이 시나리오 {transitionScenariosCount}개 검출
+                  </p>
+                  {transitionScenariosCount > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        {result.routeScenarios.map((routeData: any) => {
+                          // 해당 라우트 내에서 전이가 있는 시나리오만 필터링
+                          const transitionScenarios = routeData.scenarios.filter((sc: any) => {
+                            if (!sc.triggersRefetch?.length) return false;
+                            for (const key of sc.triggersRefetch) {
+                              const matched = result.scenarios.filter((s: any) =>
+                                s.triggerType === 'MOUNT' &&
+                                s.apiCalls?.some((c: any) => c.endpoint?.toLowerCase().includes(key.toLowerCase()))
+                              );
+                              if (matched.length > 0) return true;
+                            }
+                            return false;
+                          });
+
+                          if (transitionScenarios.length === 0) return null;
+                          const isCollapsed = collapsedRoutes.has('transition-' + routeData.route);
+
+                          return (
+                            <div key={routeData.route} style={{ border: '1px solid #14b8a6', borderRadius: 10, overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                              <div
+                                onClick={() => {
+                                  setCollapsedRoutes(prev => {
+                                    const next = new Set(prev);
+                                    const key = 'transition-' + routeData.route;
+                                    if (next.has(key)) next.delete(key);
+                                    else next.add(key);
+                                    return next;
+                                  });
+                                }}
+                                style={{ background: '#042f2e', padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: isCollapsed ? 'none' : '1px solid #0f766e', cursor: 'pointer', userSelect: 'none' }}
+                              >
+                                <span style={{ fontSize: 11, color: '#2dd4bf', transition: 'transform 0.2s', display: 'inline-block', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▾</span>
+                                <span style={{ fontSize: 15 }}>🔄</span>
+                                <code style={{ fontSize: 15, color: '#99f6e4', fontFamily: 'monospace', fontWeight: 700 }}>{routeData.route}</code>
+                                <span style={{ fontSize: 12, background: 'rgba(20,184,166,0.2)', color: '#5eead4', borderRadius: 99, padding: '2px 10px', border: '1px solid #14b8a6', marginLeft: '0.5rem' }}>
+                                  {transitionScenarios.length}개 전이
+                                </span>
+                              </div>
+                              {!isCollapsed && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1rem', background: '#0b0f19' }}>
+                                  {(() => {
+                                    const groupedByFile = transitionScenarios.reduce((acc: any, sc: any) => {
+                                      const file = sc.file || '알 수 없는 파일';
+                                      if (!acc.has(file)) acc.set(file, []);
+                                      acc.get(file).push(sc);
+                                      return acc;
+                                    }, new Map());
+
+                                    return Array.from(groupedByFile.entries()).sort(([fileA], [fileB]: any) => fileA.localeCompare(fileB)).map(([file, scenarios]: any) => (
+                                      <div key={file} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', background: '#0f172a', padding: '1rem', borderRadius: 8, border: '1px solid #1e293b' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px dashed #334155' }}>
+                                          <span style={{ fontSize: 13 }}>📄</span>
+                                          <code style={{ fontSize: 13, color: '#94a3b8', fontFamily: 'monospace', fontWeight: 600 }}>{file}</code>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                          {scenarios.map((sc: any, idx: number) => {
+                                            // 1. 해당 시나리오의 refetch 정보 다시 찾기
+                                            const refetchChains: { key: string; apiCalls: any[]; file: string }[] = [];
+                                            const seenEndpoints = new Set<string>();
+                                            if (sc.triggersRefetch?.length) {
+                                              for (const key of sc.triggersRefetch) {
+                                                const matched = result.scenarios.filter((s: any) =>
+                                                  s.triggerType === 'MOUNT' &&
+                                                  s.apiCalls?.some((c: any) => c.endpoint?.toLowerCase().includes(key.toLowerCase()))
+                                                );
+                                                matched.forEach((m: any) => {
+                                                  const matchedCalls = m.apiCalls.filter((c: any) => {
+                                                    if (!c.endpoint?.toLowerCase().includes(key.toLowerCase())) return false;
+                                                    const sig = `${c.method}:${c.endpoint}`;
+                                                    if (seenEndpoints.has(sig)) return false;
+                                                    seenEndpoints.add(sig);
+                                                    return true;
+                                                  });
+                                                  if (matchedCalls.length > 0) {
+                                                    refetchChains.push({ key, apiCalls: matchedCalls, file: m.file });
+                                                  }
+                                                });
+                                              }
+                                            }
+
+                                            return (
+                                              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem 1rem', background: '#0b0f19', borderRadius: '6px', border: '1px solid #1f2937' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                  <span style={{ fontSize: '11px', fontWeight: 800, padding: '2px 8px', borderRadius: 99, background: 'rgba(251,146,60,0.1)', color: '#fb923c', border: '1px solid rgba(251,146,60,0.3)', letterSpacing: '0.5px' }}>
+                                                    👆 EVENT
+                                                  </span>
+                                                  <code style={{ fontSize: '12px', color: '#94a3b8' }}>{sc.triggerSource}</code>
+                                                </div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', paddingLeft: '0.25rem' }}>
+                                                  {sc.apiCalls.map((call: any, callIdx: number) => (
+                                                    <React.Fragment key={callIdx}>
+                                                      {refetchChains.map((chain, chainIdx) => (
+                                                        chain.apiCalls.map((refetchCall: any, refetchIdx: number) => (
+                                                          <div key={`${chainIdx}-${refetchIdx}`} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                              <MethodBadge method={call.method} />
+                                                              <code style={{ fontSize: '13px', color: '#f8fafc', fontFamily: 'monospace' }}>{call.endpoint}</code>
+                                                            </div>
+                                                            <span style={{ color: '#64748b', fontSize: '13px' }}>➞</span>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(52,211,153,0.05)', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(52,211,153,0.1)' }}>
+                                                              <span style={{ fontSize: '12px', color: '#34d399' }}>🔄 재요청</span>
+                                                              <MethodBadge method={refetchCall.method} />
+                                                              <code style={{ fontSize: '13px', color: '#6ee7b7', fontFamily: 'monospace' }}>{refetchCall.endpoint}</code>
+                                                              <span style={{ fontSize: '11px', color: '#475569', marginLeft: '0.5rem' }}>({chain.file.split(/[/\\]/).pop()})</span>
+                                                            </div>
+                                                          </div>
+                                                        ))
+                                                      ))}
+                                                    </React.Fragment>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    ));
+                                  })()}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+                      <p style={{ color: '#64748b', fontSize: 14, marginBottom: '0.5rem' }}>API 전이(Refetch) 흐름이 감지되지 않았습니다.</p>
+                      <p style={{ color: '#475569', fontSize: 12 }}>Mutation 성공 후 쿼리를 무효화하여 재요청하는 패턴(invalidateQueries)을 분석합니다.</p>
                     </div>
                   )}
                 </>
