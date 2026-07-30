@@ -212,62 +212,6 @@
       "url": ""
     },
     {
-      "id": "pPFqk1hxUns",
-      "collectionId": "BiWNMneqHzw",
-      "name": "GET http://localhost:4000/api/posts",
-      "method": "GET",
-      "url": "http://localhost:4000/api/posts",
-      "body": ""
-    },
-    {
-      "id": "JFCxD9km3bU",
-      "collectionId": "BiWNMneqHzw",
-      "name": "POST http://localhost:4000/api/posts",
-      "method": "POST",
-      "url": "http://localhost:4000/api/posts",
-      "body": ""
-    },
-    {
-      "id": "Hi12N6a9kyk",
-      "collectionId": "BiWNMneqHzw",
-      "name": "GET http://localhost:4000/api/posts/${id}",
-      "method": "GET",
-      "url": "http://localhost:4000/api/posts/${id}",
-      "body": ""
-    },
-    {
-      "id": "OEWZBPEQB7c",
-      "collectionId": "BiWNMneqHzw",
-      "name": "DELETE http://localhost:4000/api/posts/${id}",
-      "method": "DELETE",
-      "url": "http://localhost:4000/api/posts/${id}",
-      "body": ""
-    },
-    {
-      "id": "6UB3GLoLRAY",
-      "collectionId": "BiWNMneqHzw",
-      "name": "GET http://localhost:4000/api/notices",
-      "method": "GET",
-      "url": "http://localhost:4000/api/notices",
-      "body": ""
-    },
-    {
-      "id": "zgf5odq2h5I",
-      "collectionId": "BiWNMneqHzw",
-      "name": "POST http://localhost:4000/api/auth/login",
-      "method": "POST",
-      "url": "http://localhost:4000/api/auth/login",
-      "body": ""
-    },
-    {
-      "id": "puhmwMPAGr4",
-      "collectionId": "BiWNMneqHzw",
-      "name": "GET http://localhost:4000/api/user/${data.userId}",
-      "method": "GET",
-      "url": "http://localhost:4000/api/user/${data.userId}",
-      "body": ""
-    },
-    {
       "id": "TqHdbSJdcu4",
       "collectionId": "BiWNMneqHzw",
       "name": "POST http://localhost:4000/api/upload",

@@ -61,13 +61,30 @@ export default function ChainingView({
   const handleCopyChain = () => {
     if (!selectedApi) return;
     
-    const rootPathShort = selectedApi.filePath.split('\\').slice(-3).join('\\');
-    let text = `1. ${selectedApi.method} ${selectedApi.url} (${rootPathShort}:${selectedApi.line})\n`;
+    const relativePath = selectedApi.filePath.replace(/^.*?(src[\\/].*)$/, '$1').replace(/\\/g, '/');
+    const isMutation = selectedApi.method !== 'GET';
+    const hookName = selectedApi.library === 'react-query' ? (isMutation ? 'useMutation' : 'useQuery') : selectedApi.library;
+    const actionIcon = isMutation ? '👆 EVENT' : '⚙ MOUNT';
     
-    selectedApi.chains.forEach((chain, idx) => {
-      const targetFileName = chain.target.file ? chain.target.file.split('\\').pop() : '';
-      text += `   └── [${chain.type.toUpperCase()}] -> ${idx + 2}. ${chain.target.method} ${chain.target.url} (${targetFileName ? targetFileName + ' : ' : ''}Line ${chain.target.line})\n`;
-    });
+    const cleanUrl = (url: string) => url.replace(/^\[Query\]\s*/i, '');
+    
+    let text = `${relativePath} (1개 시나리오)\n\n`;
+    text += `[01] ${actionIcon}  ${hookName} (Line: ${selectedApi.line})\n`;
+    text += `  1. ${selectedApi.method.padEnd(6)} ${cleanUrl(selectedApi.url)}\n`;
+    
+    if (selectedApi.chains && selectedApi.chains.length > 0) {
+      const chainType = selectedApi.chains[0].type;
+      let chainReason = `${chainType} → 연쇄 요청`;
+      if (chainType.toLowerCase() === 'onsuccess' && selectedApi.library === 'react-query') {
+        chainReason = 'invalidateQueries → 자동 재요청';
+      }
+      
+      text += `  🔄 ${chainType} → ${chainReason}\n`;
+      selectedApi.chains.forEach((chain, idx) => {
+        const targetPath = chain.target.file ? chain.target.file.replace(/^.*?(src[\\/].*)$/, '$1').replace(/\\/g, '/') : 'Unknown File';
+        text += `     ${(idx + 1).toString()}. ${chain.target.method.padEnd(6)} ${cleanUrl(chain.target.url)}  (${targetPath})\n`;
+      });
+    }
 
     navigator.clipboard.writeText(text).then(() => {
       alert('전이 흐름이 복사되었습니다!');
@@ -203,7 +220,7 @@ export default function ChainingView({
                   <div>
                     <div className="flex items-center space-x-3 text-lg font-bold">
                       <span className="text-blue-400">{selectedApi.method}</span>
-                      <span className="text-white break-all">{selectedApi.url}</span>
+                      <span className="text-white break-all">{selectedApi.url.replace(/^\[Query\]\s*/i, '')}</span>
                     </div>
                     <div className="text-sm text-gray-400 mt-2">
                       <span className="bg-gray-800 px-2 py-1 rounded text-xs mr-2">{selectedApi.library}</span>
@@ -263,35 +280,30 @@ export default function ChainingView({
                         </div>
 
                         {/* Group Target Cards */}
-                        <div className="w-full flex justify-center overflow-x-auto pb-4">
-                          <div className="inline-flex flex-row items-start relative">
-                            {chainsForGroup.length > 1 && (
-                              <div className="absolute top-0 h-[2px] bg-gray-600" style={{ left: '160px', right: '160px' }}></div>
-                            )}
-                            {chainsForGroup.map((chain, cIdx) => (
-                              <div key={cIdx} className="flex flex-col items-center w-80 shrink-0 px-4">
-                                <div className="w-[2px] h-6 bg-gray-600 relative">
-                                  <div className="absolute bottom-0 -left-[5px] w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-gray-600"></div>
-                                </div>
-                                
-                                <div className="bg-[#252628] border border-gray-700 p-4 rounded-lg shadow-md w-full hover:border-gray-500 transition-colors mt-1">
-                                  <div className="flex justify-between items-start">
-                                    <div>
-                                      <div className="flex items-center space-x-3 text-md font-semibold">
-                                        <span className="text-green-400">{chain.target.method}</span>
-                                        <span className="text-gray-200 break-all">{chain.target.url}</span>
-                                      </div>
-                                      <div className="text-xs text-gray-500 mt-2 flex items-center space-x-2">
-                                        <span className="bg-gray-800 px-2 py-1 rounded">
-                                          {chain.target.file ? chain.target.file.split('\\').pop() : 'Unknown File'}
-                                        </span>
-                                        <span>Line: {chain.target.line}</span>
-                                      </div>
+                        <div className="w-full flex justify-center pb-4">
+                          <div className="flex flex-col items-center">
+                            <div className="w-[2px] h-6 bg-gray-600 relative">
+                              <div className="absolute bottom-0 -left-[5px] w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-gray-600"></div>
+                            </div>
+                            
+                            <div className="bg-[#252628] border border-gray-700 p-4 rounded-lg shadow-md min-w-[320px] max-w-[600px] hover:border-gray-500 transition-colors mt-1 flex flex-col space-y-4">
+                              {chainsForGroup.map((chain, cIdx) => (
+                                <div key={cIdx} className={`${cIdx > 0 ? 'border-t border-gray-700 pt-4' : ''} flex justify-between items-start`}>
+                                  <div>
+                                    <div className="flex items-center space-x-3 text-md font-semibold">
+                                      <span className="text-green-400">{chain.target.method}</span>
+                                      <span className="text-gray-200 break-all">{chain.target.url.replace(/^\[Query\]\s*/i, '')}</span>
+                                    </div>
+                                    <div className="text-xs text-gray-500 mt-2 flex items-center space-x-2">
+                                      <span className="bg-gray-800 px-2 py-1 rounded break-all">
+                                        {chain.target.file ? chain.target.file.replace(/^.*?(src[\\/].*)$/, '$1') : 'Unknown File'}
+                                      </span>
+                                      <span className="shrink-0">Line: {chain.target.line}</span>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </div>
