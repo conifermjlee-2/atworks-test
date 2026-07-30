@@ -6,28 +6,25 @@
     },
     {
       "id": "BiWNMneqHzw",
-      "name": "col-2"
+      "name": "Collection-2"
     },
     {
-      "id": "T6l93r11RXM",
-      "name": "전이-1",
+      "id": "hM39D92564I",
+      "name": "리액트전이-포스트생성",
       "mode": "chaining"
     },
     {
-      "id": "adlzUuODGGI",
-      "name": "전이-2",
+      "id": "ARSrhmtCEYU",
+      "name": "리액트전이-수정",
+      "mode": "chaining"
+    },
+    {
+      "id": "lIosopJDMlg",
+      "name": "next-js-전이",
       "mode": "chaining"
     }
   ],
   "apiItems": [
-    {
-      "id": "1",
-      "collectionId": "1",
-      "method": "GET",
-      "name": "Get Example",
-      "url": "https://jsonplaceholder.typicode.com/posts/1",
-      "body": "{\n  \"key\": \"value\"\n}"
-    },
     {
       "id": "8Cr1T7BsP30",
       "collectionId": null,
@@ -90,46 +87,6 @@
       "name": "POST http://localhost:4000/api/upload",
       "method": "POST",
       "endpoint": "http://localhost:4000/api/upload"
-    },
-    {
-      "id": "QWakxvufR8k",
-      "collectionId": "1",
-      "name": "GET api/products?${param}",
-      "method": "GET",
-      "endpoint": "api/products?${param}",
-      "url": ""
-    },
-    {
-      "id": "vuW1cTwZORo",
-      "collectionId": "1",
-      "name": "GET api/cart",
-      "method": "GET",
-      "endpoint": "api/cart",
-      "url": ""
-    },
-    {
-      "id": "JK_CZUtEg6g",
-      "collectionId": "1",
-      "name": "POST api/cart",
-      "method": "POST",
-      "endpoint": "api/cart",
-      "url": ""
-    },
-    {
-      "id": "Jp05hVsNvoQ",
-      "collectionId": "1",
-      "name": "POST api/orders",
-      "method": "POST",
-      "endpoint": "api/orders",
-      "url": ""
-    },
-    {
-      "id": "j1gAr5-0uoM",
-      "collectionId": "1",
-      "name": "GET /api/unknown",
-      "method": "GET",
-      "endpoint": "/api/unknown",
-      "url": ""
     },
     {
       "id": "fwLJifqXQ_4",
@@ -212,27 +169,123 @@
       "url": ""
     },
     {
-      "id": "TqHdbSJdcu4",
-      "collectionId": "BiWNMneqHzw",
-      "name": "POST http://localhost:4000/api/upload",
+      "id": "3i9RePY2x8Y",
+      "collectionId": null,
+      "name": "Step 1: POST http://localhost:3002/api/cart",
       "method": "POST",
-      "url": "http://localhost:4000/api/upload",
-      "body": ""
+      "url": "http://localhost:3002/api/cart",
+      "body": "{\n  \"product\": {\n    \"id\": \"prod-2\",\n    \"name\": \"북유럽 감성 미니멀 스탠드 조명\",\n    \"category\": \"living\",\n    \"price\": 89000,\n    \"originalPrice\": 110000,\n    \"rating\": 4.7,\n    \"reviewCount\": 84,\n    \"image\": \"https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80\",\n    \"description\": \"아늑한 분위기를 연출해 주는 스마트 터치 스탠드 조명입니다. 3단계 조도 조절 가능.\",\n    \"isNew\": true\n  },\n  \"quantity\": 1\n}"
     },
     {
-      "id": "FE8-n5HPIGY",
-      "collectionId": "BiWNMneqHzw",
-      "name": "GET comments?postId=${postId}",
+      "id": "DiOS_Wq3cxw",
+      "collectionId": null,
+      "name": "Step 2: GET [Query] cart",
       "method": "GET",
-      "url": "http://localhost:4000/api/comments?postId=1785291136522",
+      "url": "[Query] cart",
       "body": ""
     },
     {
-      "id": "Eq-81Zxh6KM",
-      "collectionId": "BiWNMneqHzw",
-      "name": "POST comments",
+      "id": "tWvmEwGsls8",
+      "collectionId": "1",
+      "name": "GET api/products?${params.toString()}",
+      "method": "GET",
+      "url": "api/products?${params.toString()}",
+      "body": ""
+    },
+    {
+      "id": "Hz-_fjJjBSU",
+      "collectionId": "1",
+      "name": "GET api/cart",
+      "method": "GET",
+      "url": "api/cart",
+      "body": ""
+    },
+    {
+      "id": "HeORvNX3ud8",
+      "collectionId": "1",
+      "name": "POST api/cart",
       "method": "POST",
-      "url": "comments",
+      "url": "api/cart",
+      "body": ""
+    },
+    {
+      "id": "Z2sufkGvIKE",
+      "collectionId": "1",
+      "name": "POST api/orders",
+      "method": "POST",
+      "url": "api/orders",
+      "body": ""
+    },
+    {
+      "id": "wzbBPGM_nn4",
+      "collectionId": "hM39D92564I",
+      "name": "Step 1: POST http://localhost:4000/api/posts",
+      "method": "POST",
+      "url": "http://localhost:4000/api/posts",
+      "body": ""
+    },
+    {
+      "id": "A5JuEAq5sOs",
+      "collectionId": "hM39D92564I",
+      "name": "Step 2: GET http://localhost:4000/api/posts",
+      "method": "GET",
+      "url": "http://localhost:4000/api/posts",
+      "body": ""
+    },
+    {
+      "id": "prd90eFNsCM",
+      "collectionId": null,
+      "name": "Step 1: DELETE http://localhost:4000/api/posts/{id}",
+      "method": "DELETE",
+      "url": "http://localhost:4000/api/posts/{id}",
+      "body": ""
+    },
+    {
+      "id": "pMH19NnHX10",
+      "collectionId": null,
+      "name": "Step 2: GET http://localhost:4000/api/posts",
+      "method": "GET",
+      "url": "http://localhost:4000/api/posts",
+      "body": ""
+    },
+    {
+      "id": "_4so7lUAzPA",
+      "collectionId": "ARSrhmtCEYU",
+      "name": "Step 1: PUT http://localhost:4000/api/posts/{id}",
+      "method": "PUT",
+      "url": "http://localhost:4000/api/posts/{id}",
+      "body": ""
+    },
+    {
+      "id": "Qq9OHRF6RSU",
+      "collectionId": "ARSrhmtCEYU",
+      "name": "Step 2: GET http://localhost:4000/api/posts/{id}",
+      "method": "GET",
+      "url": "http://localhost:4000/api/posts/{id}",
+      "body": ""
+    },
+    {
+      "id": "tpAMokysGfA",
+      "collectionId": "ARSrhmtCEYU",
+      "name": "Step 3: GET http://localhost:4000/api/posts",
+      "method": "GET",
+      "url": "http://localhost:4000/api/posts",
+      "body": ""
+    },
+    {
+      "id": "yjhhSDX1K5w",
+      "collectionId": "lIosopJDMlg",
+      "name": "Step 1: POST http://localhost:3002/api/cart",
+      "method": "POST",
+      "url": "http://localhost:3002/api/cart",
+      "body": "{\n  \"product\": {\n    \"id\": \"prod-2\",\n    \"name\": \"북유럽 감성 미니멀 스탠드 조명\",\n    \"category\": \"living\",\n    \"price\": 89000,\n    \"originalPrice\": 110000,\n    \"rating\": 4.7,\n    \"reviewCount\": 84,\n    \"image\": \"https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80\",\n    \"description\": \"아늑한 분위기를 연출해 주는 스마트 터치 스탠드 조명입니다. 3단계 조도 조절 가능.\",\n    \"isNew\": true\n  },\n  \"quantity\": 1\n}"
+    },
+    {
+      "id": "URcmYt2ghkY",
+      "collectionId": "lIosopJDMlg",
+      "name": "Step 2: GET http://localhost:3002/api/cart",
+      "method": "GET",
+      "url": "http://localhost:3002/api/cart",
       "body": ""
     }
   ],

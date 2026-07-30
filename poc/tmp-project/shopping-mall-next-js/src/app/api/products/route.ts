@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { MOCK_PRODUCTS } from '@/data/products';
+import { withLogging } from '@/utils/apiLogger';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic';
  * 1. 메인 홈 (page.tsx) 전체 상품 조회
  * 2. 제품 상세 (products/[id]/page.tsx) 해당 ID 상품 조회 및 연관 상품 추천 조회
  */
-export async function GET(request: Request) {
+const getHandler = async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
   const category = searchParams.get('category');
   const search = searchParams.get('search');
@@ -36,4 +37,6 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json(result);
-}
+};
+
+export const GET = withLogging(getHandler as any);

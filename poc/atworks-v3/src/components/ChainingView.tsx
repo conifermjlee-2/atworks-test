@@ -19,12 +19,14 @@ export default function ChainingView({
   rootPath, 
   onAnalyzeRequired,
   collections,
-  onSave
+  onSave,
+  onClose
 }: { 
   rootPath: string, 
   onAnalyzeRequired: () => void,
   collections: any[],
-  onSave: () => void
+  onSave: () => void,
+  onClose?: () => void
 }) {
   const [targetPath, setTargetPath] = useState(rootPath || '');
   const [isScanning, setIsScanning] = useState(false);
@@ -55,9 +57,7 @@ export default function ChainingView({
     }
     setIsScanning(false);
   };
-
   const apisWithChains = apis.filter(api => api.chains && api.chains.length > 0);
-
   const handleCopyChain = () => {
     if (!selectedApi) return;
     
@@ -75,14 +75,15 @@ export default function ChainingView({
     if (selectedApi.chains && selectedApi.chains.length > 0) {
       const chainType = selectedApi.chains[0].type;
       let chainReason = `${chainType} → 연쇄 요청`;
-      if (chainType.toLowerCase() === 'onsuccess' && selectedApi.library === 'react-query') {
-        chainReason = 'invalidateQueries → 자동 재요청';
+      if ((chainType === 'onSuccess' || chainType === 'onSuccess → invalidateQueries') && selectedApi.library === 'react-query') {
+        const transLine = selectedApi.chains[0].transitionLine;
+        chainReason = `onSuccess ${transLine ? `(Line: ${transLine}) ` : ''}→ invalidateQueries → 자동 재요청`;
       }
       
-      text += `  🔄 ${chainType} → ${chainReason}\n`;
+      text += `  🔄 ${chainReason}\n`;
       selectedApi.chains.forEach((chain, idx) => {
         const targetPath = chain.target.file ? chain.target.file.replace(/^.*?(src[\\/].*)$/, '$1').replace(/\\/g, '/') : 'Unknown File';
-        text += `     ${(idx + 1).toString()}. ${chain.target.method.padEnd(6)} ${cleanUrl(chain.target.url)}  (${targetPath})\n`;
+        text += `     ${(idx + 1).toString()}. ${chain.target.method.padEnd(6)} ${cleanUrl(chain.target.url)}  (${targetPath}:${chain.target.line})\n`;
       });
     }
 
@@ -98,14 +99,89 @@ export default function ChainingView({
     if (!selectedApi || !selectedCollectionId) return;
     setIsSaving(true);
     try {
-      // 1. Save Root API
+      // 0. 타겟 프로젝트의 api_logs.json 조회 (없어도 시나리오 등록은 계속 진행)
+      let apiLogs: Record<string, any> = {};
+      try {
+        const logsRes = await fetch(`/api/logs?rootPath=${encodeURIComponent(targetPath)}`);
+        if (logsRes.ok) {
+          apiLogs = await logsRes.json();
+        }
+      } catch {
+        // 로그 파일이 없거나 읽기 실패해도 무시하고 진행
+      }
+
+      // 로그 키 생성 헬퍼: "POST__api_cart" 형태로 변환
+      const buildLogKey = (method: string, url: string) => {
+        const cleanedUrl = url.replace(/^\[Query\]\s*/i, '').trim();
+        // URL에서 host 부분 제거 후 path만 추출
+        let urlPath = cleanedUrl;
+        try {
+          const parsed = new URL(cleanedUrl);
+          urlPath = parsed.pathname;
+        } catch {
+          // URL 파싱 실패 시 (상대 경로일 때) 슬래시 강제 추가
+          if (!urlPath.startsWith('/')) {
+            urlPath = '/' + urlPath;
+          }
+        }
+        return `${method}_${urlPath.replace(/\//g, '_')}`;
+      };
+
+      const findLogEntry = (method: string, url: string) => {
+        const exactKey = buildLogKey(method, url);
+        if (apiLogs[exactKey]) return apiLogs[exactKey];
+        
+        // Fuzzy match (e.g. mapping "cart" to "/api/cart")
+        const cleanedUrl = url.replace(/^\[Query\]\s*/i, '').trim();
+        let urlPath = cleanedUrl;
+        try {
+          urlPath = new URL(cleanedUrl).pathname;
+        } catch {
+          if (!urlPath.startsWith('/')) urlPath = '/' + urlPath;
+        }
+        const pathSuffix = urlPath.replace(/\//g, '_');
+        
+        const fuzzyKey = Object.keys(apiLogs).find(k => k.startsWith(method + '_') && k.endsWith(pathSuffix));
+        if (fuzzyKey) return apiLogs[fuzzyKey];
+        
+        return null;
+      };
+
+      const getBodyFromLog = (method: string, url: string): string => {
+        const logEntry = findLogEntry(method, url);
+        if (logEntry?.request?.body && Object.keys(logEntry.request.body).length > 0) {
+          return JSON.stringify(logEntry.request.body, null, 2);
+        }
+        return '';
+      };
+
+      const getFullUrlFromLog = (method: string, url: string): string => {
+        const logEntry = findLogEntry(method, url);
+        if (logEntry) {
+          const host = logEntry.request?.headers?.host || 'localhost:3002';
+          const protocol = logEntry.request?.headers?.['x-forwarded-proto'] || 'http';
+          const endpoint = logEntry.endpoint || url;
+          return `${protocol}://${host}${endpoint}`;
+        }
+        return url;
+      };
+
+      // 중복 등록 방지용 Set (로그 매칭 키를 기준으로 완벽하게 중복 제거)
+      const registeredApiKeys = new Set<string>();
+      
+      const rootKey = buildLogKey(selectedApi.method, selectedApi.url);
+      registeredApiKeys.add(rootKey);
+
+      // 1. Save Root API (로그에서 request.body 및 full URL 주입)
+      const rootBody = getBodyFromLog(selectedApi.method, selectedApi.url);
+      const rootFullUrl = getFullUrlFromLog(selectedApi.method, selectedApi.url);
       const rootItem = {
         id: Math.random().toString(36).substring(7),
         collectionId: selectedCollectionId,
-        name: `Step 1: ${selectedApi.method} ${selectedApi.url}`,
+        name: `Step 1: ${selectedApi.method} ${rootFullUrl}`,
         method: selectedApi.method,
-        url: selectedApi.url,
-        body: ''
+        url: rootFullUrl,
+        body: rootBody
       };
       await fetch('http://localhost:3001/apiItems', {
         method: 'POST',
@@ -113,22 +189,34 @@ export default function ChainingView({
         body: JSON.stringify(rootItem)
       });
 
-      // 2. Save Chained APIs sequentially
+      // 2. Save Chained APIs sequentially (중복 제거 & 로그에서 request.body 및 full URL 주입)
+      let stepCounter = 2;
       for (let i = 0; i < selectedApi.chains.length; i++) {
         const chain = selectedApi.chains[i];
+        const chainKey = buildLogKey(chain.target.method, chain.target.url);
+        
+        // 이미 등록된 API라면 건너뜀 (중복 제거)
+        if (registeredApiKeys.has(chainKey)) {
+          continue;
+        }
+        registeredApiKeys.add(chainKey);
+
+        const chainBody = getBodyFromLog(chain.target.method, chain.target.url);
+        const chainFullUrl = getFullUrlFromLog(chain.target.method, chain.target.url);
         const chainItem = {
           id: Math.random().toString(36).substring(7),
           collectionId: selectedCollectionId,
-          name: `Step ${i + 2}: ${chain.target.method} ${chain.target.url}`,
+          name: `Step ${stepCounter}: ${chain.target.method} ${chainFullUrl}`,
           method: chain.target.method,
-          url: chain.target.url,
-          body: ''
+          url: chainFullUrl,
+          body: chainBody
         };
         await fetch('http://localhost:3001/apiItems', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(chainItem)
         });
+        stepCounter++;
       }
 
       alert('시나리오가 성공적으로 등록되었습니다!');
@@ -159,6 +247,15 @@ export default function ChainingView({
           >
             {isScanning ? '분석 중...' : '전이 추적 실행'}
           </button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white px-2 py-1 text-2xl font-light leading-none ml-2"
+              title="닫기"
+            >
+              ×
+            </button>
+          )}
         </div>
         
         {/* Quick Examples */}
@@ -183,7 +280,7 @@ export default function ChainingView({
         {/* Left List */}
         <div className="w-1/3 border-r border-gray-800 overflow-y-auto p-4 space-y-2 bg-[#202124]">
           <h3 className="text-sm font-semibold text-gray-400 mb-4">
-            전이가 감지된 API ({apisWithChains.length}건)
+            감지된 API 시나리오 ({apisWithChains.length}건)
           </h3>
           {apis.length === 0 && !isScanning && (
             <div className="text-gray-500 text-sm mt-10 text-center">경로를 입력하고 실행 버튼을 눌러주세요.</div>
@@ -274,7 +371,7 @@ export default function ChainingView({
                         <div className="flex flex-col items-center">
                           <div className="w-[2px] h-6 bg-gray-600"></div>
                           <div className="bg-gray-800 text-[10px] text-orange-400 px-3 py-1.5 rounded border border-gray-600 uppercase font-bold tracking-wider z-10 whitespace-nowrap">
-                            {groupType}
+                            {groupType === 'onSuccess' ? `onSuccess ${chainsForGroup[0].transitionLine ? `(Line: ${chainsForGroup[0].transitionLine}) ` : ''}→ invalidateQueries → 자동 재요청` : groupType}
                           </div>
                           <div className="w-[2px] h-6 bg-gray-600"></div>
                         </div>

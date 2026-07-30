@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { CartItem, Product } from '@/types';
+import { withLogging } from '@/utils/apiLogger';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,15 +11,15 @@ let mockCart: CartItem[] = [];
  * [공통 API 2-A Handler: GET /api/cart]
  * 장바구니 리스트 조회 (1. 결제 페이지 / 2. 장바구니 드로어)
  */
-export async function GET() {
+const getHandler = async (request: NextRequest) => {
   return NextResponse.json(mockCart);
-}
+};
 
 /**
  * [공통 API 2-B Handler: POST /api/cart]
  * 장바구니 상품 추가 (제품 상세 페이지 또는 메인 리스트 카드에서 호출)
  */
-export async function POST(request: Request) {
+const postHandler = async (request: NextRequest) => {
   const body = await request.json();
   const { product, quantity = 1 } = body as { product: Product; quantity: number };
 
@@ -34,4 +35,7 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ success: true, cart: mockCart });
-}
+};
+
+export const GET = withLogging(getHandler as any);
+export const POST = withLogging(postHandler as any);

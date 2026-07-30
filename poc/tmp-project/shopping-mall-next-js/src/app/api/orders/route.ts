@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { CheckoutRequest, CheckoutResponse } from '@/types';
+import { withLogging } from '@/utils/apiLogger';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic';
  * 1. 결제 페이지 (src/app/checkout/page.tsx) 최종 승인 시 호출
  * 2. 제품 상세 페이지 (src/app/products/[id]/page.tsx) 바로 구매 시 호출
  */
-export async function POST(request: Request) {
+const postHandler = async (request: NextRequest) => {
   const body = (await request.json()) as CheckoutRequest;
 
   if (!body.items || body.items.length === 0) {
@@ -29,4 +30,6 @@ export async function POST(request: Request) {
   };
 
   return NextResponse.json(response);
-}
+};
+
+export const POST = withLogging(postHandler as any);

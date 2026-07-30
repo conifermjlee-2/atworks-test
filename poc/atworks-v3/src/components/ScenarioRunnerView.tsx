@@ -6,24 +6,86 @@ import { ApiItem } from '../app/page';
 interface ScenarioRunnerViewProps {
   collectionId: string;
   apiItems: ApiItem[];
+  activeApiId?: string | null;
 }
 
-export default function ScenarioRunnerView({ collectionId, apiItems }: ScenarioRunnerViewProps) {
+export default function ScenarioRunnerView({ collectionId, apiItems, activeApiId }: ScenarioRunnerViewProps) {
   const [steps, setSteps] = useState<any[]>([]);
   const [isRunningAll, setIsRunningAll] = useState(false);
   const [results, setResults] = useState<Record<string, { status: 'idle' | 'loading' | 'success' | 'error', data?: any, error?: string }>>({});
 
   useEffect(() => {
+    let savedParams: Record<string, string> = {};
+    if (typeof window !== 'undefined') {
+      try {
+        savedParams = JSON.parse(localStorage.getItem('scenario-path-params') || '{}');
+      } catch (e) {}
+    }
+
     // Initialize editable states
-    setSteps(apiItems.map(api => ({
-      ...api,
-      editableUrl: api.url,
-      editableBody: api.body
-    })));
+    setSteps(apiItems.map(api => {
+      const pathParams: Record<string, string> = {};
+      const regex = /{([^}]+)}/g;
+      let match;
+      let newUrl = api.url;
+      while ((match = regex.exec(api.url)) !== null) {
+        const paramName = match[1];
+        const savedVal = savedParams[paramName] || '';
+        pathParams[paramName] = savedVal;
+        if (savedVal) {
+          newUrl = newUrl.replace(`{${paramName}}`, savedVal);
+        }
+      }
+      return {
+        ...api,
+        originalUrl: api.url,
+        editableUrl: newUrl,
+        editableBody: api.body,
+        pathParams
+      };
+    }));
   }, [apiItems]);
+
+  useEffect(() => {
+    if (activeApiId && steps.length > 0) {
+      const el = document.getElementById(`step-${activeApiId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.style.transition = 'box-shadow 0.3s';
+        el.style.boxShadow = '0 0 15px rgba(249, 115, 22, 0.6)';
+        setTimeout(() => {
+          el.style.boxShadow = 'none';
+        }, 2000);
+      }
+    }
+  }, [activeApiId, steps]);
 
   const updateStep = (id: string, field: string, value: string) => {
     setSteps(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+  };
+
+  const updatePathParam = (stepId: string, param: string, value: string) => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedParams = JSON.parse(localStorage.getItem('scenario-path-params') || '{}');
+        savedParams[param] = value;
+        localStorage.setItem('scenario-path-params', JSON.stringify(savedParams));
+      } catch (e) {}
+    }
+
+    setSteps(prev => prev.map(s => {
+      if (s.id !== stepId) return s;
+      const newPathParams = { ...s.pathParams, [param]: value };
+      
+      let newUrl = s.originalUrl;
+      for (const [key, val] of Object.entries(newPathParams)) {
+        if (val) {
+          newUrl = newUrl.replace(`{${key}}`, val as string);
+        }
+      }
+      
+      return { ...s, pathParams: newPathParams, editableUrl: newUrl };
+    }));
   };
 
   const runStep = async (step: any) => {
@@ -87,6 +149,39 @@ export default function ScenarioRunnerView({ collectionId, apiItems }: ScenarioR
     setIsRunningAll(false);
   };
 
+  const handleCopyAll = () => {
+    const textToCopy = steps.map((step, idx) => {
+      const result = results[step.id];
+      let text = `[Step ${idx + 1}] ${step.method} ${step.editableUrl}\n`;
+      if (step.editableBody) {
+        text += `Body:\n${step.editableBody}\n`;
+      }
+      if (result && result.status !== 'idle') {
+        text += `Result:\n${result.status === 'error' ? result.error : JSON.stringify(result.data, null, 2)}\n`;
+      }
+      return text;
+    }).join('\n----------------------------------------\n\n');
+    
+    navigator.clipboard.writeText(textToCopy)
+      .then(() => alert('전체 시나리오 내용이 복사되었습니다.'))
+      .catch(err => alert('복사에 실패했습니다.'));
+  };
+
+  const handleCopyStep = (step: any, idx: number) => {
+    const result = results[step.id];
+    let text = `[Step ${idx + 1}] ${step.method} ${step.editableUrl}\n`;
+    if (step.editableBody) {
+      text += `Body:\n${step.editableBody}\n`;
+    }
+    if (result && result.status !== 'idle') {
+      text += `Result:\n${result.status === 'error' ? result.error : JSON.stringify(result.data, null, 2)}\n`;
+    }
+    
+    navigator.clipboard.writeText(text)
+      .then(() => alert(`Step ${idx + 1} 내용이 복사되었습니다.`))
+      .catch(err => alert('복사에 실패했습니다.'));
+  };
+
   const getMethodColor = (method: string) => {
     switch (method.toUpperCase()) {
       case 'GET': return 'text-green-400';
@@ -107,13 +202,22 @@ export default function ScenarioRunnerView({ collectionId, apiItems }: ScenarioR
           </h2>
           <p className="text-sm text-gray-400 mt-1">등록된 전이 API들을 순서대로 실행합니다. URL의 동적 변수를 수정한 뒤 실행하세요.</p>
         </div>
-        <button
-          onClick={runAll}
-          disabled={isRunningAll || steps.length === 0}
-          className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white px-6 py-2 rounded font-bold shadow-lg transition-all"
-        >
-          {isRunningAll ? '실행 중...' : '전체 시나리오 순차 실행'}
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={handleCopyAll}
+            disabled={steps.length === 0}
+            className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white px-4 py-2 rounded font-bold shadow-lg transition-all"
+          >
+            전체 내용 복사
+          </button>
+          <button
+            onClick={runAll}
+            disabled={isRunningAll || steps.length === 0}
+            className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white px-6 py-2 rounded font-bold shadow-lg transition-all"
+          >
+            {isRunningAll ? '실행 중...' : '전체 시나리오 순차 실행'}
+          </button>
+        </div>
       </div>
 
       <div className="p-8 max-w-5xl mx-auto w-full flex flex-col space-y-6">
@@ -126,7 +230,7 @@ export default function ScenarioRunnerView({ collectionId, apiItems }: ScenarioR
             const result = results[step.id] || { status: 'idle' };
             
             return (
-              <div key={step.id} className="bg-[#252628] border border-gray-700 rounded-lg overflow-hidden shadow-lg flex flex-col">
+              <div key={step.id} id={`step-${step.id}`} className="bg-[#252628] border border-gray-700 rounded-lg overflow-hidden shadow-lg flex flex-col">
                 {/* Header */}
                 <div className="bg-[#2b2c2f] px-4 py-3 border-b border-gray-700 flex justify-between items-center">
                   <div className="font-bold text-gray-300">
@@ -137,6 +241,12 @@ export default function ScenarioRunnerView({ collectionId, apiItems }: ScenarioR
                     {result.status === 'loading' && <span className="text-yellow-400 text-sm font-bold animate-pulse">Running...</span>}
                     {result.status === 'success' && <span className="text-green-400 text-sm font-bold">✅ Success</span>}
                     {result.status === 'error' && <span className="text-red-400 text-sm font-bold">❌ Failed</span>}
+                    <button 
+                      onClick={() => handleCopyStep(step, idx)}
+                      className="bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded text-xs text-white transition-colors"
+                    >
+                      내용 복사
+                    </button>
                     <button 
                       onClick={() => runStep(step)}
                       disabled={result.status === 'loading'}
@@ -155,13 +265,32 @@ export default function ScenarioRunnerView({ collectionId, apiItems }: ScenarioR
                       type="text" 
                       value={step.editableUrl}
                       onChange={(e) => updateStep(step.id, 'editableUrl', e.target.value)}
-                      className={`flex-1 bg-[#121316] text-white px-3 py-2 border rounded focus:outline-none font-mono text-sm ${step.editableUrl.includes('${') ? 'border-red-500' : 'border-gray-700 focus:border-orange-500'}`}
+                      className={`flex-1 bg-[#121316] text-white px-3 py-2 border rounded focus:outline-none font-mono text-sm ${step.editableUrl.includes('{') ? 'border-red-500' : 'border-gray-700 focus:border-orange-500'}`}
                     />
                   </div>
                   
-                  {step.editableUrl.includes('${') && (
-                    <div className="text-red-400 text-xs pl-18">
-                      ⚠️ 주의: URL에 템플릿 변수가 포함되어 있습니다. 실제 값으로 변경해야 실행이 가능합니다.
+                  {step.editableUrl.includes('{') && (
+                    <div className="text-red-400 text-xs pl-18" style={{ marginTop: '4px' }}>
+                      ⚠️ 주의: URL에 동적 변수가 포함되어 있습니다. 하단의 Path Variables 폼에 값을 입력해 주세요.
+                    </div>
+                  )}
+
+                  {/* Path Variables UI */}
+                  {step.pathParams && Object.keys(step.pathParams).length > 0 && (
+                    <div className="pl-18 mt-2 flex flex-col gap-2 bg-[#1a1b1e] p-3 rounded border border-gray-700">
+                      <div className="text-xs text-gray-400 font-bold mb-1">PATH VARIABLES</div>
+                      {Object.keys(step.pathParams).map(param => (
+                        <div key={param} className="flex items-center space-x-2">
+                          <span className="text-gray-300 font-mono text-sm w-20 flex-shrink-0 text-right">{param}</span>
+                          <input 
+                            type="text" 
+                            value={step.pathParams[param]}
+                            onChange={(e) => updatePathParam(step.id, param, e.target.value)}
+                            placeholder={`Enter ${param}`}
+                            className="flex-1 bg-[#121316] text-white px-2 py-1 border border-gray-700 rounded focus:outline-none focus:border-orange-500 font-mono text-sm"
+                          />
+                        </div>
+                      ))}
                     </div>
                   )}
 

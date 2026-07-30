@@ -346,7 +346,12 @@ export default function Home() {
                   {apiItems.filter(api => api.collectionId === col.id).map(api => (
                     <div 
                       key={api.id}
-                      onClick={() => setActiveApiId(api.id)}
+                      onClick={() => {
+                        setActiveApiId(api.id);
+                        if (sidebarMode === 'chaining') {
+                          setActiveCollectionId(api.collectionId);
+                        }
+                      }}
                       className={`flex items-center pl-8 pr-2 py-1.5 rounded cursor-pointer text-sm group ${activeApiId === api.id ? 'bg-gray-700/80 text-white' : 'hover:bg-gray-700/50 text-gray-300'}`}
                     >
                       <span className={`${getMethodColor(api.method)} font-medium text-[10px] w-9 shrink-0`}>
@@ -383,11 +388,13 @@ export default function Home() {
           onAnalyzeRequired={() => setShowAnalyzer(true)} 
           collections={visibleCollections}
           onSave={fetchData}
+          onClose={() => setSidebarMode('test')}
         />
       ) : sidebarMode === 'chaining' && activeCollectionId ? (
         <ScenarioRunnerView 
           collectionId={activeCollectionId}
           apiItems={apiItems.filter(a => a.collectionId === activeCollectionId)}
+          activeApiId={activeApiId}
         />
       ) : (
         <div className="flex-1 flex flex-col">
