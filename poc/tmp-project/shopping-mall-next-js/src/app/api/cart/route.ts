@@ -37,5 +37,42 @@ const postHandler = async (request: NextRequest) => {
   return NextResponse.json({ success: true, cart: mockCart });
 };
 
+const putHandler = async (request: NextRequest) => {
+  const body = await request.json();
+  const { productId, quantity } = body;
+
+  if (!productId || typeof quantity !== 'number') {
+    return NextResponse.json({ error: '잘못된 요청 파라미터입니다.' }, { status: 400 });
+  }
+
+  const existingIndex = mockCart.findIndex((item) => item.product.id === productId);
+  if (existingIndex > -1) {
+    if (quantity <= 0) {
+      mockCart.splice(existingIndex, 1);
+    } else {
+      mockCart[existingIndex].quantity = quantity;
+    }
+  }
+
+  return NextResponse.json({ success: true, cart: mockCart });
+};
+
+const deleteHandler = async (request: NextRequest) => {
+  const { searchParams } = new URL(request.url);
+  const productId = searchParams.get('productId');
+
+  if (productId) {
+    // 특정 상품 삭제
+    mockCart = mockCart.filter(item => item.product.id !== productId);
+  } else {
+    // 장바구니 전체 비우기
+    mockCart = [];
+  }
+
+  return NextResponse.json({ success: true, cart: mockCart });
+};
+
 export const GET = withLogging(getHandler as any);
 export const POST = withLogging(postHandler as any);
+export const PUT = withLogging(putHandler as any);
+export const DELETE = withLogging(deleteHandler as any);

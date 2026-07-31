@@ -41,3 +41,18 @@ export async function requestCheckoutApi(data: CheckoutRequest): Promise<Checkou
   const { data: responseData } = await axiosClient.post<CheckoutResponse>('api/orders', data);
   return responseData;
 }
+
+export async function updateCartItemQuantityApi(productId: string, quantity: number): Promise<{ success: boolean; cart: CartItem[] }> {
+  const { data } = await axiosClient.put<{ success: boolean; cart: CartItem[] }>('api/cart', { productId, quantity });
+  return data;
+}
+
+export async function removeFromCartApi(productId: string): Promise<{ success: boolean; cart: CartItem[] }> {
+  const { data } = await axiosClient.delete<{ success: boolean; cart: CartItem[] }>(`api/cart?productId=${productId}`);
+  return data;
+}
+
+export async function clearCartApi(): Promise<{ success: boolean; cart: CartItem[] }> {
+  const { data } = await axiosClient.delete<{ success: boolean; cart: CartItem[] }>('api/cart');
+  return data;
+}

@@ -57,9 +57,90 @@ export async function POST(request: Request) {
               const optionsNode = pathNode.node.arguments[1];
               if (optionsNode && optionsNode.type === 'ObjectExpression') {
                 const methodProp = optionsNode.properties.find((p: any) => p.key && p.key.name === 'method') as any;
-                if (methodProp && methodProp.value.type === 'StringLiteral') method = methodProp.value.value.toUpperCase();
+              if (methodProp && methodProp.value.type === 'StringLiteral') method = methodProp.value.value.toUpperCase();
               }
               library = 'fetch';
+            }
+
+            // ── RTK Query builder (builder.query / builder.mutation) ─────
+            else if (callee.type === 'MemberExpression' && callee.object.type === 'Identifier' && callee.object.name === 'builder') {
+              if (callee.property.type === 'Identifier' && (callee.property.name === 'query' || callee.property.name === 'mutation')) {
+                const configObj = pathNode.node.arguments[0];
+                if (configObj && configObj.type === 'ObjectExpression') {
+                  const isMutation = callee.property.name === 'mutation';
+                  method = isMutation ? 'POST' : 'GET';
+                  
+                  let endpointName = '';
+                  if (pathNode.parentPath?.node.type === 'CallExpression') {
+                    const p = pathNode.parentPath.parentPath;
+                    if (p?.node.type === 'ObjectProperty' && p.node.key.type === 'Identifier') {
+                      endpointName = p.node.key.name;
+                    }
+                  } else if (pathNode.parentPath?.node.type === 'ObjectProperty' && pathNode.parentPath.node.key.type === 'Identifier') {
+                    endpointName = pathNode.parentPath.node.key.name;
+                  }
+
+                  url = endpointName ? (isMutation ? `[MutationFn] ${endpointName}` : `[QueryFn] ${endpointName}`) : `[${isMutation ? 'Mutation' : 'Query'}] RTK Endpoint`;
+                  library = 'rtk-query-endpoint';
+
+                  let realUrl = '';
+                  let realMethod = method;
+                  const queryProp = configObj.properties.find((p: any) => p.key && p.key.name === 'query');
+                  if (queryProp) {
+                    if (queryProp.value.type === 'ArrowFunctionExpression' || queryProp.value.type === 'FunctionExpression') {
+                      const body = queryProp.value.body;
+                      if (body.type === 'ObjectExpression') {
+                        const urlProp = body.properties.find((p: any) => p.key && p.key.name === 'url');
+                        const mProp = body.properties.find((p: any) => p.key && p.key.name === 'method');
+                        if (urlProp) {
+                          if (urlProp.value.type === 'StringLiteral') realUrl = urlProp.value.value;
+                          else if (urlProp.value.type === 'TemplateLiteral') {
+                            // Extract basic template literal string
+                            realUrl = urlProp.value.quasis.map((q: any) => q.value.raw).join('{param}');
+                          }
+                        }
+                        if (mProp && mProp.value.type === 'StringLiteral') realMethod = mProp.value.value.toUpperCase();
+                      }
+                    } else if (queryProp.value.type === 'StringLiteral') {
+                      realUrl = queryProp.value.value;
+                    }
+                  }
+                  
+                  const extractTags = (propName: string) => {
+                    const prop = configObj.properties.find((p: any) => p.key && p.key.name === propName);
+                    if (!prop) return [];
+                    const tags: any[] = [];
+                    if (prop.value.type === 'ArrayExpression') {
+                      prop.value.elements.forEach((el: any) => {
+                        if (el && el.type === 'StringLiteral') tags.push(el.value);
+                        else if (el && el.type === 'ObjectExpression') {
+                          const typeProp = el.properties.find((p: any) => p.key && p.key.name === 'type');
+                          if (typeProp && typeProp.value.type === 'StringLiteral') tags.push(typeProp.value.value);
+                        }
+                      });
+                    }
+                    else if (prop.value.type === 'ArrowFunctionExpression' || prop.value.type === 'FunctionExpression') {
+                      const body = prop.value.body;
+                      if (body.type === 'ArrayExpression') {
+                        body.elements.forEach((el: any) => {
+                          if (el && el.type === 'StringLiteral') tags.push(el.value);
+                          else if (el && el.type === 'ObjectExpression') {
+                            const typeProp = el.properties.find((p: any) => p.key && p.key.name === 'type');
+                            if (typeProp && typeProp.value.type === 'StringLiteral') tags.push(typeProp.value.value);
+                          }
+                        });
+                      }
+                    }
+                    return tags;
+                  };
+
+                  (pathNode as any).__rtkEndpointName = endpointName;
+                  (pathNode as any).__providesTags = extractTags('providesTags');
+                  (pathNode as any).__invalidatesTags = extractTags('invalidatesTags');
+                  if (realUrl) (pathNode as any).__realUrl = realUrl;
+                  if (realMethod) (pathNode as any).__realMethod = realMethod;
+                }
+              }
             }
 
             // ── axios/apiClient OR invalidateQueries ─────────────────────
@@ -150,6 +231,7 @@ export async function POST(request: Request) {
               const baseName = callee.name.replace(/^use/, '').replace(/Query$/, '').replace(/Mutation$/, '');
               url = isMutation ? `[Mutation] ${baseName}` : `[Query] ${baseName}`;
               library = 'rtk-query';
+              (pathNode as any).__rtkBaseName = baseName;
             }
 
             // ── useMutation (TanStack) ───────────────────────────────────
@@ -234,6 +316,12 @@ export async function POST(request: Request) {
               filePath: file,
               line: finalLine,
               pathNode,
+              rtkBaseName: (pathNode as any).__rtkBaseName || '',
+              rtkEndpointName: (pathNode as any).__rtkEndpointName || '',
+              providesTags: (pathNode as any).__providesTags || [],
+              invalidatesTags: (pathNode as any).__invalidatesTags || [],
+              realUrl: (pathNode as any).__realUrl || '',
+              realMethod: (pathNode as any).__realMethod || '',
             });
           },
         });
@@ -265,6 +353,23 @@ export async function POST(request: Request) {
         if (target) {
           apiA.url = target.url;
           apiA.method = target.method;
+        }
+      }
+
+      // Resolve RTK Query hook to RTK Query endpoint reference
+      if (apiA.library === 'rtk-query' && apiA.rtkBaseName) {
+        const target = allApis.find(a => 
+          a.library === 'rtk-query-endpoint' && 
+          a.rtkEndpointName &&
+          a.rtkEndpointName.toLowerCase() === apiA.rtkBaseName.toLowerCase()
+        );
+        if (target) {
+          apiA.providesTags = target.providesTags;
+          apiA.invalidatesTags = target.invalidatesTags;
+          if (target.realUrl) {
+            apiA.url = target.realUrl;
+            apiA.method = target.realMethod || target.method;
+          }
         }
       }
     }
@@ -320,26 +425,21 @@ export async function POST(request: Request) {
       // Resolve [Invalidate] → actual GET APIs (cross-file)
       const resolvedChains: any[] = [];
       for (const chain of apiA.chains) {
-        // Skip internal queryFn chains (they are part of the hook, not a "transition")
         if (chain.type === 'queryFn' || chain.type === 'mutationFn') continue;
 
         if (chain.target.method === 'REFETCH' && chain.target.url.startsWith('[Invalidate]')) {
           const key = chain.target.url.replace('[Invalidate] ', '');
-          // Match GET APIs whose queryKey starts with the invalidated key
-          // e.g. invalidate('posts') matches queryKey='posts' AND queryKey='post' (prefix) AND queryKey='posts,id'
           const targets = allApis.filter(a => {
             if (a.method !== 'GET') return false;
             const qk = a.queryKey || '';
-            if (qk === '') return false; // RTK Query 커스텀 훅 등 queryKey 없는 것 제외
-            // React Query 스타일 배열 접두사 매칭:
-            // 'posts'는 'posts' 또는 'posts,어쩌구'와 매칭되지만, 'post'와는 매칭되지 않아야 함.
+            if (qk === '') return false;
             return qk === key || qk.startsWith(key + ',');
           });
           if (targets.length > 0) {
             for (const t of targets) {
               resolvedChains.push({
-                type: chain.type, // keep original (e.g. 'onSuccess')
-                transitionLine: chain.target.line, // 22번 줄 (invalidateQueries 호출 위치)
+                type: chain.type,
+                transitionLine: chain.target.line,
                 target: { method: t.method, url: t.url, line: t.line, file: t.filePath },
               });
             }
@@ -350,6 +450,23 @@ export async function POST(request: Request) {
           resolvedChains.push(chain);
         }
       }
+      
+      // Resolve RTK Query Tags (cross-file)
+      if (apiA.library === 'rtk-query' && apiA.invalidatesTags && apiA.invalidatesTags.length > 0) {
+        const targets = allApis.filter(a => a.library === 'rtk-query' && a.method === 'GET' && a.providesTags && a.providesTags.length > 0);
+        
+        for (const target of targets) {
+          const hasIntersection = apiA.invalidatesTags.some((tag: string) => target.providesTags.includes(tag));
+          if (hasIntersection) {
+            resolvedChains.push({
+              type: 'invalidatesTags',
+              transitionLine: apiA.line,
+              target: { method: target.method, url: target.url, line: target.line, file: target.filePath },
+            });
+          }
+        }
+      }
+
       apiA.chains = resolvedChains;
     }
 
@@ -370,10 +487,12 @@ export async function POST(request: Request) {
       api.chains = uniqueChains;
     }
 
-    // Only return hook-based APIs (always), plus any API that has chains
-    const hookLibraries = new Set(['useQuery', 'useSWR', 'react-query', 'rtk-query']);
-    const result = allApis.filter(api => hookLibraries.has(api.library) || api.chains.length > 0);
-    return NextResponse.json({ apis: result });
+    // Filter and return only those from components (hookLibraries) or with chains
+    const hookLibraries = new Set(['react-query', 'useQuery', 'useMutation', 'useSWR', 'rtk-query']);
+    const finalApis = allApis.filter(api => hookLibraries.has(api.library) || api.chains.length > 0);
+
+    // Provide a debug response if requested
+    return NextResponse.json({ apis: finalApis, debugAllApis: allApis });
 
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

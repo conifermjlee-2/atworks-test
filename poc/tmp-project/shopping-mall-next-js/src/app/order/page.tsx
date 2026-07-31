@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import Header from '@/components/common/Header';
 import Modal from '@/components/common/Modal';
 import Spinner from '@/components/common/Spinner';
-import { fetchCartItems, requestCheckoutApi } from '@/services/api';
+import { fetchCartItems, requestCheckoutApi, updateCartItemQuantityApi, removeFromCartApi, clearCartApi } from '@/services/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CartItem, ShippingInfo } from '@/types';
-import { CreditCard, Lock } from 'lucide-react';
+import { CreditCard, Lock, Plus, Minus, Trash2 } from 'lucide-react';
 
 /**
  * [결제 및 주문 작성 페이지 - src/app/order/page.tsx]
@@ -45,9 +45,11 @@ export default function CheckoutPage() {
   const checkoutMutation = useMutation({
     mutationFn: () =>
       requestCheckoutApi({ items: checkoutItems, shippingInfo, totalAmount, buyType: 'CART' }),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       if (response.success) {
-        // 결제 완료 시 장바구니 비우기
+        // 서버 측 장바구니 비우기 호출
+        await clearCartApi();
+        // 클라이언트 측 장바구니 비우기
         queryClient.setQueryData(['cart'], []);
         
         // ⚡ [시나리오 2 - 3단계 후행 액션]: 주문 완료 화면으로 라우팅 이동
@@ -60,6 +62,32 @@ export default function CheckoutPage() {
       alert('결제 승인 처리 중 에러가 발생했습니다.');
     },
   });
+
+  // 수량 변경 Mutation
+  const updateQuantityMutation = useMutation({
+    mutationFn: ({ productId, quantity }: { productId: string, quantity: number }) => updateCartItemQuantityApi(productId, quantity),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
+    }
+  });
+
+  // 상품 삭제 Mutation
+  const removeItemMutation = useMutation({
+    mutationFn: (productId: string) => removeFromCartApi(productId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
+    }
+  });
+
+  const handleUpdateQuantity = (productId: string, currentQuantity: number, delta: number) => {
+    const newQuantity = currentQuantity + delta;
+    if (newQuantity < 1) return;
+    updateQuantityMutation.mutate({ productId, quantity: newQuantity });
+  };
+
+  const handleRemoveItem = (productId: string) => {
+    removeItemMutation.mutate(productId);
+  };
 
   const handleFinalPayment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,14 +163,22 @@ export default function CheckoutPage() {
           <div>
             <div className="form-section" style={{ position: 'sticky', top: '90px' }}>
               <h3>주문 요약</h3>
-              <div style={{ maxHeight: '240px', overflowY: 'auto', marginBottom: '1.25rem' }}>
+              <div style={{ maxHeight: '240px', overflowY: 'auto', marginBottom: '1.25rem', paddingRight: '0.5rem' }}>
                 {checkoutItems.map(({ product, quantity }) => (
-                  <div key={product.id} style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                  <div key={product.id} style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem', alignItems: 'center' }}>
                     <img src={product.image} alt={product.name}
                       style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '6px' }} />
                     <div style={{ flex: 1, fontSize: '0.85rem' }}>
                       <div style={{ fontWeight: 600 }}>{product.name}</div>
-                      <div style={{ color: 'var(--text-sub)' }}>{quantity}개 / {(product.price * quantity).toLocaleString()}원</div>
+                      <div style={{ color: 'var(--text-sub)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '2px 6px' }}>
+                          <button type="button" onClick={() => handleUpdateQuantity(product.id, quantity, -1)} disabled={quantity <= 1} style={{ cursor: quantity <= 1 ? 'not-allowed' : 'pointer', color: 'var(--text-sub)' }}><Minus size={12} /></button>
+                          <span style={{ minWidth: '12px', textAlign: 'center' }}>{quantity}</span>
+                          <button type="button" onClick={() => handleUpdateQuantity(product.id, quantity, 1)} style={{ cursor: 'pointer', color: 'var(--text-sub)' }}><Plus size={12} /></button>
+                        </div>
+                        <span style={{ fontWeight: 500, color: 'var(--text-main)' }}>{(product.price * quantity).toLocaleString()}원</span>
+                        <button type="button" onClick={() => handleRemoveItem(product.id)} style={{ cursor: 'pointer', color: '#ff4d4f', marginLeft: 'auto' }} title="삭제"><Trash2 size={14} /></button>
+                      </div>
                     </div>
                   </div>
                 ))}

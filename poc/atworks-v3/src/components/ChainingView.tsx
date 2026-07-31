@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'react-hot-toast';
 
 type ChainInfo = {
   type: string;
@@ -15,6 +16,9 @@ type ApiNode = {
   chains: ChainInfo[];
 };
 
+let cachedApis: ApiNode[] = [];
+let cachedTargetPath = '';
+
 export default function ChainingView({ 
   rootPath, 
   onAnalyzeRequired,
@@ -28,9 +32,9 @@ export default function ChainingView({
   onSave: () => void,
   onClose?: () => void
 }) {
-  const [targetPath, setTargetPath] = useState(rootPath || '');
+  const [targetPath, setTargetPath] = useState(cachedTargetPath || rootPath || '');
   const [isScanning, setIsScanning] = useState(false);
-  const [apis, setApis] = useState<ApiNode[]>([]);
+  const [apis, setApis] = useState<ApiNode[]>(cachedApis);
   const [selectedApi, setSelectedApi] = useState<ApiNode | null>(null);
   const [selectedCollectionId, setSelectedCollectionId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -47,51 +51,82 @@ export default function ChainingView({
       const data = await res.json();
       if (data.apis) {
         setApis(data.apis);
+        cachedApis = data.apis;
+        cachedTargetPath = targetPath;
         setSelectedApi(null);
       } else {
-        alert(data.error || 'Failed to analyze chaining');
+        toast.error(data.error || 'Failed to analyze chaining');
       }
     } catch (err) {
       console.error(err);
-      alert('Error analyzing chaining');
+      toast.error('Error analyzing chaining');
     }
     setIsScanning(false);
   };
   const apisWithChains = apis.filter(api => api.chains && api.chains.length > 0);
-  const handleCopyChain = () => {
-    if (!selectedApi) return;
-    
-    const relativePath = selectedApi.filePath.replace(/^.*?(src[\\/].*)$/, '$1').replace(/\\/g, '/');
-    const isMutation = selectedApi.method !== 'GET';
-    const hookName = selectedApi.library === 'react-query' ? (isMutation ? 'useMutation' : 'useQuery') : selectedApi.library;
+  const cleanUrl = (url: string) => url.replace(/^\[Query\]\s*/i, '');
+
+  const getChainText = (api: ApiNode, index?: number) => {
+    const relativePath = api.filePath.replace(/^.*?(src[\\/].*)$/, '$1').replace(/\\/g, '/');
+    const isMutation = api.method !== 'GET';
+    const hookName = api.library === 'react-query' ? (isMutation ? 'useMutation' : 'useQuery') : api.library;
     const actionIcon = isMutation ? '👆 EVENT' : '⚙ MOUNT';
     
-    const cleanUrl = (url: string) => url.replace(/^\[Query\]\s*/i, '');
+    const idxStr = index !== undefined ? `[${(index + 1).toString().padStart(2, '0')}]` : '[01]';
+    let text = index === undefined ? `${relativePath} (1개 시나리오)\n\n` : `--- ${relativePath} ---\n`;
+    text += `${idxStr} ${actionIcon}  ${hookName} (Line: ${api.line})\n`;
+    text += `  1. ${api.method.padEnd(6)} ${cleanUrl(api.url)}\n`;
     
-    let text = `${relativePath} (1개 시나리오)\n\n`;
-    text += `[01] ${actionIcon}  ${hookName} (Line: ${selectedApi.line})\n`;
-    text += `  1. ${selectedApi.method.padEnd(6)} ${cleanUrl(selectedApi.url)}\n`;
-    
-    if (selectedApi.chains && selectedApi.chains.length > 0) {
-      const chainType = selectedApi.chains[0].type;
+    if (api.chains && api.chains.length > 0) {
+      const chainType = api.chains[0].type;
       let chainReason = `${chainType} → 연쇄 요청`;
-      if ((chainType === 'onSuccess' || chainType === 'onSuccess → invalidateQueries') && selectedApi.library === 'react-query') {
-        const transLine = selectedApi.chains[0].transitionLine;
+      if ((chainType === 'onSuccess' || chainType === 'onSuccess → invalidateQueries') && api.library === 'react-query') {
+        const transLine = api.chains[0].transitionLine;
         chainReason = `onSuccess ${transLine ? `(Line: ${transLine}) ` : ''}→ invalidateQueries → 자동 재요청`;
+      } else if (chainType === 'invalidatesTags') {
+        const transLine = api.chains[0].transitionLine;
+        chainReason = `invalidatesTags ${transLine ? `(Line: ${transLine}) ` : ''}→ 자동 재요청`;
       }
       
       text += `  🔄 ${chainReason}\n`;
-      selectedApi.chains.forEach((chain, idx) => {
-        const targetPath = chain.target.file ? chain.target.file.replace(/^.*?(src[\\/].*)$/, '$1').replace(/\\/g, '/') : 'Unknown File';
-        text += `     ${(idx + 1).toString()}. ${chain.target.method.padEnd(6)} ${cleanUrl(chain.target.url)}  (${targetPath}:${chain.target.line})\n`;
+      const groupedChains: Record<string, typeof api.chains> = {};
+      api.chains.forEach((chain, idx) => {
+        const key = `${chain.target.method.padEnd(6)} ${cleanUrl(chain.target.url)}`;
+        if (!groupedChains[key]) groupedChains[key] = [];
+        groupedChains[key].push(chain);
       });
+      
+      let groupIdx = 1;
+      for (const [key, chains] of Object.entries(groupedChains)) {
+        text += `     ${groupIdx++}. ${key}\n`;
+        chains.forEach(c => {
+          const targetPath = c.target.file ? c.target.file.replace(/^.*?(src[\\/].*)$/, '$1').replace(/\\/g, '/') : 'Unknown File';
+          text += `        - ${targetPath} (Line: ${c.target.line})\n`;
+        });
+      }
     }
+    return text + '\n';
+  };
 
-    navigator.clipboard.writeText(text).then(() => {
-      alert('전이 흐름이 복사되었습니다!');
+  const handleCopyChain = () => {
+    if (!selectedApi) return;
+    navigator.clipboard.writeText(getChainText(selectedApi)).then(() => {
+      toast.success('전이 흐름이 복사되었습니다!');
     }).catch(err => {
       console.error('Copy failed:', err);
-      alert('복사에 실패했습니다.');
+      toast.error('복사에 실패했습니다.');
+    });
+  };
+
+  const handleCopyAllChains = () => {
+    if (apisWithChains.length === 0) return;
+    const allText = apisWithChains.map((api, idx) => getChainText(api, idx)).join('\n');
+    const header = `총 ${apisWithChains.length}개의 시나리오 분석 결과\n\n`;
+    navigator.clipboard.writeText(header + allText).then(() => {
+      toast.success('전체 내역이 복사되었습니다!');
+    }).catch(err => {
+      console.error('Copy all failed:', err);
+      toast.error('복사에 실패했습니다.');
     });
   };
 
@@ -219,11 +254,11 @@ export default function ChainingView({
         stepCounter++;
       }
 
-      alert('시나리오가 성공적으로 등록되었습니다!');
+      toast.success('시나리오가 성공적으로 등록되었습니다!');
       onSave();
     } catch (err) {
       console.error(err);
-      alert('저장 중 오류가 발생했습니다.');
+      toast.error('저장 중 오류가 발생했습니다.');
     }
     setIsSaving(false);
   };
@@ -263,7 +298,9 @@ export default function ChainingView({
           <span className="text-xs text-gray-500 font-semibold mr-2">빠른 예시:</span>
           {[
             { label: 'React 게시판 예시', path: 'C:\\Users\\lee\\Desktop\\atworks-test\\poc\\tmp-project\\react-board-example' },
-            { label: '쇼핑몰 예시', path: 'C:\\Users\\lee\\Desktop\\atworks-test\\poc\\tmp-project\\shopping-mall-next-js' }
+            { label: '쇼핑몰 예시', path: 'C:\\Users\\lee\\Desktop\\atworks-test\\poc\\tmp-project\\shopping-mall-next-js' },
+            { label: '에이전트 BT 예시', path: 'C:\\Users\\lee\\Desktop\\atworks\\ai\\davis-frontend\\apps\\agent-bt' },
+            { label: '에이전트 BT', path: 'C:\\Users\\lee\\Desktop\\atworks\\ai\\davis-frontend\\apps\\agent-bt' }
           ].map(ex => (
             <button 
               key={ex.label}
@@ -279,9 +316,21 @@ export default function ChainingView({
       <div className="flex-1 flex overflow-hidden">
         {/* Left List */}
         <div className="w-1/3 border-r border-gray-800 overflow-y-auto p-4 space-y-2 bg-[#202124]">
-          <h3 className="text-sm font-semibold text-gray-400 mb-4">
-            감지된 API 시나리오 ({apisWithChains.length}건)
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-400">
+              감지된 API 시나리오 ({apisWithChains.length}건)
+            </h3>
+            {apisWithChains.length > 0 && (
+              <button
+                onClick={handleCopyAllChains}
+                className="text-xs flex items-center space-x-1 px-2 py-1 bg-[#2b2c2f] hover:bg-[#35363b] text-gray-300 rounded border border-gray-700 transition-colors"
+                title="모든 시나리오를 복사합니다"
+              >
+                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                <span>전체 복사</span>
+              </button>
+            )}
+          </div>
           {apis.length === 0 && !isScanning && (
             <div className="text-gray-500 text-sm mt-10 text-center">경로를 입력하고 실행 버튼을 눌러주세요.</div>
           )}
@@ -338,7 +387,7 @@ export default function ChainingView({
                     <div className="flex space-x-2 w-full">
                       <button
                         onClick={handleCopyChain}
-                        className="bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors flex-1"
+                        className="bg-[#2a2b2f] hover:bg-[#35363b] border border-gray-700/50 hover:border-gray-500 text-gray-300 hover:text-white text-xs font-bold px-3 py-1.5 rounded-md transition-all flex-1 shadow-sm"
                         title="전이 흐름 텍스트로 복사"
                       >
                         📋 복사
@@ -346,9 +395,30 @@ export default function ChainingView({
                       <button
                         onClick={handleRegisterScenario}
                         disabled={isSaving || !selectedCollectionId}
-                        className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors flex-1"
+                        className="relative overflow-hidden bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 disabled:from-gray-700 disabled:to-gray-800 disabled:text-gray-400 disabled:shadow-none text-white text-xs font-bold px-3 py-1.5 rounded-md transition-all flex-1 shadow-[0_0_12px_rgba(16,185,129,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.5)] border border-emerald-400/30 group"
                       >
-                        {isSaving ? '저장 중...' : '시나리오 등록'}
+                        <span className="relative z-10 flex items-center justify-center gap-1.5">
+                          {isSaving ? (
+                            <>
+                              <svg className="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              저장 중...
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                              </svg>
+                              시나리오 등록
+                            </>
+                          )}
+                        </span>
+                        {/* Shimmer Effect */}
+                        {!isSaving && selectedCollectionId && (
+                          <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-40 group-hover:animate-shimmer" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -384,22 +454,34 @@ export default function ChainingView({
                             </div>
                             
                             <div className="bg-[#252628] border border-gray-700 p-4 rounded-lg shadow-md min-w-[320px] max-w-[600px] hover:border-gray-500 transition-colors mt-1 flex flex-col space-y-4">
-                              {chainsForGroup.map((chain, cIdx) => (
-                                <div key={cIdx} className={`${cIdx > 0 ? 'border-t border-gray-700 pt-4' : ''} flex justify-between items-start`}>
-                                  <div>
-                                    <div className="flex items-center space-x-3 text-md font-semibold">
-                                      <span className="text-green-400">{chain.target.method}</span>
-                                      <span className="text-gray-200 break-all">{chain.target.url.replace(/^\[Query\]\s*/i, '')}</span>
+                              {(() => {
+                                const groupedByApi = chainsForGroup.reduce((acc, chain) => {
+                                  const key = `${chain.target.method} ${chain.target.url}`;
+                                  if (!acc[key]) acc[key] = [];
+                                  acc[key].push(chain);
+                                  return acc;
+                                }, {} as Record<string, typeof chainsForGroup>);
+
+                                return Object.entries(groupedByApi).map(([key, chains], cIdx) => (
+                                  <div key={cIdx} className={`${cIdx > 0 ? 'border-t border-gray-700 pt-4' : ''} flex flex-col items-start w-full`}>
+                                    <div className="flex items-center space-x-3 text-md font-semibold mb-2">
+                                      <span className="text-green-400">{chains[0].target.method}</span>
+                                      <span className="text-gray-200 break-all">{chains[0].target.url.replace(/^\[Query\]\s*/i, '')}</span>
                                     </div>
-                                    <div className="text-xs text-gray-500 mt-2 flex items-center space-x-2">
-                                      <span className="bg-gray-800 px-2 py-1 rounded break-all">
-                                        {chain.target.file ? chain.target.file.replace(/^.*?(src[\\/].*)$/, '$1') : 'Unknown File'}
-                                      </span>
-                                      <span className="shrink-0">Line: {chain.target.line}</span>
+                                    <div className="flex flex-col space-y-1.5 w-full pl-2 border-l-2 border-gray-700 ml-1">
+                                      {chains.map((c, i) => (
+                                        <div key={i} className="text-xs text-gray-400 flex items-center space-x-2">
+                                          <span className="shrink-0 text-gray-600">•</span>
+                                          <span className="bg-[#121316] border border-gray-800 px-2 py-0.5 rounded break-all">
+                                            {c.target.file ? c.target.file.replace(/^.*?(src[\\/].*)$/, '$1') : 'Unknown File'}
+                                          </span>
+                                          <span className="shrink-0">Line: {c.target.line}</span>
+                                        </div>
+                                      ))}
                                     </div>
                                   </div>
-                                </div>
-                              ))}
+                                ));
+                              })()}
                             </div>
                           </div>
                         </div>

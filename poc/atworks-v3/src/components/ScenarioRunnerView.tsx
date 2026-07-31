@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import { ApiItem } from '../app/page';
 
 interface ScenarioRunnerViewProps {
@@ -140,11 +141,8 @@ export default function ScenarioRunnerView({ collectionId, apiItems, activeApiId
     setResults(resetRes);
 
     for (let i = 0; i < steps.length; i++) {
-      const success = await runStep(steps[i]);
-      if (!success) {
-        // Stop execution if a step fails
-        break;
-      }
+      await runStep(steps[i]);
+      // 사용자의 요청에 따라, 스텝이 실패하더라도 다음 스텝을 계속 실행합니다.
     }
     setIsRunningAll(false);
   };
@@ -163,8 +161,8 @@ export default function ScenarioRunnerView({ collectionId, apiItems, activeApiId
     }).join('\n----------------------------------------\n\n');
     
     navigator.clipboard.writeText(textToCopy)
-      .then(() => alert('전체 시나리오 내용이 복사되었습니다.'))
-      .catch(err => alert('복사에 실패했습니다.'));
+      .then(() => toast.success('전체 시나리오 내용이 복사되었습니다.'))
+      .catch(err => toast.error('복사에 실패했습니다.'));
   };
 
   const handleCopyStep = (step: any, idx: number) => {
@@ -178,8 +176,8 @@ export default function ScenarioRunnerView({ collectionId, apiItems, activeApiId
     }
     
     navigator.clipboard.writeText(text)
-      .then(() => alert(`Step ${idx + 1} 내용이 복사되었습니다.`))
-      .catch(err => alert('복사에 실패했습니다.'));
+      .then(() => toast.success(`Step ${idx + 1} 내용이 복사되었습니다.`))
+      .catch(err => toast.error('복사에 실패했습니다.'));
   };
 
   const getMethodColor = (method: string) => {
@@ -300,7 +298,7 @@ export default function ScenarioRunnerView({ collectionId, apiItems, activeApiId
                         value={step.editableBody}
                         onChange={(e) => updateStep(step.id, 'editableBody', e.target.value)}
                         placeholder="Request Body (JSON)"
-                        className="w-full bg-[#121316] text-green-400 px-3 py-2 border border-gray-700 rounded focus:outline-none focus:border-orange-500 font-mono text-xs h-20 resize-none"
+                        className="w-full bg-[#121316] text-green-400 px-3 py-2 border border-gray-700 rounded focus:outline-none focus:border-orange-500 font-mono text-xs min-h-[5rem] h-20 resize-y"
                       />
                     </div>
                   )}

@@ -5,7 +5,9 @@ import ApiForm from '@/components/ApiForm';
 import AnalyzerView from '@/components/AnalyzerView';
 import ChainingView from '@/components/ChainingView';
 import ScenarioRunnerView from '@/components/ScenarioRunnerView';
-import { Toaster } from 'react-hot-toast';
+import FrontendFlowView from '@/components/FrontendFlowView';
+import ScenarioWithAIView from '@/components/ScenarioWithAIView';
+import { Toaster, toast } from 'react-hot-toast';
 
 export type Collection = {
   id: string;
@@ -45,7 +47,7 @@ export default function Home() {
   const isResizing = useRef(false);
 
   // Mode state
-  const [sidebarMode, setSidebarMode] = useState<'test' | 'chaining'>('test');
+  const [sidebarMode, setSidebarMode] = useState<'test' | 'chaining' | 'flow' | 'scenario'>('scenario');
 
   // Load initial data
   const fetchData = async () => {
@@ -163,11 +165,11 @@ export default function Home() {
         setShowAnalyzer(true);
         closeImportModal();
       } else {
-        alert(data.error || 'Failed to scan');
+        toast.error(data.error || 'Failed to scan');
       }
     } catch (err) {
       console.error(err);
-      alert('Error scanning path');
+      toast.error('Error scanning path');
     }
     setIsScanning(false);
   };
@@ -223,6 +225,18 @@ export default function Home() {
     setExpandedCols(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const expandAll = () => {
+    const newExpanded: Record<string, boolean> = {};
+    visibleCollections.forEach(col => { newExpanded[col.id] = true; });
+    setExpandedCols(newExpanded);
+  };
+
+  const collapseAll = () => {
+    const newExpanded: Record<string, boolean> = {};
+    visibleCollections.forEach(col => { newExpanded[col.id] = false; });
+    setExpandedCols(newExpanded);
+  };
+
   const activeApi = apiItems.find(item => item.id === activeApiId) || null;
   const visibleCollections = collections.filter(col => col.mode === sidebarMode || (sidebarMode === 'test' && !col.mode));
 
@@ -253,6 +267,13 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <h1 className="font-bold text-lg tracking-tight truncate mr-2">My Workspace</h1>
             <div className="flex space-x-1 items-center">
+              <button 
+                onClick={fetchData}
+                className="text-gray-400 hover:text-white px-2 leading-none flex items-center justify-center"
+                title="새로고침 (Refresh Data)"
+              >
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+              </button>
               {sidebarMode === 'chaining' && (
                 <button 
                   onClick={() => { setActiveCollectionId(null); setShowAnalyzer(false); }}
@@ -276,15 +297,27 @@ export default function Home() {
           </div>
           <select 
             value={sidebarMode} 
-            onChange={e => setSidebarMode(e.target.value as 'test' | 'chaining')}
+            onChange={e => {
+              setSidebarMode(e.target.value as 'test' | 'chaining' | 'flow' | 'scenario');
+              setShowAnalyzer(false);
+            }}
             className="bg-[#121316] text-sm text-gray-300 px-2 py-1.5 border border-gray-700 rounded focus:outline-none w-full"
           >
+            <option value="scenario">시나리오 with AI</option>
             <option value="test">API 테스트</option>
             <option value="chaining">API 전이 (Chaining)</option>
+            <option value="flow">프론트 흐름 (Frontend Flow)</option>
           </select>
+          
+          {visibleCollections.length > 0 && (
+            <div className="flex items-center justify-end space-x-3 text-xs text-gray-500 pt-1">
+              <button onClick={expandAll} className="hover:text-gray-300 transition-colors">전체 펴기</button>
+              <button onClick={collapseAll} className="hover:text-gray-300 transition-colors">전체 접기</button>
+            </div>
+          )}
         </div>
         {/* Collections */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 pt-2">
           {visibleCollections.map(col => (
             <div key={col.id} className="mb-2">
               <div 
@@ -348,6 +381,7 @@ export default function Home() {
                       key={api.id}
                       onClick={() => {
                         setActiveApiId(api.id);
+                        setShowAnalyzer(false);
                         if (sidebarMode === 'chaining') {
                           setActiveCollectionId(api.collectionId);
                         }
@@ -395,6 +429,19 @@ export default function Home() {
           collectionId={activeCollectionId}
           apiItems={apiItems.filter(a => a.collectionId === activeCollectionId)}
           activeApiId={activeApiId}
+        />
+      ) : sidebarMode === 'scenario' ? (
+        <ScenarioWithAIView
+          rootPath={rootPath}
+          collections={collections}
+          apiItems={apiItems}
+          onSave={fetchData}
+          onClose={() => setSidebarMode('test')}
+        />
+      ) : sidebarMode === 'flow' ? (
+        <FrontendFlowView 
+          rootPath={rootPath}
+          onClose={() => setSidebarMode('test')}
         />
       ) : (
         <div className="flex-1 flex flex-col">

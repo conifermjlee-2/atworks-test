@@ -19,7 +19,7 @@ export default function ApiForm({ apiItem, onSave }: ApiFormProps) {
   const [isSaving, setIsSaving] = useState(false);
 
   const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
-  const tabs = ['Params', 'Headers', 'Body'];
+  const tabs = ['Params', 'Headers', 'Request Body'];
 
   // Sync state when selected apiItem changes
   useEffect(() => {
@@ -141,9 +141,9 @@ export default function ApiForm({ apiItem, onSave }: ApiFormProps) {
 
       {/* Tab Content */}
       <div className="flex-1 mt-4">
-        {activeTab === 'Body' ? (
+        {activeTab === 'Request Body' ? (
           <textarea
-            className="w-full h-48 bg-[#1e1e1e] text-green-400 font-mono text-sm p-4 rounded border border-gray-700 focus:border-blue-500 focus:outline-none resize-none"
+            className="w-full h-48 min-h-[5rem] bg-[#1e1e1e] text-green-400 font-mono text-sm p-4 rounded border border-gray-700 focus:border-blue-500 focus:outline-none resize-y"
             value={body}
             onChange={(e) => setBody(e.target.value)}
             spellCheck="false"
