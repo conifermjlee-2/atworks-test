@@ -1,6 +1,6 @@
 {
   "GET__api_cart": {
-    "timestamp": "2026-07-31T07:19:09.391Z",
+    "timestamp": "2026-07-31T07:42:34.134Z",
     "endpoint": "/api/cart",
     "method": "GET",
     "request": {
@@ -8,10 +8,12 @@
         "accept": "application/json, text/plain, */*",
         "accept-encoding": "gzip, deflate, br, zstd",
         "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+        "cache-control": "no-cache",
         "connection": "keep-alive",
         "cookie": "__next_hmr_refresh_hash__=268",
         "host": "localhost:3002",
-        "referer": "http://localhost:3002/products/prod-2",
+        "pragma": "no-cache",
+        "referer": "http://localhost:3002/",
         "sec-ch-ua": "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"150\", \"Google Chrome\";v=\"150\"",
         "sec-ch-ua-mobile": "?0",
         "sec-ch-ua-platform": "\"Windows\"",
@@ -31,47 +33,30 @@
       "headers": {
         "content-type": "application/json"
       },
-      "body": [
-        {
-          "product": {
-            "id": "prod-2",
-            "name": "북유럽 감성 미니멀 스탠드 조명",
-            "category": "living",
-            "price": 89000,
-            "originalPrice": 110000,
-            "rating": 4.7,
-            "reviewCount": 84,
-            "image": "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80",
-            "description": "아늑한 분위기를 연출해 주는 스마트 터치 스탠드 조명입니다. 3단계 조도 조절 가능.",
-            "isNew": true
-          },
-          "quantity": 1
-        }
-      ]
+      "body": []
     }
   },
   "POST__api_cart": {
-    "timestamp": "2026-07-31T07:19:09.369Z",
+    "timestamp": "2026-07-31T07:30:16.095Z",
     "endpoint": "/api/cart",
     "method": "POST",
     "request": {
       "headers": {
-        "accept": "application/json, text/plain, */*",
+        "accept": "*/*",
         "accept-encoding": "gzip, deflate, br, zstd",
         "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
         "connection": "keep-alive",
-        "content-length": "426",
+        "content-length": "498",
         "content-type": "application/json",
-        "cookie": "__next_hmr_refresh_hash__=268",
         "host": "localhost:3002",
-        "origin": "http://localhost:3002",
-        "referer": "http://localhost:3002/products/prod-2",
+        "origin": "http://localhost:3005",
+        "referer": "http://localhost:3005/",
         "sec-ch-ua": "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"150\", \"Google Chrome\";v=\"150\"",
         "sec-ch-ua-mobile": "?0",
         "sec-ch-ua-platform": "\"Windows\"",
         "sec-fetch-dest": "empty",
         "sec-fetch-mode": "cors",
-        "sec-fetch-site": "same-origin",
+        "sec-fetch-site": "same-site",
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
         "x-forwarded-for": "::1",
         "x-forwarded-host": "localhost:3002",
@@ -104,6 +89,20 @@
         "cart": [
           {
             "product": {
+              "id": "prod-3",
+              "name": "오버핏 하이엔드 피마 코튼 후드티",
+              "category": "fashion",
+              "price": 69000,
+              "rating": 4.8,
+              "reviewCount": 210,
+              "image": "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&auto=format&fit=crop&q=80",
+              "description": "부드러운 프리미엄 피마 코튼 100% 소재로 제작된 트렌디한 오버핏 데일리 후드티입니다.",
+              "isBest": true
+            },
+            "quantity": 1
+          },
+          {
+            "product": {
               "id": "prod-2",
               "name": "북유럽 감성 미니멀 스탠드 조명",
               "category": "living",
@@ -122,7 +121,7 @@
     }
   },
   "POST__api_orders": {
-    "timestamp": "2026-07-31T07:19:11.704Z",
+    "timestamp": "2026-07-31T07:19:27.917Z",
     "endpoint": "/api/orders",
     "method": "POST",
     "request": {
@@ -131,12 +130,12 @@
         "accept-encoding": "gzip, deflate, br, zstd",
         "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
         "connection": "keep-alive",
-        "content-length": "651",
+        "content-length": "598",
         "content-type": "application/json",
         "cookie": "__next_hmr_refresh_hash__=268",
         "host": "localhost:3002",
         "origin": "http://localhost:3002",
-        "referer": "http://localhost:3002/order",
+        "referer": "http://localhost:3002/products/prod-3",
         "sec-ch-ua": "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"150\", \"Google Chrome\";v=\"150\"",
         "sec-ch-ua-mobile": "?0",
         "sec-ch-ua-platform": "\"Windows\"",
@@ -153,29 +152,28 @@
         "items": [
           {
             "product": {
-              "id": "prod-2",
-              "name": "북유럽 감성 미니멀 스탠드 조명",
-              "category": "living",
-              "price": 89000,
-              "originalPrice": 110000,
-              "rating": 4.7,
-              "reviewCount": 84,
-              "image": "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80",
-              "description": "아늑한 분위기를 연출해 주는 스마트 터치 스탠드 조명입니다. 3단계 조도 조절 가능.",
-              "isNew": true
+              "id": "prod-3",
+              "name": "오버핏 하이엔드 피마 코튼 후드티",
+              "category": "fashion",
+              "price": 69000,
+              "rating": 4.8,
+              "reviewCount": 210,
+              "image": "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&auto=format&fit=crop&q=80",
+              "description": "부드러운 프리미엄 피마 코튼 100% 소재로 제작된 트렌디한 오버핏 데일리 후드티입니다.",
+              "isBest": true
             },
             "quantity": 1
           }
         ],
         "shippingInfo": {
-          "name": "홍길동",
-          "phone": "010-1234-5678",
-          "address": "서울특별시 강남구 테헤란로 123",
-          "detailAddress": "atworks 빌딩 5층",
+          "name": "구매자",
+          "phone": "010-0000-0000",
+          "address": "기본 배송지",
+          "detailAddress": "101호",
           "paymentMethod": "card"
         },
-        "totalAmount": 89000,
-        "buyType": "CART"
+        "totalAmount": 69000,
+        "buyType": "DIRECT"
       }
     },
     "response": {
@@ -185,16 +183,16 @@
       },
       "body": {
         "success": true,
-        "orderId": "ORD-1785482351703-785",
-        "orderDate": "2026. 7. 31. 오후 4:19:11",
-        "totalAmount": 89000,
+        "orderId": "ORD-1785482367916-576",
+        "orderDate": "2026. 7. 31. 오후 4:19:27",
+        "totalAmount": 69000,
         "itemCount": 1,
         "message": "결제가 성공적으로 승인 처리되었습니다."
       }
     }
   },
   "GET__api_products": {
-    "timestamp": "2026-07-31T07:10:27.386Z",
+    "timestamp": "2026-07-31T07:39:43.743Z",
     "endpoint": "/api/products",
     "method": "GET",
     "request": {
@@ -356,6 +354,65 @@
       "body": {
         "success": true,
         "cart": []
+      }
+    }
+  },
+  "PUT__api_cart": {
+    "timestamp": "2026-07-31T07:29:58.914Z",
+    "endpoint": "/api/cart",
+    "method": "PUT",
+    "request": {
+      "headers": {
+        "accept": "application/json, text/plain, */*",
+        "accept-encoding": "gzip, deflate, br, zstd",
+        "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+        "connection": "keep-alive",
+        "content-length": "35",
+        "content-type": "application/json",
+        "cookie": "__next_hmr_refresh_hash__=268",
+        "host": "localhost:3002",
+        "origin": "http://localhost:3002",
+        "referer": "http://localhost:3002/order",
+        "sec-ch-ua": "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"150\", \"Google Chrome\";v=\"150\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"Windows\"",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+        "x-forwarded-for": "::1",
+        "x-forwarded-host": "localhost:3002",
+        "x-forwarded-port": "3002",
+        "x-forwarded-proto": "http"
+      },
+      "body": {
+        "productId": "prod-3",
+        "quantity": 1
+      }
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "success": true,
+        "cart": [
+          {
+            "product": {
+              "id": "prod-3",
+              "name": "오버핏 하이엔드 피마 코튼 후드티",
+              "category": "fashion",
+              "price": 69000,
+              "rating": 4.8,
+              "reviewCount": 210,
+              "image": "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&auto=format&fit=crop&q=80",
+              "description": "부드러운 프리미엄 피마 코튼 100% 소재로 제작된 트렌디한 오버핏 데일리 후드티입니다.",
+              "isBest": true
+            },
+            "quantity": 1
+          }
+        ]
       }
     }
   }

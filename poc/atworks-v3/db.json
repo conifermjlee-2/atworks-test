@@ -5,16 +5,6 @@
       "name": "Collection-1"
     },
     {
-      "id": "hM39D92564I",
-      "name": "리액트전이-포스트생성",
-      "mode": "chaining"
-    },
-    {
-      "id": "ARSrhmtCEYU",
-      "name": "리액트전이-수정",
-      "mode": "chaining"
-    },
-    {
       "id": "lIosopJDMlg",
       "name": "next-js-전이",
       "mode": "chaining"
@@ -194,7 +184,7 @@
     },
     {
       "id": "wzbBPGM_nn4",
-      "collectionId": "hM39D92564I",
+      "collectionId": null,
       "name": "Step 1: POST http://localhost:4000/api/posts",
       "method": "POST",
       "url": "http://localhost:4000/api/posts",
@@ -202,7 +192,7 @@
     },
     {
       "id": "A5JuEAq5sOs",
-      "collectionId": "hM39D92564I",
+      "collectionId": null,
       "name": "Step 2: GET http://localhost:4000/api/posts",
       "method": "GET",
       "url": "http://localhost:4000/api/posts",
@@ -226,7 +216,7 @@
     },
     {
       "id": "_4so7lUAzPA",
-      "collectionId": "ARSrhmtCEYU",
+      "collectionId": null,
       "name": "Step 1: PUT http://localhost:4000/api/posts/{id}",
       "method": "PUT",
       "url": "http://localhost:4000/api/posts/{id}",
@@ -234,7 +224,7 @@
     },
     {
       "id": "Qq9OHRF6RSU",
-      "collectionId": "ARSrhmtCEYU",
+      "collectionId": null,
       "name": "Step 2: GET http://localhost:4000/api/posts/{id}",
       "method": "GET",
       "url": "http://localhost:4000/api/posts/{id}",
@@ -242,7 +232,7 @@
     },
     {
       "id": "tpAMokysGfA",
-      "collectionId": "ARSrhmtCEYU",
+      "collectionId": null,
       "name": "Step 3: GET http://localhost:4000/api/posts",
       "method": "GET",
       "url": "http://localhost:4000/api/posts",
@@ -345,7 +335,7 @@
       "body": ""
     },
     {
-      "id": "A3gzgK3rrxo",
+      "id": "nIKmmaoWVNQ",
       "collectionId": "Y0xtqCINI5c",
       "name": "[Step 1] GET api/products",
       "method": "GET",
@@ -353,43 +343,11 @@
       "body": ""
     },
     {
-      "id": "mju6gIdeVic",
+      "id": "zzbjTlzskhc",
       "collectionId": "Y0xtqCINI5c",
-      "name": "[Step 1] GET api/cart",
+      "name": "[Step 3] GET api/products/:id",
       "method": "GET",
-      "url": "http://localhost:3002/api/cart",
-      "body": ""
-    },
-    {
-      "id": "s4ZG6Y-ibWU",
-      "collectionId": "Y0xtqCINI5c",
-      "name": "[Step 2] POST api/cart",
-      "method": "POST",
-      "url": "http://localhost:3002/api/cart",
-      "body": "{\n  \"product\": {\n    \"id\": \"prod-2\",\n    \"name\": \"북유럽 감성 미니멀 스탠드 조명\",\n    \"category\": \"living\",\n    \"price\": 89000,\n    \"originalPrice\": 110000,\n    \"rating\": 4.7,\n    \"reviewCount\": 84,\n    \"image\": \"https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80\",\n    \"description\": \"아늑한 분위기를 연출해 주는 스마트 터치 스탠드 조명입니다. 3단계 조도 조절 가능.\",\n    \"isNew\": true\n  },\n  \"quantity\": 1\n}"
-    },
-    {
-      "id": "vgdQuVO0TL8",
-      "collectionId": "Y0xtqCINI5c",
-      "name": "[Step 3] POST api/orders",
-      "method": "POST",
-      "url": "http://localhost:3002/api/orders",
-      "body": "{\n  \"items\": [\n    {\n      \"product\": {\n        \"id\": \"prod-2\",\n        \"name\": \"북유럽 감성 미니멀 스탠드 조명\",\n        \"category\": \"living\",\n        \"price\": 89000,\n        \"originalPrice\": 110000,\n        \"rating\": 4.7,\n        \"reviewCount\": 84,\n        \"image\": \"https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80\",\n        \"description\": \"아늑한 분위기를 연출해 주는 스마트 터치 스탠드 조명입니다. 3단계 조도 조절 가능.\",\n        \"isNew\": true\n      },\n      \"quantity\": 1\n    }\n  ],\n  \"shippingInfo\": {\n    \"name\": \"구매자\",\n    \"phone\": \"010-0000-0000\",\n    \"address\": \"기본 배송지\",\n    \"detailAddress\": \"101호\",\n    \"paymentMethod\": \"card\"\n  },\n  \"totalAmount\": 89000,\n  \"buyType\": \"DIRECT\"\n}"
-    },
-    {
-      "id": "gMInD2nKmfQ",
-      "collectionId": "jEWieAlaN9w",
-      "name": "[Step 1] GET serverApi (Home Data)",
-      "method": "GET",
-      "url": "http://localhost:3002/serverApi (Home Data)",
-      "body": ""
-    },
-    {
-      "id": "Fe4xG4DW0zk",
-      "collectionId": "jEWieAlaN9w",
-      "name": "[Step 3] GET serverApi (Product Detail Data)",
-      "method": "GET",
-      "url": "http://localhost:3002/serverApi (Product Detail Data)",
+      "url": "http://localhost:3002/api/products/:id",
       "body": ""
     }
   ],

@@ -1,5 +1,6 @@
 import { Product } from '@/types';
 import { MOCK_PRODUCTS } from '@/data/products';
+import { writeServiceLog } from '@/utils/apiLogger';
 
 /**
  * [서버 컴포넌트 전용 API 클라이언트 - src/services/serverApi.ts]
@@ -28,12 +29,19 @@ export async function getProductsServer(options?: { category?: string; search?: 
   // 통신 지연 모방
   await new Promise((resolve) => setTimeout(resolve, 100));
 
+  // [로깅] 서버 컴포넌트 직접 호출 기록
+  await writeServiceLog('getProductsServer', options ?? {}, result);
+
   return result;
 }
 
 // 2. [SSR] 특정 상품 상세 가져오기
 export async function getProductByIdServer(id: string): Promise<Product | null> {
-  const result = MOCK_PRODUCTS.find((p) => p.id === id);
+  const result = MOCK_PRODUCTS.find((p) => p.id === id) || null;
   await new Promise((resolve) => setTimeout(resolve, 100));
-  return result || null;
+
+  // [로깅] 서버 컴포넌트 직접 호출 기록
+  await writeServiceLog('getProductByIdServer', { id }, result);
+
+  return result;
 }

@@ -5,6 +5,50 @@ import path from 'path';
 const LOG_DIR = path.join(process.cwd(), 'log');
 const LOG_FILE = path.join(LOG_DIR, 'api_logs.json');
 
+// 로그 파일 읽기/쓰기 공통 헬퍼
+async function readLogs(): Promise<Record<string, any>> {
+  try {
+    const fileContent = await fs.readFile(LOG_FILE, 'utf-8');
+    return JSON.parse(fileContent);
+  } catch (e) {
+    return {};
+  }
+}
+
+async function writeLogs(logs: Record<string, any>): Promise<void> {
+  await fs.mkdir(LOG_DIR, { recursive: true });
+  await fs.writeFile(LOG_FILE, JSON.stringify(logs, null, 2), 'utf-8');
+}
+
+/**
+ * [Service 레이어 전용 로그 기록 함수]
+ * 서버 컴포넌트 → serverApi.ts 직접 호출 경로의 데이터 접근도 로그에 남깁니다.
+ * 키 형식: SERVER_COMPONENT__<functionName>
+ */
+export async function writeServiceLog(
+  functionName: string,
+  params: Record<string, any>,
+  result: any
+): Promise<void> {
+  try {
+    const logKey = `SERVER_COMPONENT__${functionName}`;
+    const currentLogs = await readLogs();
+    currentLogs[logKey] = {
+      timestamp: new Date().toISOString(),
+      source: 'server-component',
+      function: functionName,
+      request: { params },
+      response: {
+        status: 200,
+        body: result,
+      },
+    };
+    await writeLogs(currentLogs);
+  } catch (err) {
+    console.error('[writeServiceLog] Failed to write log:', err);
+  }
+}
+
 type ApiLogData = {
   timestamp: string;
   endpoint: string;
@@ -79,19 +123,9 @@ export function withLogging(
 
     // 4. Read existing log, update, and write
     try {
-      await fs.mkdir(LOG_DIR, { recursive: true });
-      
-      let currentLogs: Record<string, ApiLogData> = {};
-      try {
-        const fileContent = await fs.readFile(LOG_FILE, 'utf-8');
-        currentLogs = JSON.parse(fileContent);
-      } catch (e) {
-        // File doesn't exist or is invalid JSON; start fresh
-      }
-
+      const currentLogs = await readLogs();
       currentLogs[reqKey] = logEntry;
-
-      await fs.writeFile(LOG_FILE, JSON.stringify(currentLogs, null, 2), 'utf-8');
+      await writeLogs(currentLogs);
     } catch (err) {
       console.error('Failed to write API log:', err);
     }
