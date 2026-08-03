@@ -704,7 +704,22 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
 
   const renderRouteDetails = (screensList: any[]) => {
     return screensList.map((sc: any, idx: number) => {
-      const onEnterApis: any[] = sc.onEnterApis || [];
+      // Find all APIs from component/handler triggers that were filtered out from user actions
+      const systemActions = (sc.actions || []).filter((a: any) => 
+        a.trigger === '(component)' || a.trigger === '(handler)'
+      );
+      const systemApis = systemActions.flatMap((a: any) => 
+        (a.apis || a.triggered_apis || []).map((api: any) => ({
+          ...api,
+          __source: a.handlerName && a.handlerName !== '(inline)' ? a.handlerName : (a.description || a.trigger)
+        }))
+      );
+      
+      const onEnterApis: any[] = [
+        ...(sc.onEnterApis || []).map((api: any) => ({ ...api, __source: '초기 렌더링(Root)' })), 
+        ...systemApis
+      ];
+      
       const allNavs: string[] = [
         ...(sc.navigations || []),
         ...((sc.actions || []).flatMap((a: any) => a.navigations || [])),
@@ -714,37 +729,54 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
         a.trigger !== '(component)' && 
         a.trigger !== '(handler)' &&
         (
-          (a.apis && a.apis.length > 0) || 
+          ((a.apis && a.apis.length > 0) || (a.triggered_apis && a.triggered_apis.length > 0)) || 
           (a.navigations && a.navigations.length > 0) || 
           (a.handlerName && a.handlerName !== '(inline)')
         )
       );
       
       return (
-        <div 
+        <details 
           key={idx} 
-          id={`route-block-${sc.path}`}
-          className="bg-[#1a1c21] p-4 rounded-xl border border-gray-700/50 shadow-sm transition-all duration-500 cursor-pointer hover:border-purple-500/30"
-          onClick={() => {
-            const el = document.getElementById(`route-block-${sc.path}`);
-            if (el) {
-              el.classList.add('ring-2', 'ring-purple-500', 'bg-purple-900/10');
-              setTimeout(() => {
-                el.classList.remove('ring-2', 'ring-purple-500', 'bg-purple-900/10');
-              }, 1500);
-            }
-          }}
+          id={`route-block-${sc.route || '/'}`}
+          className="bg-[#1a1c21] rounded-xl border border-gray-700/50 shadow-sm transition-all duration-500 hover:border-purple-500/30 group overflow-hidden mb-4"
         >
-          <div className="flex items-center gap-3 mb-3">
-            <Badge variant="outline" className="bg-purple-900/20 text-purple-400 border-purple-800/50">
-              Screen {idx + 1}
-            </Badge>
-            <h5 className="font-mono text-sm font-bold text-gray-200">
-              {sc.path}
-            </h5>
-          </div>
+          <summary 
+            className="flex items-center justify-between p-4 cursor-pointer outline-none select-none list-none [&::-webkit-details-marker]:hidden"
+            onClick={(e) => {
+              if (e.detail === 2) e.preventDefault(); // 더블클릭 시 summary 토글 방지
+              const el = document.getElementById(`route-block-${sc.route || '/'}`);
+              if (el) {
+                el.classList.add('ring-2', 'ring-purple-500', 'bg-purple-900/10');
+                setTimeout(() => {
+                  el.classList.remove('ring-2', 'ring-purple-500', 'bg-purple-900/10');
+                }, 1500);
+              }
+            }}
+            onDoubleClick={(e) => {
+              e.preventDefault();
+              if (staticViewTab === 'list') {
+                setGraphFocusRoute(sc.route || '/');
+                setStaticViewTab('graph');
+              } else {
+                setStaticViewTab('list');
+              }
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="bg-purple-900/20 text-purple-400 border-purple-800/50">
+                Screen {idx + 1}
+              </Badge>
+              <h5 className="font-mono text-sm font-bold text-gray-200">
+                {sc.route || '/'}
+              </h5>
+            </div>
+            <div className="text-gray-500 text-xs transition-transform duration-300 group-open:rotate-180">
+              ▼
+            </div>
+          </summary>
 
-          <div className="space-y-4">
+          <div className="p-4 pt-0 space-y-4 border-t border-gray-700/30 mt-2">
             {/* 진입 시 자동 호출 API */}
             {onEnterApis.length > 0 && (
               <div>
@@ -754,16 +786,21 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
                     <div key={ai} className="flex flex-col gap-1.5 p-2.5 rounded bg-gray-800/50 border border-gray-700/50">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-400 border border-blue-800/50">
-                          {api.method}
+                          {api.method || 'GET'}
                         </span>
                         <span className="font-mono text-xs text-blue-200 break-all">
-                          {api.endpoint}
+                          {api.endpoint || api.url || 'URL 없음'}
                         </span>
                       </div>
-                      {api.purpose && (
+                      {(api.purpose || api.description) && (
                         <p className="text-[10px] text-gray-400 leading-snug">
-                          {api.purpose}
+                          {api.purpose || api.description}
                         </p>
+                      )}
+                      {api.__source && (
+                        <div className="mt-1 flex items-center gap-1.5 text-[9px] text-gray-500 font-mono bg-gray-900/40 w-fit px-1.5 py-0.5 rounded border border-gray-700/50">
+                          <span className="text-[8px]">⚡</span> 출처: {api.__source}
+                        </div>
                       )}
                     </div>
                   ))}
@@ -792,9 +829,9 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
                         </span>
                       </div>
                       
-                      {act.apis && act.apis.length > 0 && (
+                      {(act.apis || act.triggered_apis) && (act.apis || act.triggered_apis).length > 0 && (
                         <div className="ml-2 pl-2 border-l border-gray-700 space-y-1.5">
-                          {act.apis.map((api: any, aai: number) => {
+                          {(act.apis || act.triggered_apis).map((api: any, aai: number) => {
                             const methodColor = 
                               api.method === 'GET' ? 'text-blue-400 bg-blue-900/30 border-blue-800/50' : 
                               api.method === 'POST' ? 'text-green-400 bg-green-900/30 border-green-800/50' :
@@ -901,7 +938,7 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
               </div>
             )}
           </div>
-        </div>
+        </details>
       );
     });
   };
@@ -1171,28 +1208,28 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
               </button>
             </div>
 
-            {/* 그래프 뷰 (스플릿 레이아웃) */}
+            {/* 그래프 뷰 (단일 레이아웃) */}
             {staticViewTab === 'graph' && (
-              <div className="flex gap-4 h-[700px] items-stretch">
-                <div className="flex-1 rounded-xl overflow-hidden border border-gray-700/60 h-full relative">
-                  <RouteGraphView 
-                    screens={screens} 
-                    onGoToDetails={(route) => {
-                      const el = document.getElementById(`route-block-${route}`);
-                      if (el) {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        el.classList.add('ring-2', 'ring-purple-500', 'bg-purple-900/40', 'z-10', 'relative');
-                        setTimeout(() => {
-                          el.classList.remove('ring-2', 'ring-purple-500', 'bg-purple-900/40', 'z-10', 'relative');
-                        }, 2000);
-                      }
-                    }}
-                    focusRoute={graphFocusRoute}
-                  />
-                </div>
-                <div className="w-[450px] shrink-0 overflow-y-auto space-y-4 pr-2 custom-scrollbar h-full bg-[#161719] border border-gray-700/60 rounded-xl p-3 scroll-smooth">
-                   {renderRouteDetails(screens)}
-                </div>
+              <div className="h-[700px] w-full rounded-xl overflow-hidden border border-gray-700/60 relative">
+                <RouteGraphView 
+                  screens={screens} 
+                  onGoToDetails={(route) => {
+                    if (staticViewTab === 'graph') {
+                      setStaticViewTab('list');
+                      setTimeout(() => {
+                        const el = document.getElementById(`route-block-${route}`);
+                        if (el) {
+                          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          el.classList.add('ring-2', 'ring-purple-500', 'bg-purple-900/40', 'z-10', 'relative');
+                          setTimeout(() => {
+                            el.classList.remove('ring-2', 'ring-purple-500', 'bg-purple-900/40', 'z-10', 'relative');
+                          }, 2000);
+                        }
+                      }, 100);
+                    }
+                  }}
+                  focusRoute={graphFocusRoute}
+                />
               </div>
             )}
 
@@ -1387,22 +1424,66 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
                         <div className="pb-4 pt-1">
                           <div className="text-[15px] font-semibold text-gray-200 group-hover:text-white transition-colors">{stepAction}</div>
                           {stepScreen && (
-                            <div className="text-xs text-gray-500 mt-1.5 flex items-center gap-1.5">
-                              <span className="bg-gray-800/80 px-2 py-0.5 rounded text-gray-400 border border-gray-700/50">📺 {stepScreen}</span>
+                            <div className="text-xs mt-2 mb-1 flex items-center gap-2 group/nav relative w-fit">
+                              <div className="bg-green-500/20 rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                                <span className="text-[10px]">🚀</span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-[9px] font-bold text-green-500 uppercase tracking-wide">NAVIGATE TO</span>
+                                <span className="text-green-400 font-mono text-xs cursor-default">
+                                  {stepScreen.split('?')[0]}
+                                </span>
+                              </div>
+                              
+                              {/* Hover tooltip for full URL */}
+                              {stepScreen.includes('?') && (
+                                <div className="absolute left-8 top-full mt-1 opacity-0 group-hover/nav:opacity-100 transition-opacity bg-gray-900 text-gray-300 text-[10px] font-mono px-2 py-1.5 rounded border border-gray-700 whitespace-nowrap z-50 pointer-events-none shadow-xl">
+                                  {stepScreen}
+                                </div>
+                              )}
                             </div>
                           )}
                           {stepDesc && (
                             <div className="text-sm text-gray-400 mt-2 italic leading-relaxed">{stepDesc}</div>
                           )}
                           {stepApis && stepApis.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-2.5">
+                            <div className="flex flex-col gap-2 mt-3">
                               {stepApis.map((api: any, k: number) => {
-                                const apiText = typeof api === 'string' ? api : (api.method && api.url) ? `${api.method} ${api.url}` : JSON.stringify(api);
+                                if (typeof api === 'string') {
+                                  return (
+                                    <span key={k} className="text-xs font-mono bg-[#16171a] border border-gray-700/80 text-gray-400 px-2.5 py-1.5 rounded-md shadow-sm w-fit">
+                                      {api}
+                                    </span>
+                                  );
+                                }
+
+                                const method = api.method || 'GET';
+                                const endpoint = api.url || api.endpoint || '';
+                                const desc = api.description || api.purpose || '';
+                                
+                                const methodColor = method === 'GET' ? 'text-green-400 border-green-800 bg-green-900/20' 
+                                                 : method === 'POST' ? 'text-orange-400 border-orange-800 bg-orange-900/20' 
+                                                 : method === 'DELETE' ? 'text-red-400 border-red-800 bg-red-900/20' 
+                                                 : 'text-blue-400 border-blue-800 bg-blue-900/20';
+
                                 return (
-                                <span key={k} className="text-xs font-mono bg-[#16171a] border border-gray-700/80 text-gray-400 px-2.5 py-1.5 rounded-md shadow-sm">
-                                  {apiText}
-                                </span>
-                              )})}
+                                  <div key={k} className="flex flex-col gap-1.5 bg-[#16171a] border border-gray-700/80 p-2.5 rounded-md shadow-sm w-fit min-w-[250px]">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${methodColor}`}>
+                                        {method}
+                                      </span>
+                                      <span className="font-mono text-xs text-blue-200 break-all">
+                                        {endpoint}
+                                      </span>
+                                    </div>
+                                    {desc && (
+                                      <p className="text-[11px] text-gray-400 ml-1">
+                                        {desc}
+                                      </p>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                           {stepNextPage && (
