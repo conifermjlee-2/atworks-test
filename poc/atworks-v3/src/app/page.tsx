@@ -241,7 +241,7 @@ export default function Home() {
   const visibleCollections = collections.filter(col => col.mode === sidebarMode || (sidebarMode === 'test' && !col.mode));
 
   return (
-    <div className="flex h-screen bg-[#1e1e1e] text-white overflow-hidden">
+    <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans">
       <Toaster position="bottom-right" toastOptions={{ 
         style: { background: '#333', color: '#fff' },
         success: { iconTheme: { primary: '#4ade80', secondary: '#333' } },
@@ -249,12 +249,12 @@ export default function Home() {
       }} />
       {/* Sidebar */}
       <div 
-        className="flex flex-col border-r border-gray-800 bg-[#18191b] shrink-0 relative"
+        className="flex flex-col border-r border-border bg-card/40 backdrop-blur-xl shrink-0 relative shadow-[4px_0_24px_rgba(0,0,0,0.2)]"
         style={{ width: sidebarWidth }}
       >
         {/* Resizer Handle */}
         <div 
-          className="absolute top-0 right-[-2px] w-1 h-full cursor-col-resize hover:bg-green-500 z-50 transition-colors"
+          className="absolute top-0 right-[-2px] w-1 h-full cursor-col-resize hover:bg-primary/50 z-50 transition-colors"
           onMouseDown={(e) => {
             e.preventDefault();
             isResizing.current = true;
@@ -263,13 +263,13 @@ export default function Home() {
           }}
         />
         {/* Workspace Title & Mode Selector */}
-        <div className="flex flex-col p-4 border-b border-gray-800 space-y-3">
+        <div className="flex flex-col p-4 border-b border-border space-y-4">
           <div className="flex items-center justify-between">
-            <h1 className="font-bold text-lg tracking-tight truncate mr-2">My Workspace</h1>
+            <h1 className="font-extrabold text-lg tracking-tight truncate mr-2 bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent drop-shadow-sm">My Workspace</h1>
             <div className="flex space-x-1 items-center">
               <button 
                 onClick={fetchData}
-                className="text-gray-400 hover:text-white px-2 leading-none flex items-center justify-center"
+                className="text-muted-foreground hover:text-foreground px-2 leading-none flex items-center justify-center transition-colors"
                 title="새로고침 (Refresh Data)"
               >
                 <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
@@ -277,18 +277,18 @@ export default function Home() {
               {sidebarMode === 'chaining' && (
                 <button 
                   onClick={() => { setActiveCollectionId(null); setShowAnalyzer(false); }}
-                  className="text-gray-400 hover:text-white text-sm px-2 leading-none"
+                  className="text-muted-foreground hover:text-foreground text-sm px-2 leading-none transition-colors"
                   title="새 전이 스캔 (Scan New Chain)"
                 >🔍</button>
               )}
               <button 
                 onClick={handleAddCollection}
-                className="text-gray-400 hover:text-white text-xl px-2 leading-none pb-1"
+                className="text-muted-foreground hover:text-foreground text-xl px-2 leading-none pb-1 transition-colors"
                 title="Add Collection"
               >+</button>
               <button 
                 onClick={() => setShowAnalyzer(true)}
-                className="text-gray-400 hover:text-white px-2 leading-none flex items-center justify-center"
+                className="text-muted-foreground hover:text-foreground px-2 leading-none flex items-center justify-center transition-colors"
                 title="Import Project"
               >
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
@@ -301,7 +301,7 @@ export default function Home() {
               setSidebarMode(e.target.value as 'test' | 'chaining' | 'flow' | 'scenario');
               setShowAnalyzer(false);
             }}
-            className="bg-[#121316] text-sm text-gray-300 px-2 py-1.5 border border-gray-700 rounded focus:outline-none w-full"
+            className="bg-input text-sm text-foreground px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary w-full shadow-sm transition-shadow appearance-none"
           >
             <option value="scenario">시나리오 with AI</option>
             <option value="test">API 테스트</option>
@@ -310,18 +310,18 @@ export default function Home() {
           </select>
           
           {visibleCollections.length > 0 && (
-            <div className="flex items-center justify-end space-x-3 text-xs text-gray-500 pt-1">
-              <button onClick={expandAll} className="hover:text-gray-300 transition-colors">전체 펴기</button>
-              <button onClick={collapseAll} className="hover:text-gray-300 transition-colors">전체 접기</button>
+            <div className="flex items-center justify-end space-x-3 text-[11px] text-muted-foreground pt-1 font-medium">
+              <button onClick={expandAll} className="hover:text-foreground transition-colors">전체 펴기</button>
+              <button onClick={collapseAll} className="hover:text-foreground transition-colors">전체 접기</button>
             </div>
           )}
         </div>
         {/* Collections */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 pt-2">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 pt-2 scroll-smooth">
           {visibleCollections.map(col => (
             <div key={col.id} className="mb-2">
               <div 
-                className={`flex items-center justify-between cursor-pointer p-2 rounded transition-colors group ${activeCollectionId === col.id ? 'bg-[#2b2d31] text-white' : 'text-gray-400 hover:bg-[#202124] hover:text-gray-300'}`}
+                className={`flex items-center justify-between cursor-pointer p-2 rounded-md transition-all duration-200 group border border-transparent ${activeCollectionId === col.id ? 'bg-primary/10 border-primary/20 text-primary shadow-[inset_0_1px_4px_rgba(99,102,241,0.1)]' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
                 onClick={() => {
                   toggleCol(col.id);
                   setActiveCollectionId(col.id);
@@ -332,7 +332,7 @@ export default function Home() {
                 }}
               >
                 <div className="flex items-center space-x-2 w-full overflow-hidden mr-2">
-                  <span className="w-3 shrink-0 text-center inline-block text-[10px]">{expandedCols[col.id] === false ? '▶' : '▼'}</span>
+                  <span className={`w-4 h-4 shrink-0 flex items-center justify-center text-[10px] transition-transform duration-200 ${expandedCols[col.id] ? 'rotate-90' : 'rotate-0'}`}>▶</span>
                   {editingCollectionId === col.id ? (
                     <input
                       type="text"
@@ -344,17 +344,17 @@ export default function Home() {
                       }}
                       onBlur={() => handleRenameCollection(col.id)}
                       autoFocus
-                      className="bg-[#121316] text-sm text-gray-300 px-1 py-0.5 border border-green-500 rounded focus:outline-none w-full"
+                      className="bg-input text-sm text-foreground px-2 py-1 border border-primary rounded-md focus:outline-none focus:ring-1 focus:ring-primary w-full shadow-sm"
                     />
                   ) : (
-                    <span className="font-semibold text-sm truncate uppercase tracking-wider">{col.name}</span>
+                    <span className="font-bold text-[13px] truncate uppercase tracking-widest">{col.name}</span>
                   )}
                 </div>
                 {editingCollectionId !== col.id && (
-                  <div className="flex items-center space-x-1">
+                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleAddApi(col.id); }}
-                      className="text-gray-500 hover:text-white opacity-0 group-hover:opacity-100 px-1 transition-opacity hidden group-hover:block"
+                      className="text-muted-foreground hover:text-foreground px-1.5 py-1 rounded-md hover:bg-muted transition-colors"
                       title="Add API"
                     >+</button>
                     <button 
@@ -363,19 +363,19 @@ export default function Home() {
                         setEditingCollectionId(col.id); 
                         setEditingCollectionName(col.name); 
                       }}
-                      className="text-gray-500 hover:text-blue-400 opacity-0 group-hover:opacity-100 px-1 transition-opacity hidden group-hover:block"
+                      className="text-muted-foreground hover:text-blue-400 px-1.5 py-1 rounded-md hover:bg-muted transition-colors"
                       title="Rename Collection"
                     >✎</button>
                     <button 
                       onClick={(e) => { e.stopPropagation(); deleteCollection(col.id); }}
-                      className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 px-1 transition-opacity hidden group-hover:block"
+                      className="text-muted-foreground hover:text-red-400 px-1.5 py-1 rounded-md hover:bg-muted transition-colors"
                       title="Delete Collection"
                     >×</button>
                   </div>
                 )}
               </div>
-              {expandedCols[col.id] !== false && (
-                <div className="space-y-1 mt-1">
+              {expandedCols[col.id] && (
+                <div className="space-y-1 mt-1.5 origin-top animate-in fade-in slide-in-from-top-2 duration-200">
                   {apiItems.filter(api => api.collectionId === col.id).map(api => (
                     <div 
                       key={api.id}
@@ -386,15 +386,15 @@ export default function Home() {
                           setActiveCollectionId(api.collectionId);
                         }
                       }}
-                      className={`flex items-center pl-8 pr-2 py-1.5 rounded cursor-pointer text-sm group ${activeApiId === api.id ? 'bg-gray-700/80 text-white' : 'hover:bg-gray-700/50 text-gray-300'}`}
+                      className={`flex items-center pl-8 pr-2 py-1.5 rounded-md cursor-pointer text-[13px] group transition-colors ${activeApiId === api.id ? 'bg-primary/20 text-foreground font-medium shadow-[inset_2px_0_0_var(--color-primary)]' : 'hover:bg-muted/40 text-muted-foreground hover:text-foreground'}`}
                     >
-                      <span className={`${getMethodColor(api.method)} font-medium text-[10px] w-9 shrink-0`}>
+                      <span className={`${getMethodColor(api.method)} font-bold text-[10px] w-10 shrink-0`}>
                         {api.method}
                       </span>
                       <span className="truncate flex-1">{api.name}</span>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDeleteApi(api.id); }}
-                        className="text-gray-500 hover:text-red-400 px-1 text-lg leading-none transition-colors"
+                        className="text-muted-foreground hover:text-destructive px-1.5 py-0.5 rounded-sm hover:bg-muted opacity-0 group-hover:opacity-100 transition-all text-sm leading-none"
                         title="Delete API"
                       >
                         ×
@@ -444,20 +444,20 @@ export default function Home() {
           onClose={() => setSidebarMode('test')}
         />
       ) : (
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col bg-background/50">
           {/* Header Tabs */}
-          <div className="flex items-center bg-[#2b2c2f] border-b border-gray-800 h-10 px-2 overflow-x-auto">
+          <div className="flex items-center bg-card/40 backdrop-blur-md border-b border-border h-11 px-3 overflow-x-auto shadow-sm">
             {activeApi ? (
-              <div className="flex items-center space-x-2 bg-[#202124] px-4 py-2 border-t-2 border-orange-500 rounded-t-sm text-sm text-gray-200 cursor-pointer min-w-max">
-                <span className={`${getMethodColor(activeApi.method)} font-medium text-[10px]`}>{activeApi.method}</span>
-                <span>{activeApi.name}</span>
+              <div className="flex items-center space-x-2 bg-background px-4 py-2 border-t-[3px] border-primary rounded-t-lg text-sm text-foreground cursor-pointer min-w-max shadow-[0_-4px_12px_rgba(0,0,0,0.1)] relative top-[1px]">
+                <span className={`${getMethodColor(activeApi.method)} font-bold text-[10px]`}>{activeApi.method}</span>
+                <span className="font-medium">{activeApi.name}</span>
                 <span 
-                  className="ml-2 text-gray-500 hover:text-gray-300"
+                  className="ml-3 text-muted-foreground hover:text-destructive transition-colors text-lg leading-none"
                   onClick={(e) => { e.stopPropagation(); setActiveApiId(null); }}
                 >×</span>
               </div>
             ) : (
-              <div className="px-4 text-sm text-gray-500">No Request Selected</div>
+              <div className="px-4 text-sm text-muted-foreground font-medium">No Request Selected</div>
             )}
           </div>
 
@@ -469,11 +469,18 @@ export default function Home() {
                 onSave={fetchData} 
               />
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                <div className="text-gray-500 mb-4 cursor-pointer hover:text-gray-400 transition-colors" onClick={() => setShowAnalyzer(true)}>
-                  <svg width="64" height="64" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="mx-auto opacity-20 hover:opacity-40 transition-opacity"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                <div 
+                  className="w-24 h-24 mb-6 rounded-3xl bg-muted/30 border border-border flex items-center justify-center cursor-pointer hover:bg-primary/10 hover:border-primary/30 transition-all duration-300 group shadow-sm hover:shadow-lg" 
+                  onClick={() => setShowAnalyzer(true)}
+                >
+                  <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="text-muted-foreground group-hover:text-primary transition-colors"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                 </div>
-                <p className="text-gray-400 text-sm">왼쪽에서 컬렉션을 선택하거나 상단의 📥 아이콘을 눌러 프론트엔드 프로젝트를 분석하세요.</p>
+                <h3 className="text-lg font-bold text-foreground mb-2">프론트엔드 프로젝트 스캔</h3>
+                <p className="text-muted-foreground text-sm max-w-md text-center leading-relaxed">
+                  왼쪽에서 컬렉션을 선택하거나 상단의 아이콘을 눌러<br/>
+                  분석할 프로젝트 경로를 입력하세요.
+                </p>
               </div>
             )}
           </div>

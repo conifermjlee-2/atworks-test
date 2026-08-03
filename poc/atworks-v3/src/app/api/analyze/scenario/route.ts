@@ -27,6 +27,7 @@ type ApiCall = {
   line: number;
   library: string;
   callerName?: string;
+  sourceFile?: string; // 이 API가 실제로 선언된 파일 경로
 };
 
 type ActionInfo = {
@@ -303,24 +304,53 @@ function analyzeScreenFile(absolutePath: string, rootPath: string, visited = new
   }
 
   // Recursively process local component imports for deeper APIs
-  for (const imp of localImports) {
-    if (visited.has(imp)) continue;
-    const childCode = fs.existsSync(imp) ? fs.readFileSync(imp, 'utf-8') : null;
-    if (!childCode) continue;
+  // compName = 최초 진입 컴포넌트 이름 (e.g. HomeClient)
+  // 각 API에는 실제로 선언된 파일(sourceFile)을 기록하여 프론트에서 3단계 트리로 표현 가능
+  function traverseForApis(filePath: string, compName: string) {
+    if (visited.has(filePath)) return;
+    visited.add(filePath);
+    const childCode = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : null;
+    if (!childCode) return;
     try {
       const childAst = parser.parse(childCode, { sourceType: 'module', plugins: ['jsx', 'typescript', 'decorators-legacy'] });
-      const childApis = extractApiFetchCalls(childAst, imp);
+      const childApis = extractApiFetchCalls(childAst, filePath);
       if (childApis.length > 0) {
-        // Merge child APIs into screen's action list
-        screen.actions.push({
-          trigger: '(component)',
-          handlerName: path.basename(imp, path.extname(imp)),
-          apis: childApis,
-          navigations: [],
-        });
+        // API 각각에 sourceFile 태깅 (어느 파일에서 선언됐는지)
+        const taggedApis = childApis.map(api => ({
+          ...api,
+          sourceFile: path.relative(rootPath, filePath).replace(/\\/g, '/'),
+        }));
+        // 동일 compName의 기존 action이 있으면 합치고, 없으면 새로 추가
+        const existing = screen.actions.find(a => a.trigger === '(component)' && a.handlerName === compName);
+        if (existing) {
+          existing.apis.push(...taggedApis);
+        } else {
+          screen.actions.push({
+            trigger: '(component)',
+            handlerName: compName,
+            apis: taggedApis,
+            navigations: [],
+          });
+        }
       }
+      
+      traverse(childAst, {
+        ImportDeclaration(pathNode: any) {
+          const src = pathNode.node.source.value;
+          if (src.startsWith('.') || src.startsWith('@/')) {
+            const resolved = resolveImportPath(src, filePath, rootPath);
+            if (resolved && !visited.has(resolved)) {
+               traverseForApis(resolved, compName);
+            }
+          }
+        }
+      });
     } catch {}
-    visited.add(imp);
+  }
+
+  for (const imp of localImports) {
+    if (visited.has(imp)) continue;
+    traverseForApis(imp, path.basename(imp, path.extname(imp)));
   }
 
   return screen;

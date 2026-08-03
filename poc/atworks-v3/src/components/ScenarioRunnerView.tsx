@@ -14,6 +14,7 @@ export default function ScenarioRunnerView({ collectionId, apiItems, activeApiId
   const [steps, setSteps] = useState<any[]>([]);
   const [isRunningAll, setIsRunningAll] = useState(false);
   const [results, setResults] = useState<Record<string, { status: 'idle' | 'loading' | 'success' | 'error', data?: any, error?: string }>>({});
+  const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let savedParams: Record<string, string> = {};
@@ -200,7 +201,23 @@ export default function ScenarioRunnerView({ collectionId, apiItems, activeApiId
           </h2>
           <p className="text-sm text-gray-400 mt-1">등록된 전이 API들을 순서대로 실행합니다. URL의 동적 변수를 수정한 뒤 실행하세요.</p>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex space-x-3 items-center">
+          <button
+            onClick={() => {
+              const newExpanded: Record<string, boolean> = {};
+              steps.forEach(s => newExpanded[s.id] = true);
+              setExpandedSteps(newExpanded);
+            }}
+            className="text-gray-400 hover:text-white px-2 py-1 text-sm transition-colors"
+          >
+            전체 펴기
+          </button>
+          <button
+            onClick={() => setExpandedSteps({})}
+            className="text-gray-400 hover:text-white px-2 py-1 text-sm transition-colors mr-2"
+          >
+            전체 접기
+          </button>
           <button
             onClick={handleCopyAll}
             disabled={steps.length === 0}
@@ -230,8 +247,12 @@ export default function ScenarioRunnerView({ collectionId, apiItems, activeApiId
             return (
               <div key={step.id} id={`step-${step.id}`} className="bg-[#252628] border border-gray-700 rounded-lg overflow-hidden shadow-lg flex flex-col">
                 {/* Header */}
-                <div className="bg-[#2b2c2f] px-4 py-3 border-b border-gray-700 flex justify-between items-center">
-                  <div className="font-bold text-gray-300">
+                <div 
+                  className="bg-[#2b2c2f] px-4 py-3 border-b border-gray-700 flex justify-between items-center cursor-pointer select-none hover:bg-[#323336]"
+                  onClick={() => setExpandedSteps(prev => ({ ...prev, [step.id]: !prev[step.id] }))}
+                >
+                  <div className="font-bold text-gray-300 flex items-center">
+                    <span className="w-4 inline-block text-[10px] text-gray-500 mr-1">{expandedSteps[step.id] ? '▼' : '▶'}</span>
                     <span className="bg-gray-700 text-white px-2 py-0.5 rounded text-xs mr-3">Step {idx + 1}</span>
                     {step.name.replace(/^Step \d+: /, '')}
                   </div>
@@ -240,13 +261,13 @@ export default function ScenarioRunnerView({ collectionId, apiItems, activeApiId
                     {result.status === 'success' && <span className="text-green-400 text-sm font-bold">✅ Success</span>}
                     {result.status === 'error' && <span className="text-red-400 text-sm font-bold">❌ Failed</span>}
                     <button 
-                      onClick={() => handleCopyStep(step, idx)}
+                      onClick={(e) => { e.stopPropagation(); handleCopyStep(step, idx); }}
                       className="bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded text-xs text-white transition-colors"
                     >
                       내용 복사
                     </button>
                     <button 
-                      onClick={() => runStep(step)}
+                      onClick={(e) => { e.stopPropagation(); runStep(step); }}
                       disabled={result.status === 'loading'}
                       className="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-xs text-white transition-colors"
                     >
@@ -256,7 +277,8 @@ export default function ScenarioRunnerView({ collectionId, apiItems, activeApiId
                 </div>
 
                 {/* Body */}
-                <div className="p-4 flex flex-col space-y-4">
+                {expandedSteps[step.id] && (
+                  <div className="p-4 flex flex-col space-y-4">
                   <div className="flex items-center space-x-2">
                     <span className={`font-bold w-16 ${getMethodColor(step.method)}`}>{step.method}</span>
                     <input 
@@ -310,6 +332,7 @@ export default function ScenarioRunnerView({ collectionId, apiItems, activeApiId
                     </div>
                   )}
                 </div>
+                )}
               </div>
             );
           })

@@ -25,8 +25,8 @@
       "mode": "chaining"
     },
     {
-      "id": "jEWieAlaN9w",
-      "name": "시나리오 with API 전이 리스트-2",
+      "id": "lT-NK8hLWcM",
+      "name": "전이2",
       "mode": "chaining"
     }
   ],
@@ -349,6 +349,70 @@
       "method": "GET",
       "url": "http://localhost:3002/api/products/:id",
       "body": ""
+    },
+    {
+      "id": "1bvV9GEotEY",
+      "collectionId": null,
+      "name": "[Step 1] GET api/cart",
+      "method": "GET",
+      "url": "http://localhost:3002/api/cart",
+      "body": ""
+    },
+    {
+      "id": "15NuFzExEgs",
+      "collectionId": null,
+      "name": "[Step 2] POST api/cart",
+      "method": "POST",
+      "url": "http://localhost:3002/api/cart",
+      "body": "{\n  \"product\": {\n    \"id\": \"prod-2\",\n    \"name\": \"북유럽 감성 미니멀 스탠드 조명\",\n    \"category\": \"living\",\n    \"price\": 89000,\n    \"originalPrice\": 110000,\n    \"rating\": 4.7,\n    \"reviewCount\": 84,\n    \"image\": \"https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80\",\n    \"description\": \"아늑한 분위기를 연출해 주는 스마트 터치 스탠드 조명입니다. 3단계 조도 조절 가능.\",\n    \"isNew\": true\n  },\n  \"quantity\": 1\n}"
+    },
+    {
+      "id": "JBj2J6oavuk",
+      "collectionId": null,
+      "name": "[Step 3] PUT api/cart",
+      "method": "PUT",
+      "url": "http://localhost:3002/api/cart",
+      "body": "{\n  \"productId\": \"prod-3\",\n  \"quantity\": 1\n}"
+    },
+    {
+      "id": "ly93ISILGBI",
+      "collectionId": null,
+      "name": "[Step 4] DELETE api/cart",
+      "method": "DELETE",
+      "url": "http://localhost:3002/api/cart",
+      "body": ""
+    },
+    {
+      "id": "PKJyWQQcmUo",
+      "collectionId": null,
+      "name": "[Step 5] DELETE api/cart",
+      "method": "DELETE",
+      "url": "http://localhost:3002/api/cart",
+      "body": ""
+    },
+    {
+      "id": "MsKKuJrIulo",
+      "collectionId": "lT-NK8hLWcM",
+      "name": "[Step 1] GET api/products",
+      "method": "GET",
+      "url": "http://localhost:3002/api/products",
+      "body": ""
+    },
+    {
+      "id": "aKssEcIRU44",
+      "collectionId": "lT-NK8hLWcM",
+      "name": "[Step 1] GET api/cart",
+      "method": "GET",
+      "url": "http://localhost:3002/api/cart",
+      "body": ""
+    },
+    {
+      "id": "DZuOKFPoJFU",
+      "collectionId": "lT-NK8hLWcM",
+      "name": "[Step 2] POST api/cart",
+      "method": "POST",
+      "url": "http://localhost:3002/api/cart",
+      "body": "{\n  \"product\": {\n    \"id\": \"prod-2\",\n    \"name\": \"북유럽 감성 미니멀 스탠드 조명\",\n    \"category\": \"living\",\n    \"price\": 89000,\n    \"originalPrice\": 110000,\n    \"rating\": 4.7,\n    \"reviewCount\": 84,\n    \"image\": \"https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80\",\n    \"description\": \"아늑한 분위기를 연출해 주는 스마트 터치 스탠드 조명입니다. 3단계 조도 조절 가능.\",\n    \"isNew\": true\n  },\n  \"quantity\": 1\n}"
     }
   ],
   "$schema": "./node_modules/json-server/schema.json"

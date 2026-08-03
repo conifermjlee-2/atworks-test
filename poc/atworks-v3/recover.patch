@@ -1,0 +1,580 @@
+diff --git a/poc/atworks-v3/src/components/ScenarioWithAIView.tsx b/poc/atworks-v3/src/components/ScenarioWithAIView.tsx
+index b7bc351..13f5d3b 100644
+--- a/poc/atworks-v3/src/components/ScenarioWithAIView.tsx
++++ b/poc/atworks-v3/src/components/ScenarioWithAIView.tsx
+@@ -4,6 +4,24 @@ import React, { useState, useEffect, useRef } from 'react';
+ import { toast } from 'react-hot-toast';
+ import { Card } from './ui/Card';
+ import { Badge } from './ui/Badge';
++import RouteGraphView from './RouteGraphView';
++
++// ── 재사용 가능한 API 칩 컴포넌트 ──────────────────────────────────────────
++function ApiChip({ api, dimmed = false }: { api: any; dimmed?: boolean }) {
++  const methodColor = 
++    api.method === 'GET' ? (dimmed ? 'text-green-400/60' : 'text-green-400') :
++    api.method === 'POST' ? (dimmed ? 'text-orange-400/60' : 'text-orange-400') :
++    api.method === 'PUT' ? (dimmed ? 'text-blue-400/60' : 'text-blue-400') :
++    api.method === 'DELETE' ? (dimmed ? 'text-red-400/60' : 'text-red-400') : 'text-gray-400';
++
++  return (
++    <span className={`text-[11px] font-mono ${dimmed ? 'bg-gray-800/40 border-gray-700/40 text-gray-500' : 'bg-gray-800 border-gray-700 text-gray-300'} border px-2 py-0.5 rounded flex items-center gap-1`}>
++      <span className={`font-bold ${methodColor}`}>{api.method}</span>
++      <span>{api.url}</span>
++      <span className="text-gray-600 text-[9px]">L{api.line}</span>
++    </span>
++  );
++}
+ 
+ interface ScenarioWithAIViewProps {
+   rootPath: string;
+@@ -274,6 +292,7 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
+   const [screens, setScreens] = useState<any[]>([]);
+   const [apiLogs, setApiLogs] = useState<any>(null);
+   const [phase, setPhase] = useState<'idle' | 'static' | 'ai' | 'done'>('idle');
++  const [staticViewTab, setStaticViewTab] = useState<'graph' | 'list'>('graph');
+   const [isDragging, setIsDragging] = useState(false);
+   const abortControllerRef = useRef<AbortController | null>(null);
+   const fileInputRef = useRef<HTMLInputElement>(null);
+@@ -586,7 +605,7 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
+         for (const apiData of stepApis) {
+           if (!apiData) continue;
+ 
+-          let endpoint = typeof apiData === 'string' ? apiData : (apiData.endpoint || apiData.url);
++          let endpoint = typeof apiData === 'string' ? apiData : (apiData.endpoint || apiData.url || apiData.path);
+           let method = typeof apiData === 'string' ? 'GET' : (apiData.method || 'GET');
+ 
+           if (typeof apiData === 'string') {
+@@ -650,7 +669,11 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
+         console.log(`[Collection Save Success] '${savingScenario.title}' 시나리오에서 저장된 API 목록:`, savedApis);
+         toast.success(`'${savingScenario.title}' 시나리오에서 ${count}개의 API가 컬렉션에 등록되었습니다!`);
+       } else {
+-        toast.error('저장할 API 항목을 찾지 못했습니다.');
++        if (targetCollectionId === 'new') {
++          toast.success(`'${newCollectionName.trim()}' 컬렉션이 생성되었습니다. (시나리오 내 API 없음)`);
++        } else {
++          toast.success(`저장 완료! (시나리오에 추출된 API가 없어 추가된 항목은 없습니다)`);
++        }
+       }
+       
+       if (onSave) onSave();
+@@ -699,6 +722,258 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
+     toast.success('다운로드 완료!');
+   };
+ 
++  const renderRouteDetails = (screensList: any[]) => {
++    return screensList.map((sc: any, idx: number) => {
++      const onEnterApis: any[] = sc.onEnterApis || [];
++      const allNavs: string[] = [
++        ...(sc.navigations || []),
++        ...((sc.actions || []).flatMap((a: any) => a.navigations || [])),
++      ];
++      const userActions = (sc.actions || []).filter((a: any) => 
++        a.trigger && 
++        a.trigger !== '(component)' && 
++        a.trigger !== '(handler)' &&
++        (
++          (a.apis && a.apis.length > 0) || 
++          (a.navigations && a.navigations.length > 0) || 
++          (a.handlerName && a.handlerName !== '(inline)')
++        )
++      );
++      const componentActions = (sc.actions || []).filter((a: any) => a.trigger === '(component)' || a.trigger === '(handler)');
++
++      return (
++        <div key={idx} id={`route-block-${sc.route}`} className="border border-gray-700/60 rounded-xl overflow-hidden scroll-mt-24 transition-all duration-500">
++          {/* ── 라우트 헤더 ── */}
++          <div className="flex items-center justify-between bg-[#252628] px-4 py-3 border-b border-gray-700/60">
++            <div className="flex items-center gap-3">
++              <span className="text-purple-400 font-bold text-sm">🗺</span>
++              <code className="text-purple-300 font-mono font-bold text-sm tracking-wide">{sc.route || '/'}</code>
++              <span className="text-gray-600 text-xs">→</span>
++              <span className="text-gray-300 text-sm font-semibold">{sc.page}</span>
++              <span className="text-xs text-gray-600 font-mono">{sc.filePath}</span>
++            </div>
++            <div className="flex gap-1.5">
++              {onEnterApis.length > 0 && (
++                <span className="text-xs bg-blue-900/40 text-blue-300 border border-blue-700/30 px-2 py-0.5 rounded-full">API {onEnterApis.length}</span>
++              )}
++              {userActions.length > 0 && (
++                <span className="text-xs bg-orange-900/40 text-orange-300 border border-orange-700/30 px-2 py-0.5 rounded-full">액션 {userActions.length}</span>
++              )}
++              {allNavs.length > 0 && (
++                <span className="text-xs bg-green-900/40 text-green-300 border border-green-700/30 px-2 py-0.5 rounded-full">이동 {allNavs.length}</span>
++              )}
++              <button 
++                onClick={() => handleCopyRoute(sc, userActions, componentActions)}
++                className="ml-2 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-0.5 rounded border border-gray-600 transition-colors flex items-center gap-1"
++                title="이 라우트의 정보를 복사합니다"
++              >
++                📋 복사
++              </button>
++            </div>
++          </div>
++
++          {/* ── 컴포넌트 트리 뷰 ── */}
++          <div className="bg-[#1a1b1e] p-4">
++            {/* 루트: page.tsx 노드 */}
++            <div className="flex items-start gap-2">
++              <div className="flex flex-col items-center">
++                <div 
++                  className="w-7 h-7 rounded-md bg-purple-900/60 border border-purple-600/50 flex items-center justify-center text-xs text-purple-300 shrink-0 shadow-[0_0_8px_rgba(168,85,247,0.2)] cursor-help active:scale-95 transition-transform"
++                  title="라우트 경로 (Page Route)"
++                  onClick={(e) => { e.stopPropagation(); toast('📄 라우트 경로 (Page Route) 노드입니다.', { icon: 'ℹ️' }); }}
++                >📄</div>
++                {(onEnterApis.length > 0 || userActions.length > 0 || componentActions.length > 0 || allNavs.length > 0) && (
++                  <div className="w-px flex-1 bg-gray-700/50 mt-1 min-h-[12px]" />
++                )}
++              </div>
++              <div className="flex-1 pb-2">
++                <div className="flex items-center gap-2 mb-1">
++                  <span className="text-sm font-bold text-purple-200 font-mono">{sc.page}</span>
++                  <span className="text-[10px] text-gray-600 font-mono">{sc.filePath}</span>
++                </div>
++
++                {/* 진입 시 API (page 레벨) */}
++                {onEnterApis.length > 0 && (
++                  <div className="flex flex-wrap gap-1.5 mt-1.5">
++                    {onEnterApis.map((api: any, ai: number) => (
++                      <ApiChip key={ai} api={api} />
++                    ))}
++                  </div>
++                )}
++              </div>
++            </div>
++
++            {/* 사용자 액션들 (page 레벨 onClick 등) */}
++            {userActions.map((action: any, ai: number) => (
++              <div key={ai} className="flex items-start gap-2 ml-3.5 mt-1">
++                <div className="flex flex-col items-center">
++                  <div className="w-px h-3 bg-gray-700/50" />
++                  <div className="w-4 h-px bg-gray-700/50" />
++                </div>
++                <div className="flex items-start gap-2 pb-2 flex-1">
++                  <div 
++                    className="w-6 h-6 rounded bg-yellow-900/40 border border-yellow-700/40 flex items-center justify-center text-[10px] text-yellow-400 shrink-0 cursor-help active:scale-95 transition-transform mt-0.5"
++                    title="액션 이벤트 (Action Event)"
++                    onClick={(e) => { e.stopPropagation(); toast('⚡ 액션 이벤트 (Action Event) 노드입니다.', { icon: 'ℹ️' }); }}
++                  >⚡</div>
++                  <details className={`flex-1 group outline-none ${(action.apis?.length > 0 || action.navigations?.length > 0) ? 'cursor-pointer' : ''}`}>
++                    <summary className="list-none flex items-center gap-1.5 mb-1 outline-none select-none">
++                      <span className="text-[10px] font-mono text-yellow-500">{action.trigger}</span>
++                      {action.handlerName && action.handlerName !== '(inline)' && (
++                        <span className="text-[10px] text-gray-500">→ <span className="font-mono text-gray-400">{action.handlerName}</span></span>
++                      )}
++                      {(action.apis?.length > 0 || action.navigations?.length > 0) && (
++                        <span className="text-[8px] text-gray-500 group-open:rotate-90 transition-transform ml-1">▶</span>
++                      )}
++                    </summary>
++                    {action.apis?.length > 0 && (
++                      <div className="flex flex-wrap gap-1.5">
++                        {action.apis.map((api: any, apii: number) => (
++                          <ApiChip key={apii} api={api} />
++                        ))}
++                      </div>
++                    )}
++                    {action.navigations?.length > 0 && (
++                      <div className="flex flex-wrap gap-1.5 mt-1">
++                        {action.navigations.map((nav: string, ni: number) => (
++                          <details key={ni} className="group/nav cursor-pointer outline-none w-full">
++                            <summary className="list-none flex items-center outline-none select-none">
++                              <span className="text-[10px] font-mono bg-gray-800/60 border border-gray-700/50 text-gray-300 px-2 py-0.5 rounded flex items-center gap-1 hover:bg-gray-700/60 transition-colors">
++                                화면: {resolveNextjsRoute(nav)}
++                                <span className="text-[8px] text-gray-500 group-open:rotate-90 transition-transform ml-1">▶</span>
++                              </span>
++                            </summary>
++                            <div className="mt-1.5 ml-2 pl-2 border-l-2 border-green-800/30">
++                              <span className="text-[10px] font-mono bg-green-900/10 text-green-400/80 px-2 py-1 rounded inline-block break-all max-w-[400px]">
++                                → {nav}
++                              </span>
++                            </div>
++                          </details>
++                        ))}
++                      </div>
++                    )}
++                  </details>
++                </div>
++              </div>
++            ))}
++
++            {/* 하위 컴포넌트 트리: 컴포넌트 → 파일(sourceFile) → API */}
++            {componentActions.map((action: any, ci: number) => {
++              // sourceFile별로 API 그룹핑
++              const fileGroups: Record<string, any[]> = {};
++              for (const api of (action.apis || [])) {
++                const key = api.sourceFile || '(unknown)';
++                if (!fileGroups[key]) fileGroups[key] = [];
++                fileGroups[key].push(api);
++              }
++              const fileEntries = Object.entries(fileGroups);
++              return (
++              <div key={ci} className="flex items-start gap-2 ml-3.5 mt-1">
++                <div className="flex flex-col items-center">
++                  <div className="w-px h-3 bg-gray-700/50" />
++                  <div className="w-4 h-px bg-gray-700/50" />
++                </div>
++                <div className="flex items-start gap-2 pb-2 flex-1">
++                  <div className="flex flex-col items-center">
++                    <div 
++                      className="w-6 h-6 rounded bg-cyan-900/40 border border-cyan-700/40 flex items-center justify-center text-[10px] text-cyan-400 shrink-0 cursor-help active:scale-95 transition-transform"
++                      title="컴포넌트 (React Component)"
++                      onClick={(e) => { e.stopPropagation(); toast('🧩 컴포넌트 (React Component) 노드입니다.', { icon: 'ℹ️' }); }}
++                    >🧩</div>
++                    {fileEntries.length > 0 && <div className="w-px flex-1 bg-gray-700/40 mt-1 min-h-[10px]" />}
++                  </div>
++                  <details className={`flex-1 group outline-none ${fileEntries.length > 0 ? 'cursor-pointer' : ''}`}>
++                    {/* 컴포넌트 이름 */}
++                    <summary className="list-none flex items-center gap-1.5 mb-1.5 outline-none select-none">
++                      <span className="text-xs font-bold font-mono text-cyan-300">{action.handlerName}</span>
++                      {fileEntries.length > 0 && (
++                        <span className="text-[8px] text-gray-500 group-open:rotate-90 transition-transform ml-1">▶</span>
++                      )}
++                    </summary>
++                    {/* sourceFile별 파일 노드 + 그 아래 API들 */}
++                    {fileEntries.map(([srcFile, apis], fi) => (
++                      <div key={fi} className="flex items-start gap-2 ml-3 mt-1">
++                        <div className="flex flex-col items-center mt-0.5">
++                          <div className="w-px h-3 bg-gray-700/40" />
++                          <div className="w-3 h-px bg-gray-700/40" />
++                        </div>
++                        <details className={`flex flex-col gap-1.5 flex-1 pb-1 group/file outline-none ${(apis as any[]).length > 0 ? 'cursor-pointer' : ''}`}>
++                          {/* 파일 노드 */}
++                          <summary className="list-none flex items-center gap-1.5 mb-0.5 outline-none select-none">
++                            <div 
++                              className="w-5 h-5 rounded bg-gray-800/80 border border-gray-600/50 flex items-center justify-center text-[9px] text-gray-400 shrink-0 cursor-help active:scale-95 transition-transform"
++                              title="소스 파일 (Source File)"
++                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); toast('📦 소스 파일 (Source File) 노드입니다.', { icon: 'ℹ️' }); }}
++                            >📦</div>
++                            <span className="text-[10px] font-mono text-gray-500">{srcFile.split('/').pop()}</span>
++                            <span className="text-[9px] text-gray-700 font-mono truncate max-w-[120px]">{srcFile}</span>
++                            {(apis as any[]).length > 0 && (
++                              <span className="text-[8px] text-gray-500 group-open/file:rotate-90 transition-transform ml-1">▶</span>
++                            )}
++                          </summary>
++                          {/* 이 파일의 API들 */}
++                          {apis.map((api: any, apii: number) => (
++                            <div key={apii} className="flex items-center gap-2 ml-5 mt-1">
++                              <div className="flex items-center gap-1">
++                                <div className="w-px h-3 bg-gray-700/40" />
++                                <div className="w-3 h-px bg-gray-700/40" />
++                              </div>
++                              <ApiChip api={api} dimmed />
++                            </div>
++                          ))}
++                        </details>
++                      </div>
++                    ))}
++                  </details>
++                </div>
++              </div>
++              );
++            })}
++
++            {/* 페이지 이동 노드 */}
++            {sc.navigations?.length > 0 && (
++              <div className="flex items-start gap-2 ml-3.5 mt-1">
++                <div className="flex flex-col items-center">
++                  <div className="w-px h-3 bg-gray-700/50" />
++                  <div className="w-4 h-px bg-gray-700/50" />
++                </div>
++                <div className="flex items-center gap-2 pb-2">
++                  <div 
++                    className="w-6 h-6 rounded bg-green-900/40 border border-green-700/40 flex items-center justify-center text-[10px] text-green-400 shrink-0 cursor-help active:scale-95 transition-transform"
++                    title="페이지 이동 (Page Navigation)"
++                    onClick={(e) => { e.stopPropagation(); toast('🧭 페이지 이동 (Page Navigation) 노드입니다.', { icon: 'ℹ️' }); }}
++                  >🧭</div>
++                  <div className="flex flex-wrap gap-1.5">
++                    {sc.navigations.map((nav: string, ni: number) => (
++                      <details key={ni} className="group cursor-pointer outline-none w-full">
++                        <summary className="list-none flex items-center outline-none select-none">
++                          <span className="text-[10px] font-mono bg-gray-800/60 border border-gray-700/50 text-gray-300 px-2 py-0.5 rounded flex items-center gap-1 hover:bg-gray-700/60 transition-colors">
++                            화면: {resolveNextjsRoute(nav)}
++                            <span className="text-[8px] text-gray-500 group-open:rotate-90 transition-transform ml-1">▶</span>
++                          </span>
++                        </summary>
++                        <div className="mt-1.5 ml-2 pl-2 border-l-2 border-green-800/30">
++                          <span className="text-[10px] font-mono bg-green-900/10 text-green-400/80 px-2 py-1 rounded inline-block break-all max-w-[400px]">
++                            → {nav}
++                          </span>
++                        </div>
++                      </details>
++                    ))}
++                  </div>
++                </div>
++              </div>
++            )}
++
++            {/* 빈 화면 */}
++            {onEnterApis.length === 0 && userActions.length === 0 && componentActions.length === 0 && allNavs.length === 0 && (
++              <div className="text-xs text-gray-600 italic py-1">추출된 API / 액션 없음</div>
++            )}
++          </div>
++        </div>
++      );
++    });
++  };
++
+   return (
+     <div 
+       className={`flex-1 flex flex-col bg-[#1e1e1e] text-white overflow-hidden relative transition-colors ${isDragging ? 'ring-2 ring-purple-500 bg-purple-900/10' : ''}`}
+@@ -942,175 +1217,55 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
+               ))}
+             </div>
+ 
+-            {/* 라우트별 그룹 */}
+-            <div className="space-y-4">
++            {/* 뷰 모드 토글 (라우트별 그룹 상단) */}
++            <div className="flex items-center justify-between mb-4 mt-8">
+               <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider px-1">라우트별 상세</h4>
+-              {screens.map((sc: any, idx: number) => {
+-                const onEnterApis: any[] = sc.onEnterApis || [];
+-                const allNavs: string[] = [
+-                  ...(sc.navigations || []),
+-                  ...((sc.actions || []).flatMap((a: any) => a.navigations || [])),
+-                ];
+-                const userActions = (sc.actions || []).filter((a: any) => 
+-                  a.trigger && 
+-                  a.trigger !== '(component)' && 
+-                  a.trigger !== '(handler)' &&
+-                  (
+-                    (a.apis && a.apis.length > 0) || 
+-                    (a.navigations && a.navigations.length > 0) || 
+-                    (a.handlerName && a.handlerName !== '(inline)')
+-                  )
+-                );
+-                const componentActions = (sc.actions || []).filter((a: any) => a.trigger === '(component)' || a.trigger === '(handler)');
+-
+-                return (
+-                  <div key={idx} className="border border-gray-700/60 rounded-xl overflow-hidden">
+-                    {/* ── 라우트 헤더 ── */}
+-                    <div className="flex items-center justify-between bg-[#252628] px-4 py-3 border-b border-gray-700/60">
+-                      <div className="flex items-center gap-3">
+-                        <span className="text-purple-400 font-bold text-sm">🗺</span>
+-                        <code className="text-purple-300 font-mono font-bold text-sm tracking-wide">{sc.route || '/'}</code>
+-                        <span className="text-gray-600 text-xs">→</span>
+-                        <span className="text-gray-300 text-sm font-semibold">{sc.page}</span>
+-                        <span className="text-xs text-gray-600 font-mono">{sc.filePath}</span>
+-                      </div>
+-                      <div className="flex gap-1.5">
+-                        {onEnterApis.length > 0 && (
+-                          <span className="text-xs bg-blue-900/40 text-blue-300 border border-blue-700/30 px-2 py-0.5 rounded-full">API {onEnterApis.length}</span>
+-                        )}
+-                        {userActions.length > 0 && (
+-                          <span className="text-xs bg-orange-900/40 text-orange-300 border border-orange-700/30 px-2 py-0.5 rounded-full">액션 {userActions.length}</span>
+-                        )}
+-                        {allNavs.length > 0 && (
+-                          <span className="text-xs bg-green-900/40 text-green-300 border border-green-700/30 px-2 py-0.5 rounded-full">이동 {allNavs.length}</span>
+-                        )}
+-                        <button 
+-                          onClick={() => handleCopyRoute(sc, userActions, componentActions)}
+-                          className="ml-2 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-0.5 rounded border border-gray-600 transition-colors flex items-center gap-1"
+-                          title="이 라우트의 정보를 복사합니다"
+-                        >
+-                          📋 복사
+-                        </button>
+-                      </div>
+-                    </div>
+-
+-                    {/* ── 컴포넌트 상세 ── */}
+-                    <div className="bg-[#1a1b1e] divide-y divide-gray-800/60">
+-                      
+-                      {/* 화면 진입 시 API */}
+-                      {onEnterApis.length > 0 && (
+-                        <div className="px-4 py-3 flex gap-3">
+-                          <div className="w-24 shrink-0 text-xs text-gray-500 pt-0.5">📡 진입 API</div>
+-                          <div className="flex flex-wrap gap-1.5">
+-                            {onEnterApis.map((api: any, ai: number) => (
+-                              <span key={ai} className="text-xs font-mono bg-gray-800 border border-gray-700 text-gray-300 px-2 py-0.5 rounded flex items-center">
+-                                <span className={`font-bold mr-1.5 ${
+-                                  api.method === 'GET' ? 'text-green-400' :
+-                                  api.method === 'POST' ? 'text-orange-400' :
+-                                  api.method === 'PUT' ? 'text-blue-400' :
+-                                  api.method === 'DELETE' ? 'text-red-400' : 'text-gray-400'
+-                                }`}>{api.method}</span>
+-                                <span>{api.url}</span>
+-                                <span className="text-gray-500 ml-1.5 opacity-80 text-[10px]">L{api.line}</span>
+-                              </span>
+-                            ))}
+-                          </div>
+-                        </div>
+-                      )}
+-
+-                      {/* 사용자 액션별 행 */}
+-                      {userActions.map((action: any, ai: number) => (
+-                        <div key={ai} className="px-4 py-3 flex gap-3">
+-                          <div className="w-24 shrink-0 text-xs text-gray-500 pt-0.5">
+-                            <span className="text-yellow-500 font-mono">{action.trigger}</span>
+-                          </div>
+-                          <div className="flex-1 space-y-1.5">
+-                            {action.handlerName && action.handlerName !== '(inline)' && (
+-                              <div className="text-xs text-gray-400">→ <span className="font-mono text-gray-300">{action.handlerName}</span></div>
+-                            )}
+-                            {action.apis?.length > 0 && (
+-                              <div className="flex flex-wrap gap-1.5">
+-                                {action.apis.map((api: any, apii: number) => (
+-                                  <span key={apii} className="text-xs font-mono bg-gray-800 border border-gray-700 text-gray-300 px-2 py-0.5 rounded flex items-center">
+-                                    <span className={`font-bold mr-1.5 ${
+-                                      api.method === 'GET' ? 'text-green-400' :
+-                                      api.method === 'POST' ? 'text-orange-400' :
+-                                      api.method === 'PUT' ? 'text-blue-400' :
+-                                      api.method === 'DELETE' ? 'text-red-400' : 'text-gray-400'
+-                                    }`}>{api.method}</span>
+-                                    <span>{api.url}</span>
+-                                    <span className="text-gray-500 ml-1.5 opacity-80 text-[10px]">L{api.line}</span>
+-                                  </span>
+-                                ))}
+-                              </div>
+-                            )}
+-                            {action.navigations?.length > 0 && (
+-                              <div className="flex flex-wrap gap-1.5">
+-                                {action.navigations.map((nav: string, ni: number) => (
+-                                  <span key={ni} className="text-xs font-mono bg-green-900/20 border border-green-800/40 text-green-400 px-2 py-0.5 rounded">→ {nav}</span>
+-                                ))}
+-                              </div>
+-                            )}
+-                          </div>
+-                        </div>
+-                      ))}
+-
+-                      {/* 하위 컴포넌트 API */}
+-                      {componentActions.map((action: any, ci: number) => (
+-                        <div key={ci} className="px-4 py-3 flex gap-3 bg-black/20">
+-                          <div className="w-24 shrink-0 text-xs text-gray-600 pt-0.5">
+-                            🧩 <span className="font-mono">{action.handlerName}</span>
+-                          </div>
+-                          <div className="flex flex-wrap gap-1.5">
+-                            {(action.apis || []).map((api: any, apii: number) => (
+-                              <span key={apii} className="text-xs font-mono bg-gray-800/60 border border-gray-700/60 text-gray-400 px-2 py-0.5 rounded flex items-center">
+-                                <span className={`font-bold mr-1.5 ${
+-                                  api.method === 'GET' ? 'text-green-400/70' :
+-                                  api.method === 'POST' ? 'text-orange-400/70' :
+-                                  api.method === 'PUT' ? 'text-blue-400/70' :
+-                                  api.method === 'DELETE' ? 'text-red-400/70' : 'text-gray-400'
+-                                }`}>{api.method}</span>
+-                                <span>{api.url}</span>
+-                                <span className="text-gray-500 ml-1.5 opacity-80 text-[10px]">L{api.line}</span>
+-                              </span>
+-                            ))}
+-                          </div>
+-                        </div>
+-                      ))}
+-
+-                      {/* 페이지 이동 */}
+-                      {sc.navigations?.length > 0 && (
+-                        <div className="px-4 py-3 flex gap-3">
+-                          <div className="w-24 shrink-0 text-xs text-gray-500 pt-0.5">🧭 이동</div>
+-                          <div className="flex flex-wrap gap-1.5">
+-                            {sc.navigations.map((nav: string, ni: number) => (
+-                              <span key={ni} className="text-xs font-mono bg-green-900/20 border border-green-800/40 text-green-400 px-2 py-0.5 rounded">→ {nav}</span>
+-                            ))}
+-                          </div>
+-                        </div>
+-                      )}
++              <div className="flex items-center bg-[#121316] p-1 rounded-lg border border-gray-700/50">
++                <button
++                  onClick={() => setStaticViewTab('graph')}
++                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-colors ${staticViewTab === 'graph' ? 'bg-purple-600/80 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'}`}
++                >
++                  플로우 맵 뷰
++                </button>
++                <button
++                  onClick={() => setStaticViewTab('list')}
++                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-colors ${staticViewTab === 'list' ? 'bg-purple-600/80 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'}`}
++                >
++                  리스트 뷰
++                </button>
++              </div>
++            </div>
+ 
+-                      {/* 하위 컴포넌트 목록 */}
+-                      {sc.components?.length > 0 && (
+-                        <div className="px-4 py-2.5 flex gap-3">
+-                          <div className="w-24 shrink-0 text-xs text-gray-600 pt-0.5">컴포넌트</div>
+-                          <div className="flex flex-wrap gap-1.5">
+-                            {sc.components.map((comp: string, ci: number) => (
+-                              <span key={ci} className="text-xs bg-gray-800/50 text-gray-500 border border-gray-700/50 px-2 py-0.5 rounded">{comp}</span>
+-                            ))}
+-                          </div>
+-                        </div>
+-                      )}
++            {/* 그래프 뷰 (스플릿 레이아웃) */}
++            {staticViewTab === 'graph' && (
++              <div className="flex gap-4 h-[700px] items-stretch">
++                <div className="flex-1 rounded-xl overflow-hidden border border-gray-700/60 h-full relative">
++                  <RouteGraphView 
++                    screens={screens} 
++                    onGoToDetails={(route) => {
++                      const el = document.getElementById(`route-block-${route}`);
++                      if (el) {
++                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
++                        el.classList.add('ring-2', 'ring-purple-500', 'bg-purple-900/40', 'z-10', 'relative');
++                        setTimeout(() => {
++                          el.classList.remove('ring-2', 'ring-purple-500', 'bg-purple-900/40', 'z-10', 'relative');
++                        }, 2000);
++                      }
++                    }}
++                  />
++                </div>
++                <div className="w-[450px] shrink-0 overflow-y-auto space-y-4 pr-2 custom-scrollbar h-full bg-[#161719] border border-gray-700/60 rounded-xl p-3 scroll-smooth">
++                   {renderRouteDetails(screens)}
++                </div>
++              </div>
++            )}
+ 
+-                      {/* 빈 화면 */}
+-                      {onEnterApis.length === 0 && userActions.length === 0 && componentActions.length === 0 && allNavs.length === 0 && (
+-                        <div className="px-4 py-3 text-xs text-gray-600 italic">추출된 API / 액션 없음</div>
+-                      )}
+-                    </div>
+-                  </div>
+-                );
+-              })}
+-            </div>
++            {/* 리스트 뷰 */}
++            {staticViewTab === 'list' && (
++              <div className="space-y-4">
++                {renderRouteDetails(screens)}
++              </div>
++            )}
+           </div>
+         )}
+ 
+@@ -1242,7 +1397,12 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
+               </span>
+             </div>
+             
+-            {scenariosList.map((scenario: any, i: number) => (
++            {scenariosList.map((scenario: any, i: number) => {
++              const hasApis = ((scenario.flow || scenario.steps || scenario.actions || scenario.scenario) || []).some((step: any) => {
++                const stepApis = step.apis || step.apiCalls || step.triggered_apis || (step.api_call ? [step.api_call] : step.apiCall ? [step.apiCall] : step.api ? [step.api] : []);
++                return stepApis && stepApis.length > 0;
++              });
++              return (
+               <div key={i} className="bg-[#1a1b1e] border border-gray-700/60 rounded-xl overflow-hidden shadow-lg transition-transform hover:-translate-y-1 hover:shadow-2xl">
+                 <div className="bg-gradient-to-r from-[#252628] to-[#1e1e1e] px-6 py-5 border-b border-gray-700/60">
+                   <div className="flex items-start justify-between">
+@@ -1252,11 +1412,14 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
+                     <div className="flex items-center gap-2">
+                       <button 
+                         onClick={() => {
++                          if (!hasApis) return;
+                           setSavingScenario(scenario);
+                           setTargetCollectionId('');
+                           setNewCollectionName('');
+                         }}
+-                        className="text-[10px] bg-blue-700 hover:bg-blue-600 text-white px-2 py-1 rounded border border-blue-600 transition-colors flex items-center gap-1 shadow-sm"
++                        disabled={!hasApis}
++                        title={!hasApis ? '시나리오에 추출된 API가 없습니다.' : '컬렉션으로 전이'}
++                        className={`text-[10px] px-2 py-1 rounded border transition-colors flex items-center gap-1 shadow-sm ${hasApis ? 'bg-blue-700 hover:bg-blue-600 text-white border-blue-600' : 'bg-gray-700 text-gray-500 border-gray-600 cursor-not-allowed'}`}
+                       >
+                         <span>📥</span> 컬렉션으로 전이
+                       </button>
+@@ -1326,7 +1489,8 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
+                   </div>
+                 </div>
+               </div>
+-            ))}
++            );
++            })}
+           </div>
+         )}
+       </div>
