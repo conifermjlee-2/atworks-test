@@ -743,23 +743,13 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
         >
           <summary 
             className="flex items-center justify-between p-4 cursor-pointer outline-none select-none list-none [&::-webkit-details-marker]:hidden"
-            onClick={(e) => {
-              if (e.detail === 2) e.preventDefault(); // 더블클릭 시 summary 토글 방지
+            onClick={() => {
               const el = document.getElementById(`route-block-${sc.route || '/'}`);
               if (el) {
                 el.classList.add('ring-2', 'ring-purple-500', 'bg-purple-900/10');
                 setTimeout(() => {
                   el.classList.remove('ring-2', 'ring-purple-500', 'bg-purple-900/10');
                 }, 1500);
-              }
-            }}
-            onDoubleClick={(e) => {
-              e.preventDefault();
-              if (staticViewTab === 'list') {
-                setGraphFocusRoute(sc.route || '/');
-                setStaticViewTab('graph');
-              } else {
-                setStaticViewTab('list');
               }
             }}
           >
@@ -771,8 +761,23 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
                 {sc.route || '/'}
               </h5>
             </div>
-            <div className="text-gray-500 text-xs transition-transform duration-300 group-open:rotate-180">
-              ▼
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-purple-900/40 text-purple-300 border border-purple-700/50 hover:bg-purple-800/50 hover:border-purple-500/60 transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setGraphFocusRoute(sc.route || '/');
+                  setStaticViewTab('graph');
+                }}
+                title="플로우 맵에서 이 화면 위치로 이동"
+              >
+                🗺 맵에서 보기
+              </button>
+              <div className="text-gray-500 text-xs transition-transform duration-300 group-open:rotate-180">
+                ▼
+              </div>
             </div>
           </summary>
 
@@ -1190,6 +1195,36 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
 {/* 라우트별 그룹 헤더 */}
             <div className="flex items-center justify-between mb-4 mt-8">
               <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider px-1">라우트별 상세</h4>
+              {staticViewTab === 'list' && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-gray-800/80 text-gray-300 border border-gray-700/60 hover:bg-gray-700/80 hover:text-white transition-colors"
+                    onClick={() => {
+                      document
+                        .querySelectorAll<details>('[id^="route-block-"]')
+                        .forEach((el) => {
+                          el.open = true;
+                        });
+                    }}
+                  >
+                    전체 펴기
+                  </button>
+                  <button
+                    type="button"
+                    className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-gray-800/80 text-gray-300 border border-gray-700/60 hover:bg-gray-700/80 hover:text-white transition-colors"
+                    onClick={() => {
+                      document
+                        .querySelectorAll<details>('[id^="route-block-"]')
+                        .forEach((el) => {
+                          el.open = false;
+                        });
+                    }}
+                  >
+                    전체 접기
+                  </button>
+                </div>
+              )}
             </div>
             
             {/* 뷰 모드 토글 (플로팅) */}
