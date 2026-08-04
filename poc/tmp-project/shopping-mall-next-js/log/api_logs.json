@@ -1,23 +1,23 @@
 {
   "GET__api_cart": {
-    "timestamp": "2026-08-03T06:36:43.285Z",
+    "timestamp": "2026-08-04T05:17:13.013Z",
     "endpoint": "/api/cart",
     "method": "GET",
     "request": {
       "headers": {
-        "accept": "*/*",
+        "accept": "application/json, text/plain, */*",
         "accept-encoding": "gzip, deflate, br, zstd",
         "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
         "connection": "keep-alive",
+        "cookie": "__next_hmr_refresh_hash__=170",
         "host": "localhost:3002",
-        "origin": "http://localhost:3005",
-        "referer": "http://localhost:3005/",
+        "referer": "http://localhost:3002/",
         "sec-ch-ua": "\"Not;A=Brand\";v=\"8\", \"Chromium\";v=\"150\", \"Google Chrome\";v=\"150\"",
         "sec-ch-ua-mobile": "?0",
         "sec-ch-ua-platform": "\"Windows\"",
         "sec-fetch-dest": "empty",
         "sec-fetch-mode": "cors",
-        "sec-fetch-site": "same-site",
+        "sec-fetch-site": "same-origin",
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
         "x-forwarded-for": "::1",
         "x-forwarded-host": "localhost:3002",
@@ -402,7 +402,7 @@
     }
   },
   "SERVER_COMPONENT__getProductsServer": {
-    "timestamp": "2026-08-03T05:20:00.227Z",
+    "timestamp": "2026-08-04T05:17:12.763Z",
     "source": "server-component",
     "function": "getProductsServer",
     "request": {

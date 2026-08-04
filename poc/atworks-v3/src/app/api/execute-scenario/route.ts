@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
 import { chromium, Browser } from 'playwright';
-import { GoogleGenAI } from '@google/genai';
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }); 
-
+import fs from 'fs';
+import path from 'path';
 export async function POST(req: Request) {
   const { url, scenario } = await req.json();
 
@@ -26,8 +24,22 @@ export async function POST(req: Request) {
   (async () => {
     let browser: Browser | null = null;
     try {
+      const videoDir = path.join(process.cwd(), 'public', 'videos');
+      if (fs.existsSync(videoDir)) {
+        const files = fs.readdirSync(videoDir);
+        for (const file of files) {
+          try {
+            fs.unlinkSync(path.join(videoDir, file));
+          } catch (e) {
+            console.error(`Failed to delete old video: ${file}`, e);
+          }
+        }
+      } else {
+        fs.mkdirSync(videoDir, { recursive: true });
+      }
+
       await sendLog('info', `브라우저를 시작합니다... 타겟: ${url}`);
-      browser = await chromium.launch({ headless: true });
+      browser = await chromium.launch({ headless: false, slowMo: 1000 });
       const context = await browser.newContext({
         recordVideo: { dir: './public/videos' },
         viewport: { width: 1280, height: 720 }
@@ -39,7 +51,8 @@ export async function POST(req: Request) {
 
       for (let i = 0; i < steps.length; i++) {
         const step = steps[i];
-        const stepDesc = step.description || step.action || step.user_action || step.name;
+        const stepDesc = step.description || step.action || step.user_action || step.name || 
+                         (step.type ? `[${step.type}] ${step.method || ''} ${step.endpoint || step.target || ''}`.trim() : JSON.stringify(step));
         const pagePath = step.page || step.screen;
 
         await sendLog('info', `[스텝 ${i + 1}/${steps.length}] ${stepDesc}`);
@@ -94,18 +107,66 @@ ${html.substring(0, 50000)} // truncate to prevent token overflow
 `;
 
         await sendLog('info', `AI에게 다음 액션을 질의 중...`);
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-          }
-        });
+        let textResponse = "[]";
+        try {
+          const fs = await import('fs');
+          const path = await import('path');
+          const os = await import('os');
+          const { exec } = await import('child_process');
+          const util = await import('util');
+          const execPromise = util.promisify(exec);
 
-        const textResponse = response.text || "[]";
+          const promptFile = path.join(os.tmpdir(), `prompt_exec_${Date.now()}_${i}.txt`);
+          fs.writeFileSync(promptFile, prompt, 'utf-8');
+          
+          const agentApiBat = `"C:\\Users\\lee\\AppData\\Local\\agy\\bin\\agy.exe"`;
+          const resultFile = path.join(os.tmpdir(), `result_exec_${Date.now()}_${i}.json`);
+          
+          const psScriptFile = path.join(os.tmpdir(), `run_exec_${Date.now()}_${i}.ps1`);
+          const psScriptContent = `
+$prompt = Get-Content -Raw -Path '${promptFile}'
+& ${agentApiBat} --output-format json --print $prompt | Out-File -FilePath '${resultFile}' -Encoding utf8
+`;
+          fs.writeFileSync(psScriptFile, psScriptContent, 'utf-8');
+          
+          const psCommand = `powershell.exe -ExecutionPolicy Bypass -File "${psScriptFile}"`;
+          await execPromise(psCommand);
+          
+          let stdout = fs.readFileSync(resultFile, 'utf8');
+          if (stdout.charCodeAt(0) === 0xFEFF) stdout = stdout.slice(1);
+          stdout = stdout.trim();
+          
+          // Clean up
+          fs.unlinkSync(promptFile);
+          fs.unlinkSync(psScriptFile);
+          fs.unlinkSync(resultFile);
+          
+          const resultObj = JSON.parse(stdout);
+          let aiOutput = '';
+          if (resultObj.scenarios && resultObj.scenarios.length > 0 && typeof resultObj.scenarios[0].response === 'string') {
+            aiOutput = resultObj.scenarios[0].response;
+          } else if (typeof resultObj.response === 'string') {
+            aiOutput = resultObj.response;
+          } else if (resultObj.response) {
+            aiOutput = resultObj.response.content || resultObj.response.text || JSON.stringify(resultObj.response);
+          } else if (resultObj.content) {
+            aiOutput = resultObj.content;
+          } else {
+            aiOutput = stdout;
+          }
+          
+          if (typeof aiOutput === 'string') {
+            textResponse = aiOutput.replace(/```json\n?/im, '').replace(/```\n?/im, '').trim();
+          }
+        } catch (apiErr: any) {
+          throw new Error(`AI CLI 에러: ${apiErr.message}`);
+        }
         let aiActions = [];
         try {
-            aiActions = JSON.parse(textResponse);
+            // AI가 설명 텍스트와 함께 응답할 경우를 대비해 JSON 배열 부분만 추출
+            const jsonMatch = textResponse.match(/\[[\s\S]*\]/);
+            const pureJsonString = jsonMatch ? jsonMatch[0] : textResponse;
+            aiActions = JSON.parse(pureJsonString);
         } catch(e) {
             await sendLog('error', `AI 응답 파싱 실패: ${textResponse}`);
             continue;

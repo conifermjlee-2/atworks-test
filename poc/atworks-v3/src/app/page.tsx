@@ -303,10 +303,10 @@ export default function Home() {
             }}
             className="bg-input text-sm text-foreground px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary w-full shadow-sm transition-shadow appearance-none"
           >
-            <option value="scenario">시나리오 with AI</option>
-            <option value="test">API 테스트</option>
-            <option value="chaining">API 전이 (Chaining)</option>
-            <option value="flow">프론트 흐름 (Frontend Flow)</option>
+            <option value="scenario" className="bg-background text-foreground">시나리오 with AI</option>
+            <option value="test" className="bg-background text-foreground">API 테스트</option>
+            <option value="chaining" className="bg-background text-foreground">API 전이 (Chaining)</option>
+            <option value="flow" className="bg-background text-foreground">프론트 흐름 (Frontend Flow)</option>
           </select>
           
           {visibleCollections.length > 0 && (

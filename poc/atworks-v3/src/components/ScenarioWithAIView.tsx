@@ -264,15 +264,186 @@ function renderInlineMarkdown(text: string): React.ReactNode {
   return parts.length === 0 ? text : <>{parts}</>;
 }
 
+const DEFAULT_API_LOGS = `{
+  "GET__api_cart": {
+    "timestamp": "2026-08-04T02:05:33.225Z",
+    "endpoint": "/api/cart",
+    "method": "GET",
+    "request": {
+      "headers": {
+        "accept": "application/json, text/plain, */*",
+        "accept-encoding": "gzip, deflate, br, zstd",
+        "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+        "connection": "keep-alive",
+        "cookie": "__next_hmr_refresh_hash__=111",
+        "host": "localhost:3002",
+        "referer": "http://localhost:3002/",
+        "sec-ch-ua": "\\"Not;A=Brand\\";v=\\"8\\", \\"Chromium\\";v=\\"150\\", \\"Google Chrome\\";v=\\"150\\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\\"Windows\\"",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+        "x-forwarded-for": "::1",
+        "x-forwarded-host": "localhost:3002",
+        "x-forwarded-port": "3002",
+        "x-forwarded-proto": "http"
+      },
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": []
+    }
+  },
+  "POST__api_cart": {
+    "timestamp": "2026-08-03T06:36:43.317Z",
+    "endpoint": "/api/cart",
+    "method": "POST",
+    "request": {
+      "headers": {
+        "accept": "*/*",
+        "accept-encoding": "gzip, deflate, br, zstd",
+        "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+        "connection": "keep-alive",
+        "content-length": "498",
+        "content-type": "application/json",
+        "host": "localhost:3002",
+        "origin": "http://localhost:3005",
+        "referer": "http://localhost:3005/",
+        "sec-ch-ua": "\\"Not;A=Brand\\";v=\\"8\\", \\"Chromium\\";v=\\"150\\", \\"Google Chrome\\";v=\\"150\\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\\"Windows\\"",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-site",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+        "x-forwarded-for": "::1",
+        "x-forwarded-host": "localhost:3002",
+        "x-forwarded-port": "3002",
+        "x-forwarded-proto": "http"
+      },
+      "body": {
+        "product": {
+          "id": "prod-2",
+          "name": "북유럽 감성 미니멀 스탠드 조명",
+          "category": "living",
+          "price": 89000,
+          "originalPrice": 110000,
+          "rating": 4.7,
+          "reviewCount": 84,
+          "image": "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80",
+          "description": "아늑한 분위기를 연출해 주는 스마트 터치 스탠드 조명입니다. 3단계 조도 조절 가능.",
+          "isNew": true
+        },
+        "quantity": 1
+      }
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "success": true,
+        "cart": [
+          {
+            "product": {
+              "id": "prod-2",
+              "name": "북유럽 감성 미니멀 스탠드 조명",
+              "category": "living",
+              "price": 89000,
+              "originalPrice": 110000,
+              "rating": 4.7,
+              "reviewCount": 84,
+              "image": "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80",
+              "description": "아늑한 분위기를 연출해 주는 스마트 터치 스탠드 조명입니다. 3단계 조도 조절 가능.",
+              "isNew": true
+            },
+            "quantity": 1
+          }
+        ]
+      }
+    }
+  },
+  "GET__api_products": {
+    "timestamp": "2026-08-03T06:36:43.270Z",
+    "endpoint": "/api/products",
+    "method": "GET",
+    "request": {
+      "headers": {
+        "accept": "*/*",
+        "accept-encoding": "gzip, deflate, br, zstd",
+        "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+        "connection": "keep-alive",
+        "host": "localhost:3002",
+        "origin": "http://localhost:3005",
+        "referer": "http://localhost:3005/",
+        "sec-ch-ua": "\\"Not;A=Brand\\";v=\\"8\\", \\"Chromium\\";v=\\"150\\", \\"Google Chrome\\";v=\\"150\\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\\"Windows\\"",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-site",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+        "x-forwarded-for": "::1",
+        "x-forwarded-host": "localhost:3002",
+        "x-forwarded-port": "3002",
+        "x-forwarded-proto": "http"
+      },
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": [
+        {
+          "id": "prod-1",
+          "name": "프리미엄 무선 노이즈캔슬링 헤드폰 X1",
+          "category": "electronics",
+          "price": 349000,
+          "originalPrice": 399000,
+          "rating": 4.9,
+          "reviewCount": 128,
+          "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80",
+          "description": "몰입감 넘치는 사운드와 강력한 노이즈 캔슬링 기술이 적용된 프리미엄 무선 헤드폰입니다. 최대 30시간 지속 배터리 탑재.",
+          "isBest": true
+        },
+        {
+          "id": "prod-2",
+          "name": "북유럽 감성 미니멀 스탠드 조명",
+          "category": "living",
+          "price": 89000,
+          "originalPrice": 110000,
+          "rating": 4.7,
+          "reviewCount": 84,
+          "image": "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80",
+          "description": "아늑한 분위기를 연출해 주는 스마트 터치 스탠드 조명입니다. 3단계 조도 조절 가능.",
+          "isNew": true
+        }
+      ]
+    }
+  }
+}`;
+
 export default function ScenarioWithAIView({ rootPath, collections = [], apiItems = [], onSave, onClose }: ScenarioWithAIViewProps) {
   const [targetPath, setTargetPath] = useState(rootPath || 'C:\\Users\\lee\\Desktop\\atworks-test\\poc\\tmp-project\\shopping-mall-next-js');
+  const [referenceLog, setReferenceLog] = useState(DEFAULT_API_LOGS);
+  const [loadedLogFileName, setLoadedLogFileName] = useState('api_logs.json');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [markdown, setMarkdown] = useState<string>('');
   const [scenariosList, setScenariosList] = useState<any[]>([]);
   const [screensCount, setScreensCount] = useState(0);
   const [staticReport, setStaticReport] = useState<string>('');
   const [projectName, setProjectName] = useState('');
-  const [screens, setScreens] = useState<any[]>([]);
+  const [apps, setApps] = useState<any[]>([]);
+  const [activeAppIndex, setActiveAppIndex] = useState(0);
   const [apiLogs, setApiLogs] = useState<any>(null);
   const [phase, setPhase] = useState<'idle' | 'static' | 'ai' | 'done'>('idle');
   const [staticViewTab, setStaticViewTab] = useState<'graph' | 'list'>('graph');
@@ -280,6 +451,7 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
   const [isDragging, setIsDragging] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logFileInputRef = useRef<HTMLInputElement>(null);
 
   // Save Modal States
   const [savingScenario, setSavingScenario] = useState<any>(null);
@@ -290,6 +462,21 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
   // 모달 내 컬렉션 실시간 갱신용 상태
   const [localCollections, setLocalCollections] = useState<any[]>(collections || []);
   const [isRefreshingCollections, setIsRefreshingCollections] = useState(false);
+
+  // Browser Test Execution States
+  const [isExecuteModalOpen, setIsExecuteModalOpen] = useState(false);
+  const [executingScenarioIndex, setExecutingScenarioIndex] = useState<number | null>(null);
+  const [executingTargetUrl, setExecutingTargetUrl] = useState('http://localhost:3002');
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [executeLogs, setExecuteLogs] = useState<{type: string, message: string}[]>([]);
+  const [executeVideoUrl, setExecuteVideoUrl] = useState<string | null>(null);
+  const logsEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [executeLogs]);
 
   useEffect(() => {
     setLocalCollections(collections || []);
@@ -305,6 +492,24 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
       console.warn('Failed to refresh collections', e);
     } finally {
       setIsRefreshingCollections(false);
+    }
+  };
+
+  const handleLogFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result;
+      if (typeof content === 'string') {
+        setReferenceLog(content);
+        setLoadedLogFileName(file.name);
+      }
+    };
+    reader.readAsText(file);
+    if (e.target) {
+      e.target.value = '';
     }
   };
 
@@ -331,8 +536,12 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
         return;
       }
 
-      setScreensCount(staticData.screens?.length || 0);
-      setScreens(staticData.screens || []);
+      const parsedApps = staticData.apps || [];
+      const totalScreens = parsedApps.reduce((acc: number, app: any) => acc + (app.screens?.length || 0), 0);
+
+      setApps(parsedApps);
+      setScreensCount(totalScreens);
+      setActiveAppIndex(0);
       setStaticReport(staticData.staticReport || '');
       setProjectName(staticData.projectName || '');
       setApiLogs(staticData.apiLogs || null);
@@ -343,12 +552,18 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
       const aiRes = await fetch('/api/analyze/scenario', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'ai', staticReport: staticData.staticReport, projectName: staticData.projectName }),
+        body: JSON.stringify({ action: 'ai', staticReport: staticData.staticReport, projectName: staticData.projectName, referenceLog }),
         signal: abortControllerRef.current.signal
       });
       const aiData = await aiRes.json();
 
       if (!aiRes.ok) {
+        if (aiData.rawOutput) {
+          toast.error('AI가 유효한 JSON을 반환하지 않았습니다. 원본 응답을 화면에 표시합니다.');
+          setMarkdown(aiData.rawOutput);
+          setPhase('done');
+          return;
+        }
         toast.error(aiData.error || 'AI 생성 중 오류가 발생했습니다.');
         setMarkdown(staticData.staticReport);
         setPhase('done');
@@ -407,8 +622,12 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
         return;
       }
 
-      setScreensCount(data.screens?.length || 0);
-      setScreens(data.screens || []);
+      const parsedApps = data.apps || [];
+      const totalScreens = parsedApps.reduce((acc: number, app: any) => acc + (app.screens?.length || 0), 0);
+
+      setApps(parsedApps);
+      setScreensCount(totalScreens);
+      setActiveAppIndex(0);
       setStaticReport(data.staticReport || '');
       setProjectName(data.projectName || '');
       toast.success('라우팅 분석이 완료되었습니다!');
@@ -432,12 +651,13 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
     
     setIsAnalyzing(true);
     setPhase('static');
-    setScreens([]);
+    setApps([]);
     setStaticReport('');
     setMarkdown('');
     setScenariosList([]);
     setScreensCount(0);
     setProjectName('');
+    setActiveAppIndex(0);
 
     const formData = new FormData();
     formData.append('file', file);
@@ -451,8 +671,12 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      setScreens(data.screens || []);
-      setScreensCount(data.screens?.length || 0);
+      const parsedApps = data.apps || [];
+      const totalScreens = parsedApps.reduce((acc: number, app: any) => acc + (app.screens?.length || 0), 0);
+
+      setApps(parsedApps);
+      setScreensCount(totalScreens);
+      setActiveAppIndex(0);
       setStaticReport(data.staticReport);
       setProjectName(data.projectName || file.name.replace('.zip', ''));
       toast.success('ZIP 라우팅 분석이 완료되었습니다!');
@@ -509,10 +733,18 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
       const res = await fetch('/api/analyze/scenario', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'ai', staticReport, projectName }),
+        body: JSON.stringify({ action: 'ai', staticReport, projectName, referenceLog }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) {
+        if (data.rawOutput) {
+          toast.error('AI가 유효한 JSON을 반환하지 않았습니다. 원본 응답을 화면에 표시합니다.');
+          setMarkdown(data.rawOutput);
+          setPhase('done');
+          return;
+        }
+        throw new Error(data.error);
+      }
 
       if (data.scenarios) {
         setScenariosList(data.scenarios);
@@ -668,6 +900,53 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
     }
   };
 
+  const handleStartExecution = async () => {
+    if (executingScenarioIndex === null) return;
+    const scenario = scenariosList[executingScenarioIndex];
+    
+    setIsExecuting(true);
+    setExecuteLogs([]);
+    setExecuteVideoUrl(null);
+    
+    try {
+      const res = await fetch('/api/execute-scenario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: executingTargetUrl, scenario })
+      });
+      
+      if (!res.body) throw new Error('No readable stream');
+      
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(Boolean);
+        
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+            if (data.type === 'video') {
+              setExecuteVideoUrl(data.url);
+            } else {
+              setExecuteLogs(prev => [...prev, { type: data.type, message: data.message }]);
+            }
+          } catch (e) {
+            console.error('Failed to parse log line', line);
+          }
+        }
+      }
+    } catch (err: any) {
+      toast.error('테스트 실행 중 오류가 발생했습니다.');
+      setExecuteLogs(prev => [...prev, { type: 'error', message: err.message || 'Unknown error' }]);
+    } finally {
+      setIsExecuting(false);
+    }
+  };
 
   const handleCopy = () => {
     const textToCopy = scenariosList.length > 0 ? JSON.stringify(scenariosList, null, 2) : markdown;
@@ -685,9 +964,10 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
     setTargetPath(newPath);
     setPhase('idle');
     setStaticReport('');
-    setScreens([]);
+    setApps([]);
     setScenariosList([]);
     setMarkdown('');
+    setActiveAppIndex(0);
   };
 
   const handleDownload = () => {
@@ -802,9 +1082,19 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
                           {api.purpose || api.description}
                         </p>
                       )}
-                      {api.__source && (
-                        <div className="mt-1 flex items-center gap-1.5 text-[9px] text-gray-500 font-mono bg-gray-900/40 w-fit px-1.5 py-0.5 rounded border border-gray-700/50">
-                          <span className="text-[8px]">⚡</span> 출처: {api.__source}
+                      {(api.__source || api.line || api.file || api.filePath) && (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-gray-400 font-mono bg-gray-900/60 w-fit px-2 py-1 rounded border border-gray-700/50">
+                          <span className="text-[10px]">⚡</span> 
+                          <span>출처: <span className="text-gray-300 font-semibold">{api.__source || '초기 렌더링(Root)'}</span></span>
+                          {(api.line || api.file || api.filePath) && (
+                            <>
+                              <span className="text-gray-600 mx-0.5">|</span>
+                              <span className="text-gray-400 flex items-center gap-1">
+                                {(api.file || api.filePath) && <span>📄 {(api.file || api.filePath).split('/').pop()?.split('\\').pop()}</span>}
+                                {api.line && <span className="text-gray-500">L{api.line}</span>}
+                              </span>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -858,6 +1148,12 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
                                   <p className="text-[10px] text-gray-500 pl-1">
                                     {api.purpose}
                                   </p>
+                                )}
+                                {(api.line || api.file || api.filePath) && (
+                                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[9px] text-gray-400 font-mono bg-gray-900/60 w-fit px-1.5 py-0.5 rounded border border-gray-700/50">
+                                    {(api.file || api.filePath) && <span>📄 {(api.file || api.filePath).split('/').pop()?.split('\\').pop()}</span>}
+                                    {api.line && <span className="text-gray-500">L{api.line}</span>}
+                                  </div>
                                 )}
                               </div>
                             );
@@ -1093,6 +1389,47 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
         </div>
       </div>
 
+      {/* Reference Log Input */}
+      <div className="p-4 bg-[#1a1b1e] border-b border-gray-800 flex flex-col gap-2 shadow-inner">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-bold text-gray-400 flex items-center gap-2">
+            <span>📝</span> 참고 로그 및 추가 요구사항 (선택사항)
+            {loadedLogFileName && (
+              <Badge variant="outline" className="bg-gray-800 text-gray-300 border-gray-600 ml-2">
+                {loadedLogFileName}
+              </Badge>
+            )}
+          </label>
+          <div className="flex items-center gap-2">
+            <input 
+              type="file" 
+              accept=".json,.txt,.log" 
+              ref={logFileInputRef} 
+              className="hidden" 
+              onChange={handleLogFileUpload}
+            />
+            <button
+              onClick={() => logFileInputRef.current?.click()}
+              disabled={isAnalyzing}
+              className="text-xs bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 text-gray-200 py-1.5 px-3 rounded transition-colors flex items-center gap-1.5 border border-gray-600"
+            >
+              <span>📁</span> 로그 업로드
+            </button>
+          </div>
+        </div>
+        <textarea
+          value={referenceLog}
+          onChange={(e) => {
+            setReferenceLog(e.target.value);
+            setLoadedLogFileName('직접 입력');
+          }}
+          disabled={isAnalyzing}
+          placeholder="여기에 백엔드 API 로그, Swagger 명세, 수동 테스트 결과 등 참고할 내용을 붙여넣으면 AI가 시나리오 생성 시 참고하여 정확도를 높입니다."
+          className="w-full bg-[#121316] text-gray-300 text-sm p-3 rounded-md border border-gray-700/60 focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 outline-none resize-y min-h-[80px]"
+          spellCheck="false"
+        />
+      </div>
+
       {/* Progress bar during analysis */}
       {isAnalyzing && (
         <div className="shrink-0 px-4 py-2 bg-[#1a1b1e] border-b border-gray-800">
@@ -1176,13 +1513,35 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
               </div>
             </div>
 
+            {/* 앱 탭 (모노레포 지원) */}
+            {apps.length > 1 && (
+              <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-700">
+                {apps.map((app, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveAppIndex(idx)}
+                    className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
+                      activeAppIndex === idx
+                        ? 'bg-purple-600 text-white shadow-md'
+                        : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                    }`}
+                  >
+                    {app.appName || `App ${idx + 1}`} 
+                    <span className="ml-2 text-xs bg-black/30 px-2 py-0.5 rounded-full">
+                      {app.screens?.length || 0}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* 통계 카드 */}
             <div className="grid grid-cols-4 gap-3">
               {[
                 { label: '화면', value: screensCount, icon: '🖥️', color: 'purple' },
-                { label: '전체 API', value: screens.reduce((s, sc) => s + (sc.onEnterApis?.length || 0) + sc.actions?.reduce((a: number, ac: any) => a + (ac.apis?.length || 0), 0), 0), icon: '⚡', color: 'blue' },
-                { label: '사용자 액션', value: screens.reduce((s, sc) => s + (sc.actions?.length || 0), 0), icon: '👆', color: 'orange' },
-                { label: '페이지 이동', value: screens.reduce((s, sc) => s + (sc.navigations?.length || 0) + sc.actions?.reduce((a: number, ac: any) => a + (ac.navigations?.length || 0), 0), 0), icon: '🧭', color: 'green' },
+                { label: '전체 API', value: apps.reduce((total, app) => total + (app.screens || []).reduce((s: number, sc: any) => s + (sc.onEnterApis?.length || 0) + (sc.actions || []).reduce((a: number, ac: any) => a + (ac.apis?.length || 0), 0), 0), 0), icon: '⚡', color: 'blue' },
+                { label: '사용자 액션', value: apps.reduce((total, app) => total + (app.screens || []).reduce((s: number, sc: any) => s + (sc.actions?.length || 0), 0), 0), icon: '👆', color: 'orange' },
+                { label: '페이지 이동', value: apps.reduce((total, app) => total + (app.screens || []).reduce((s: number, sc: any) => s + (sc.navigations?.length || 0) + (sc.actions || []).reduce((a: number, ac: any) => a + (ac.navigations?.length || 0), 0), 0), 0), icon: '🧭', color: 'green' },
               ].map((stat, i) => (
                 <div key={i} className="bg-[#1e1e1e] border border-gray-700/60 rounded-lg p-3 text-center">
                   <div className="text-2xl mb-1">{stat.icon}</div>
@@ -1247,7 +1606,7 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
             {staticViewTab === 'graph' && (
               <div className="h-[700px] w-full rounded-xl overflow-hidden border border-gray-700/60 relative">
                 <RouteGraphView 
-                  screens={screens} 
+                  screens={apps[activeAppIndex]?.screens || []} 
                   onGoToDetails={(route) => {
                     if (staticViewTab === 'graph') {
                       setStaticViewTab('list');
@@ -1271,7 +1630,7 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
             {/* 리스트 뷰 */}
             {staticViewTab === 'list' && (
               <div className="space-y-4">
-                {renderRouteDetails(screens)}
+                {renderRouteDetails(apps[activeAppIndex]?.screens || [])}
               </div>
             )}
           </div>
@@ -1392,6 +1751,102 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
           </div>
         )}
 
+        {/* Browser Test Execute Modal */}
+        {isExecuteModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="bg-[#1e1e1e] border border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="p-4 border-b border-gray-800 bg-[#252628] flex justify-between items-center shrink-0">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <span>▶️</span> 브라우저 테스트 실행
+                </h3>
+                <button
+                  onClick={() => setIsExecuteModalOpen(false)}
+                  disabled={isExecuting}
+                  className="text-gray-400 hover:text-white p-1 rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
+                {executingScenarioIndex !== null && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-300 mb-2">테스트 시나리오</label>
+                    <div className="text-sm text-gray-400 bg-black/30 p-3 rounded-lg border border-gray-800">
+                      {scenariosList[executingScenarioIndex].title}
+                    </div>
+                  </div>
+                )}
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">타겟 URL</label>
+                  <input
+                    type="text"
+                    value={executingTargetUrl}
+                    onChange={(e) => setExecutingTargetUrl(e.target.value)}
+                    disabled={isExecuting}
+                    placeholder="예: http://localhost:3002"
+                    className="w-full bg-[#121316] text-white border border-gray-700 rounded-lg px-4 py-2.5 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all disabled:opacity-50"
+                  />
+                </div>
+
+                {/* Console Output */}
+                <div className="flex-1 min-h-[200px] flex flex-col">
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">실행 로그</label>
+                  <div className="flex-1 bg-[#0d1117] border border-gray-700 rounded-lg p-3 font-mono text-xs overflow-y-auto max-h-[300px]">
+                    {executeLogs.length === 0 && !isExecuting && (
+                      <div className="text-gray-600 text-center py-8 italic">테스트를 시작하면 로그가 표시됩니다.</div>
+                    )}
+                    {executeLogs.map((log, idx) => (
+                      <div key={idx} className={`mb-1 ${log.type === 'error' ? 'text-red-400' : log.type === 'success' ? 'text-green-400' : 'text-gray-300'}`}>
+                        <span className="text-gray-600 mr-2">[{new Date().toLocaleTimeString()}]</span>
+                        {log.message}
+                      </div>
+                    ))}
+                    <div ref={logsEndRef} />
+                  </div>
+                </div>
+
+                {/* Video Player */}
+                {executeVideoUrl && (
+                  <div className="mt-2 animate-in slide-in-from-top-2">
+                    <label className="block text-sm font-semibold text-green-400 mb-2">🎥 녹화 영상</label>
+                    <video 
+                      src={executeVideoUrl} 
+                      controls 
+                      autoPlay 
+                      className="w-full rounded-lg border border-gray-700 shadow-lg"
+                    />
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-4 border-t border-gray-800 bg-[#252628] flex justify-end gap-2 shrink-0">
+                <button
+                  onClick={() => setIsExecuteModalOpen(false)}
+                  disabled={isExecuting}
+                  className="px-4 py-2 text-sm font-medium text-gray-300 bg-transparent hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  닫기
+                </button>
+                <button
+                  onClick={handleStartExecution}
+                  disabled={isExecuting || !executingTargetUrl}
+                  className="px-6 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg transition-colors shadow-sm flex items-center gap-2"
+                >
+                  {isExecuting ? (
+                    <>
+                      <span className="animate-spin inline-block">⏳</span> 실행 중...
+                    </>
+                  ) : (
+                    '▶️ 테스트 시작'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {scenariosList.length > 0 && phase === 'done' && (
           <div className="max-w-5xl mx-auto p-6 pb-16 space-y-6">
             {/* Stats bar */}
@@ -1412,6 +1867,15 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
                       <span className="text-2xl drop-shadow-md">🎯</span> {scenario.title}
                     </h3>
                     <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => {
+                          setExecutingScenarioIndex(i);
+                          setIsExecuteModalOpen(true);
+                        }}
+                        className="text-[10px] bg-green-700 hover:bg-green-600 text-white px-2 py-1 rounded border border-green-600 transition-colors flex items-center gap-1 shadow-sm"
+                      >
+                        <span>▶️</span> 실제 브라우저 테스트 실행
+                      </button>
                       <button 
                         onClick={() => {
                           setSavingScenario(scenario);
@@ -1439,10 +1903,30 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
                   <div className="space-y-6">
                     {((scenario.flow || scenario.steps || scenario.actions || scenario.scenario) || []).map((step: any, j: number) => {
                       // Handle various formats that Gemini might return
-                      const stepAction = step.user_action || step.action || step.description || step.name || 'Action';
+                      let stepAction: React.ReactNode = typeof step === 'string' ? step : (step.user_action || step.userAction || step.action || step.task || step.activity || step.name || step.title || step.description || 'Action');
+                      if (stepAction === 'Action' && typeof step === 'object') {
+                        const possibleKeys = Object.keys(step).filter(k => !['step', 'sequence', 'appName', 'screen', 'page', 'apis', 'apiCalls', 'api_call', 'apiCall', 'api', 'next_page', 'nextPage'].includes(k));
+                        if (possibleKeys.length > 0 && typeof step[possibleKeys[0]] === 'string') {
+                          stepAction = step[possibleKeys[0]];
+                        }
+                      }
+                      if (typeof step === 'object' && step.type) {
+                        if (step.type === 'navigate' && step.target) {
+                          stepAction = <span>navigate &rarr; <span className="text-blue-300 font-mono text-sm">{step.target}</span></span>;
+                        } else if (step.type === 'api_call' && step.endpoint) {
+                          const methodColor = step.method === 'GET' ? 'text-green-400' : step.method === 'POST' ? 'text-orange-400' : step.method === 'DELETE' ? 'text-red-400' : 'text-blue-400';
+                          stepAction = (
+                            <span>
+                              api_call <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded bg-gray-800 border border-gray-700 ${methodColor}`}>[{step.method || 'GET'}]</span> <span className="font-mono text-gray-300 text-sm ml-1">{step.endpoint}</span>
+                            </span>
+                          );
+                        } else if (step.type === 'submit' && step.target) {
+                          stepAction = <span>submit: <span className="text-orange-300 font-mono text-sm">{step.target}</span></span>;
+                        }
+                      }
                       const stepApis = step.apis || step.apiCalls || step.triggered_apis || (step.api_call ? [step.api_call] : step.apiCall ? [step.apiCall] : step.api ? [step.api] : []);
                       const stepNum = step.step || step.sequence || (j + 1);
-                      const stepDesc = step.description && step.description !== stepAction ? step.description : null;
+                      const stepDesc = (step.stepDescription && step.stepDescription !== stepAction) ? step.stepDescription : null;
                       const stepScreen = step.screen || step.page || null;
                       const stepNextPage = step.next_page || step.nextPage || null;
                       
@@ -1457,7 +1941,16 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
                           )}
                         </div>
                         <div className="pb-4 pt-1">
-                          <div className="text-[15px] font-semibold text-gray-200 group-hover:text-white transition-colors">{stepAction}</div>
+                          <div className="group-hover:text-white transition-colors flex flex-col">
+                            {step.description ? (
+                              <>
+                                <div className="text-[15px] font-semibold text-gray-200">{step.description}</div>
+                                <div className="text-gray-400 text-sm mt-1.5 font-normal leading-relaxed">{stepAction}</div>
+                              </>
+                            ) : (
+                              <div className="text-[15px] font-semibold text-gray-200">{stepAction}</div>
+                            )}
+                          </div>
                           {stepScreen && (
                             <div className="text-xs mt-2 mb-1 flex items-center gap-2 group/nav relative w-fit">
                               <div className="bg-green-500/20 rounded-full w-5 h-5 flex items-center justify-center shrink-0">

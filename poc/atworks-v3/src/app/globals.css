@@ -24,41 +24,42 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans), sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
 }
 
 :root {
-  --background: #0f1115; /* 아주 어두운 네이비톤 (프리미엄 SaaS 느낌) */
-  --foreground: #f8fafc;
-  --card: #16181d;
-  --card-foreground: #f8fafc;
-  --popover: #16181d;
-  --popover-foreground: #f8fafc;
-  --primary: #6366f1; /* 쨍한 Indigo 포인트 */
+  --background: #09090b; /* Deep premium dark */
+  --foreground: #fafafa;
+  --card: rgba(24, 24, 27, 0.6);
+  --card-foreground: #fafafa;
+  --popover: rgba(24, 24, 27, 0.8);
+  --popover-foreground: #fafafa;
+  --primary: #8b5cf6; /* Vibrant violet */
   --primary-foreground: #ffffff;
-  --secondary: #1e293b;
-  --secondary-foreground: #f8fafc;
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
-  --accent: #1e293b;
-  --accent-foreground: #f8fafc;
+  --secondary: rgba(255, 255, 255, 0.05);
+  --secondary-foreground: #fafafa;
+  --muted: rgba(255, 255, 255, 0.05);
+  --muted-foreground: #a1a1aa;
+  --accent: rgba(139, 92, 246, 0.1);
+  --accent-foreground: #fafafa;
   --destructive: #ef4444;
-  --destructive-foreground: #f8fafc;
-  --border: #2a2e37;
-  --input: #2a2e37;
-  --ring: #6366f1;
-  --radius: 0.75rem;
+  --destructive-foreground: #fafafa;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.08);
+  --ring: #8b5cf6;
+  --radius: 1rem;
 }
 
 body {
-  background: var(--background);
+  background: radial-gradient(circle at top center, #1f1d2b 0%, var(--background) 100%);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-  overflow: hidden; /* 페이지 전체 스크롤 방지 (레이아웃 내에서 개별 스크롤) */
+  font-family: var(--font-sans);
+  overflow: hidden;
+  min-height: 100vh;
 }
 
-/* 프리미엄 얇은 스크롤바 */
+/* Premium Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -67,9 +68,9 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: rgba(255, 255, 255, 0.2);
 }
