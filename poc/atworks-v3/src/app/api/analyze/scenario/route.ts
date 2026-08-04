@@ -458,15 +458,17 @@ function buildStaticAnalysisReport(apps: AppInfo[]): string {
 }
 
 async function generateWithGemini(staticReport: string, projectName: string, referenceLog: string, request: Request): Promise<string> {
-  const prompt = `You are an automated code analysis bot. Your ONLY function is to parse the input data and output a JSON object describing QA testing scenarios.
-You must output a raw JSON object with a "scenarios" key, containing an array of scenarios.
-DO NOT use markdown formatting. DO NOT output conversational text. Output ONLY valid JSON.
+  const prompt = `주어진 프론트엔드 정적 분석 결과와 참조 로그를 바탕으로 QA 테스트 시나리오를 JSON 형식으로 작성해 주세요.
 
-CRITICAL INSTRUCTION: You MUST use the exact JSON structure below for every scenario. 
-EVERY SINGLE object inside the "actions" array MUST have BOTH technical routing fields AND a human-readable "description" field generated in Korean.
-- "type" MUST be one of: 'navigate', 'api_call', 'submit'
-- If type is 'api_call', you MUST include "method" (e.g. GET, POST) and "endpoint" (e.g. api/products)
-- If type is 'navigate' or 'submit', you MUST include "target" (e.g. /, /order)
+[중요 지침]
+- 반드시 아래 "JSON STRUCTURE TEMPLATE"과 정확히 일치하는 구조로 JSON 객체를 반환해 주세요. (가장 바깥쪽에 "scenarios" 배열이 있어야 합니다.)
+- "actions" 배열 안의 모든 객체는 기술적인 라우팅 필드와 사람이 읽기 쉬운 한국어 "description" 필드를 모두 포함해야 합니다.
+- "type"은 'navigate', 'api_call', 'submit' 중 하나여야 합니다.
+- "type"이 'api_call'인 경우, "method" (예: GET, POST)와 "endpoint" (예: api/products)를 포함해 주세요.
+- "type"이 'navigate' 또는 'submit'인 경우, "target" (예: /, /order)을 포함해 주세요.
+- /products/:id 와 같이 경로 파라미터가 필요한 경우, 1, 123, test 같은 가짜 더미(Dummy) 값을 절대 사용하지 마세요.
+- 제공된 "Reference Log"를 깊이 분석하여 실제 로그에 존재하는 고유 식별자(UUID 또는 실제 숫자 ID)를 추출한 뒤 경로에 주입해 주세요. (예: /products/a1b2c3d4-...)
+- 만약 참조 로그에서 실제 ID를 도저히 찾을 수 없다면, 테스트 실행기가 런타임에 동적으로 처리할 수 있도록 /products/{productId} 와 같이 변수 템플릿 형태로 작성해 주세요.
 
 JSON STRUCTURE TEMPLATE:
 {
@@ -494,52 +496,41 @@ JSON STRUCTURE TEMPLATE:
   ]
 }
 
-Data to analyze:
+분석할 데이터:
 Project Name: ${projectName}
 Static Report:
 ${staticReport}
 Reference Log:
 ${referenceLog}
 
-Output JSON only:`;
+오직 완성된 JSON 코드 형식으로 응답해 주세요.`;
 
   try {
-    const sessionId = crypto.randomUUID();
-    const tempDir = path.join(os.tmpdir(), `agy-${sessionId}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    const { execFile } = await import('child_process');
+    const util = await import('util');
+    const fs = await import('fs');
+    const path = await import('path');
+    const os = await import('os');
+    const crypto = await import('crypto');
+    const execFilePromise = util.promisify(execFile);
+    const agyPath = "C:\\Users\\lee\\AppData\\Local\\agy\\bin\\agy.exe";
 
-    const promptFile = path.join(tempDir, 'prompt.txt');
-    const resultFile = path.join(tempDir, 'result.json');
-    const scriptFile = path.join(tempDir, 'run.ps1');
+    const tempFile = path.join(os.tmpdir(), `prompt_${crypto.randomUUID()}.txt`);
+    fs.writeFileSync(tempFile, prompt, 'utf-8');
 
-    fs.writeFileSync(promptFile, prompt, 'utf8');
+    const agentPrompt = `해당 파일(${tempFile})을 읽고 파일 안에 적힌 모든 지침에 따라 JSON을 생성해 주세요. 반드시 유효한 JSON 형식으로만 응답해야 합니다.`;
 
-    // Create PowerShell script
-    const psScript = `
-$ErrorActionPreference = 'Stop'
-[console]::InputEncoding = [System.Text.Encoding]::UTF8
-[console]::OutputEncoding = [System.Text.Encoding]::UTF8
-
-$prompt = Get-Content -Raw -Path '${promptFile}'
-
-# Execute agy and save output
-& agy --print $prompt *>&1 | Out-File -FilePath '${resultFile}' -Encoding utf8
-`;
-    fs.writeFileSync(scriptFile, psScript, 'utf8');
-
-    console.log('[AgentAPI] 백엔드에서 agy CLI (PowerShell) 실행 중...');
-    await execPromise(`powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptFile}"`, { maxBuffer: 10 * 1024 * 1024 });
-
-    if (fs.existsSync(resultFile)) {
-      const stdout = fs.readFileSync(resultFile, 'utf8');
-      console.log(`✅ [AgentAPI] agy 응답 수신 성공! (길이: ${stdout.length}자)`);
-      
-      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (e) {}
-
-      return stdout;
-    } else {
-      throw new Error("결과 파일을 찾을 수 없습니다.");
+    console.log('[AgentAPI] 백엔드에서 agy CLI 직접 실행 중... (파일 프롬프트)');
+    let stdout;
+    try {
+      const result = await execFilePromise(agyPath, ['--print', agentPrompt], { maxBuffer: 10 * 1024 * 1024 });
+      stdout = result.stdout;
+    } finally {
+      try { fs.unlinkSync(tempFile); } catch(e) {}
     }
+
+    console.log(`✅ [AgentAPI] agy 응답 수신 성공! (길이: ${stdout.length}자)`);
+    return stdout;
   } catch (error: any) {
     console.error('generateWithGemini CLI Error:', error);
     return `> ⚠️ **API Execution Error:** ${error.message}\n\n## 정적 분석 결과\n\n${staticReport}`;

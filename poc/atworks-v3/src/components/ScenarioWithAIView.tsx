@@ -471,6 +471,7 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
   const [executeLogs, setExecuteLogs] = useState<{type: string, message: string}[]>([]);
   const [executeVideoUrl, setExecuteVideoUrl] = useState<string | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
+  const executeAbortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (logsEndRef.current) {
@@ -481,6 +482,13 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
   useEffect(() => {
     setLocalCollections(collections || []);
   }, [collections]);
+
+  useEffect(() => {
+    if (executingScenarioIndex !== null) {
+      setExecuteLogs([]);
+      setExecuteVideoUrl(null);
+    }
+  }, [executingScenarioIndex]);
 
   const refreshCollections = async () => {
     setIsRefreshingCollections(true);
@@ -907,12 +915,14 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
     setIsExecuting(true);
     setExecuteLogs([]);
     setExecuteVideoUrl(null);
+    executeAbortControllerRef.current = new AbortController();
     
     try {
       const res = await fetch('/api/execute-scenario', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: executingTargetUrl, scenario })
+        body: JSON.stringify({ url: executingTargetUrl, scenario }),
+        signal: executeAbortControllerRef.current.signal
       });
       
       if (!res.body) throw new Error('No readable stream');
@@ -941,10 +951,12 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
         }
       }
     } catch (err: any) {
+      if (err.name === 'AbortError') return;
       toast.error('테스트 실행 중 오류가 발생했습니다.');
       setExecuteLogs(prev => [...prev, { type: 'error', message: err.message || 'Unknown error' }]);
     } finally {
       setIsExecuting(false);
+      executeAbortControllerRef.current = null;
     }
   };
 
@@ -1790,6 +1802,90 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
                   />
                 </div>
 
+                {executingScenarioIndex !== null && (() => {
+                  let activeStep = -1;
+                  let hasError = false;
+                  executeLogs.forEach(log => {
+                    if (log.type === 'error') hasError = true;
+                    const m = log.message.match(/\[(?:스텝|step|Step)\s*(\d+)/i);
+                    if (m) activeStep = parseInt(m[1], 10) - 1;
+                  });
+                  if (!isExecuting && executeLogs.length > 0 && !hasError) activeStep = 999;
+
+                  return (
+                    <div className="flex flex-col animate-in fade-in slide-in-from-bottom-2">
+                      <label className="block text-sm font-semibold text-gray-300 mb-2">시나리오 상세 스텝</label>
+                      <div className="bg-[#1a1b1e] border border-gray-700 rounded-lg p-3 min-h-[100px] h-40 resize-y overflow-auto space-y-2 scrollbar-thin scrollbar-thumb-gray-600">
+                        {((scenariosList[executingScenarioIndex].flow || scenariosList[executingScenarioIndex].steps || scenariosList[executingScenarioIndex].actions || scenariosList[executingScenarioIndex].scenario) || []).map((step: any, idx: number) => {
+                          let primaryText: React.ReactNode = typeof step === 'string' ? step : (step.description || step.user_action || step.userAction || step.action || step.task || step.activity || step.name || step.title || 'Action');
+                          let secondaryText: React.ReactNode = null;
+                          
+                          if (primaryText === 'Action' && typeof step === 'object') {
+                            const possibleKeys = Object.keys(step).filter(k => !['step', 'sequence', 'appName', 'screen', 'page', 'apis', 'apiCalls', 'api_call', 'apiCall', 'api', 'next_page', 'nextPage', 'type', 'target', 'endpoint', 'method'].includes(k));
+                            if (possibleKeys.length > 0 && typeof step[possibleKeys[0]] === 'string') {
+                              primaryText = step[possibleKeys[0]];
+                            }
+                          }
+                          
+                          if (typeof step === 'object' && step.type) {
+                             let techDetail: React.ReactNode = null;
+                             if (step.type === 'navigate' && step.target) {
+                               techDetail = <span>navigate &rarr; <span className="text-blue-300 font-mono text-xs">{step.target}</span></span>;
+                             } else if (step.type === 'api_call' && step.endpoint) {
+                               const isGet = (step.method || 'GET').toUpperCase() === 'GET';
+                               const methodColor = isGet ? 'text-green-400' : step.method === 'POST' ? 'text-orange-400' : step.method === 'DELETE' ? 'text-red-400' : 'text-blue-400';
+                               const extraDesc = isGet ? ' (화면 조작 없음 - 백그라운드 자동 호출)' : '';
+                               techDetail = (
+                                 <span>
+                                   api_call <span className={`font-mono text-[9px] px-1 py-0.5 rounded bg-gray-800 border border-gray-700 ${methodColor}`}>[{step.method || 'GET'}]</span> <span className="font-mono text-gray-400 text-xs ml-1">{step.endpoint}</span>
+                                   <span className="text-gray-500 text-[10px] ml-1">{extraDesc}</span>
+                                 </span>
+                               );
+                             } else if (step.type === 'submit' && step.target) {
+                               techDetail = <span>submit: <span className="text-orange-300 font-mono text-xs">{step.target}</span></span>;
+                             }
+
+                             if (step.description) {
+                               primaryText = step.description;
+                               secondaryText = techDetail;
+                             } else if (techDetail) {
+                               primaryText = techDetail;
+                               secondaryText = null;
+                             }
+                          }
+
+                          const isDone = activeStep > idx || activeStep === 999;
+                          const isCurrent = activeStep === idx && isExecuting;
+
+                          return (
+                            <div key={idx} className={`text-sm flex items-start gap-2 p-1.5 rounded-lg transition-colors ${isCurrent ? 'bg-purple-900/20 border border-purple-500/30' : 'border border-transparent'}`}>
+                              <span className="shrink-0 mt-0.5">
+                                {isDone ? (
+                                  <span className="text-green-400 text-sm">✅</span>
+                                ) : isCurrent ? (
+                                  <span className="text-purple-400 text-sm inline-block animate-spin">⏳</span>
+                                ) : (
+                                  <span className="text-gray-600 font-bold text-xs">[{idx + 1}]</span>
+                                )}
+                              </span>
+                              <div className="flex flex-col">
+                                <span className={`leading-tight break-all ${isDone ? 'text-gray-400' : isCurrent ? 'text-purple-200 font-semibold' : 'text-gray-300'}`}>
+                                  {primaryText}
+                                </span>
+                                {secondaryText && (
+                                  <span className="text-[11px] text-gray-500 mt-0.5 leading-tight">
+                                    {secondaryText}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Console Output */}
                 <div className="flex-1 min-h-[200px] flex flex-col">
                   <label className="block text-sm font-semibold text-gray-300 mb-2">실행 로그</label>
@@ -1829,6 +1925,18 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
                 >
                   닫기
                 </button>
+                {isExecuting && (
+                  <button
+                    onClick={() => {
+                      executeAbortControllerRef.current?.abort();
+                      setIsExecuting(false);
+                      setExecuteLogs(prev => [...prev, { type: 'error', message: '[시스템] 테스트가 사용자에 의해 중단되었습니다.' }]);
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-red-400 bg-red-900/30 hover:bg-red-900/50 rounded-lg transition-colors border border-red-800/50 flex items-center gap-2"
+                  >
+                    ⏹️ 중지
+                  </button>
+                )}
                 <button
                   onClick={handleStartExecution}
                   disabled={isExecuting || !executingTargetUrl}
@@ -1914,10 +2022,13 @@ export default function ScenarioWithAIView({ rootPath, collections = [], apiItem
                         if (step.type === 'navigate' && step.target) {
                           stepAction = <span>navigate &rarr; <span className="text-blue-300 font-mono text-sm">{step.target}</span></span>;
                         } else if (step.type === 'api_call' && step.endpoint) {
-                          const methodColor = step.method === 'GET' ? 'text-green-400' : step.method === 'POST' ? 'text-orange-400' : step.method === 'DELETE' ? 'text-red-400' : 'text-blue-400';
+                          const isGet = (step.method || 'GET').toUpperCase() === 'GET';
+                          const methodColor = isGet ? 'text-green-400' : step.method === 'POST' ? 'text-orange-400' : step.method === 'DELETE' ? 'text-red-400' : 'text-blue-400';
+                          const extraDesc = isGet ? ' (화면 조작 없음 - 백그라운드 자동 호출)' : '';
                           stepAction = (
                             <span>
                               api_call <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded bg-gray-800 border border-gray-700 ${methodColor}`}>[{step.method || 'GET'}]</span> <span className="font-mono text-gray-300 text-sm ml-1">{step.endpoint}</span>
+                              <span className="text-gray-500 text-xs ml-1 font-normal">{extraDesc}</span>
                             </span>
                           );
                         } else if (step.type === 'submit' && step.target) {
