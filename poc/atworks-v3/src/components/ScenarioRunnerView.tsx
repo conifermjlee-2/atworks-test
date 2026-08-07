@@ -90,6 +90,26 @@ export default function ScenarioRunnerView({ collectionId, apiItems, activeApiId
     }));
   };
 
+  const saveStep = async (step: any) => {
+    try {
+      const res = await fetch(`http://localhost:3001/apiItems/${step.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: step.editableUrl,
+          body: step.editableBody,
+        }),
+      });
+      if (res.ok) {
+        toast.success('API가 성공적으로 수정되었습니다.');
+      } else {
+        toast.error('API 수정에 실패했습니다.');
+      }
+    } catch (err) {
+      toast.error('API 수정 중 오류가 발생했습니다.');
+    }
+  };
+
   const runStep = async (step: any) => {
     if (!step.editableUrl || step.editableUrl.includes('${')) {
       setResults(prev => ({ ...prev, [step.id]: { status: 'error', error: '유효하지 않은 URL이거나 템플릿 변수(${...})가 포함되어 있습니다. 수정해주세요.' } }));
@@ -260,6 +280,12 @@ export default function ScenarioRunnerView({ collectionId, apiItems, activeApiId
                     {result.status === 'loading' && <span className="text-yellow-400 text-sm font-bold animate-pulse">Running...</span>}
                     {result.status === 'success' && <span className="text-green-400 text-sm font-bold">✅ Success</span>}
                     {result.status === 'error' && <span className="text-red-400 text-sm font-bold">❌ Failed</span>}
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); saveStep(step); }}
+                      className="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-xs text-white transition-colors"
+                    >
+                      API 수정 저장
+                    </button>
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleCopyStep(step, idx); }}
                       className="bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded text-xs text-white transition-colors"

@@ -1,0 +1,111 @@
+{
+  "GET__api_posts": {
+    "timestamp": "2026-08-05T04:27:30.735Z",
+    "endpoint": "/api/posts",
+    "method": "GET",
+    "request": {
+      "headers": {
+        "host": "localhost:4000"
+      }
+    },
+    "response": {
+      "status": 200,
+      "body": [
+        { "id": 1, "title": "First Post", "content": "Hello World!" },
+        { "id": 2, "title": "Second Post", "content": "React Query is awesome." }
+      ]
+    }
+  },
+  "GET__api_posts_1": {
+    "timestamp": "2026-08-05T04:28:10.000Z",
+    "endpoint": "/api/posts/1",
+    "method": "GET",
+    "request": {
+      "headers": {
+        "host": "localhost:4000"
+      }
+    },
+    "response": {
+      "status": 200,
+      "body": { "id": 1, "title": "First Post", "content": "Hello World!" }
+    }
+  },
+  "POST__api_posts": {
+    "timestamp": "2026-08-05T04:29:10.000Z",
+    "endpoint": "/api/posts",
+    "method": "POST",
+    "request": {
+      "headers": {
+        "host": "localhost:4000",
+        "content-type": "application/json"
+      },
+      "body": {
+        "title": "New Test Post",
+        "content": "This is a test post body."
+      }
+    },
+    "response": {
+      "status": 201,
+      "body": {
+        "id": 1700000000000,
+        "title": "New Test Post",
+        "content": "This is a test post body."
+      }
+    }
+  },
+  "GET__api_comments": {
+    "timestamp": "2026-08-05T04:28:15.000Z",
+    "endpoint": "/api/comments?postId=1",
+    "method": "GET",
+    "request": {
+      "headers": {
+        "host": "localhost:4000"
+      }
+    },
+    "response": {
+      "status": 200,
+      "body": [
+        { "id": 1, "postId": 1, "text": "Great post!" }
+      ]
+    }
+  },
+  "GET__api_notices": {
+    "timestamp": "2026-08-05T04:27:35.000Z",
+    "endpoint": "/api/notices",
+    "method": "GET",
+    "request": {
+      "headers": {
+        "host": "localhost:4000"
+      }
+    },
+    "response": {
+      "status": 200,
+      "body": [
+        { "id": 1, "title": "[공지] 점검 안내" },
+        { "id": 2, "title": "[이벤트] 신규 가입 이벤트" }
+      ]
+    }
+  },
+  "POST__api_auth_login": {
+    "timestamp": "2026-08-05T04:30:20.000Z",
+    "endpoint": "/api/auth/login",
+    "method": "POST",
+    "request": {
+      "headers": {
+        "host": "localhost:4000",
+        "content-type": "application/json"
+      },
+      "body": {
+        "username": "admin",
+        "password": "admin"
+      }
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "success": true,
+        "userId": 1
+      }
+    }
+  }
+}

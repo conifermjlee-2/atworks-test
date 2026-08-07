@@ -8,6 +8,7 @@ import ScenarioRunnerView from '@/components/ScenarioRunnerView';
 import FrontendFlowView from '@/components/FrontendFlowView';
 import ScenarioWithAIView from '@/components/ScenarioWithAIView';
 import { Toaster, toast } from 'react-hot-toast';
+import { Hexagon, Sparkles, Beaker, Network, Workflow, Settings } from 'lucide-react';
 
 export type Collection = {
   id: string;
@@ -48,6 +49,7 @@ export default function Home() {
 
   // Mode state
   const [sidebarMode, setSidebarMode] = useState<'test' | 'chaining' | 'flow' | 'scenario'>('scenario');
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
   // Load initial data
   const fetchData = async () => {
@@ -192,6 +194,7 @@ export default function Home() {
       });
       setExpandedCols(prev => ({ ...prev, [collectionId]: true }));
       setActiveApiId(newItem.id);
+      setShowAnalyzer(false);
       fetchData();
     } catch (err) {
       console.error(err);
@@ -241,172 +244,223 @@ export default function Home() {
   const visibleCollections = collections.filter(col => col.mode === sidebarMode || (sidebarMode === 'test' && !col.mode));
 
   return (
-    <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans">
+    <div className={`flex h-screen overflow-hidden font-sans ${theme === 'dark' ? 'dark bg-background text-foreground' : 'bg-white text-slate-800'}`}>
       <Toaster position="bottom-right" toastOptions={{ 
-        style: { background: '#333', color: '#fff' },
-        success: { iconTheme: { primary: '#4ade80', secondary: '#333' } },
-        error: { iconTheme: { primary: '#ef4444', secondary: '#333' } }
+        style: { background: theme === 'dark' ? '#333' : '#fff', color: theme === 'dark' ? '#fff' : '#333' },
+        success: { iconTheme: { primary: '#4ade80', secondary: theme === 'dark' ? '#333' : '#fff' } },
+        error: { iconTheme: { primary: '#ef4444', secondary: theme === 'dark' ? '#333' : '#fff' } }
       }} />
-      {/* Sidebar */}
-      <div 
-        className="flex flex-col border-r border-border bg-card/40 backdrop-blur-xl shrink-0 relative shadow-[4px_0_24px_rgba(0,0,0,0.2)]"
-        style={{ width: sidebarWidth }}
-      >
-        {/* Resizer Handle */}
+      {/* 1. Thin Dark Sidebar (Icon Bar) */}
+      <div className={`w-[72px] flex flex-col items-center py-5 border-r shrink-0 z-50 transition-colors ${theme === 'light' ? 'bg-[#f8f9fa] border-slate-200' : 'bg-[#0E0F11] border-[#1F2023]'}`}>
         <div 
-          className="absolute top-0 right-[-2px] w-1 h-full cursor-col-resize hover:bg-primary/50 z-50 transition-colors"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            isResizing.current = true;
-            document.body.style.cursor = 'col-resize';
-            document.body.style.userSelect = 'none';
-          }}
-        />
-        {/* Workspace Title & Mode Selector */}
-        <div className="flex flex-col p-4 border-b border-border space-y-4">
-          <div className="flex items-center justify-between">
-            <h1 className="font-extrabold text-lg tracking-tight truncate mr-2 bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent drop-shadow-sm">My Workspace</h1>
-            <div className="flex space-x-1 items-center">
-              <button 
-                onClick={fetchData}
-                className="text-muted-foreground hover:text-foreground px-2 leading-none flex items-center justify-center transition-colors"
-                title="새로고침 (Refresh Data)"
-              >
-                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-              </button>
-              {sidebarMode === 'chaining' && (
-                <button 
-                  onClick={() => { setActiveCollectionId(null); setShowAnalyzer(false); }}
-                  className="text-muted-foreground hover:text-foreground text-sm px-2 leading-none transition-colors"
-                  title="새 전이 스캔 (Scan New Chain)"
-                >🔍</button>
-              )}
-              <button 
-                onClick={handleAddCollection}
-                className="text-muted-foreground hover:text-foreground text-xl px-2 leading-none pb-1 transition-colors"
-                title="Add Collection"
-              >+</button>
-              <button 
-                onClick={() => setShowAnalyzer(true)}
-                className="text-muted-foreground hover:text-foreground px-2 leading-none flex items-center justify-center transition-colors"
-                title="Import Project"
-              >
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-              </button>
-            </div>
-          </div>
-          <select 
-            value={sidebarMode} 
-            onChange={e => {
-              setSidebarMode(e.target.value as 'test' | 'chaining' | 'flow' | 'scenario');
-              setShowAnalyzer(false);
-            }}
-            className="bg-input text-sm text-foreground px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary w-full shadow-sm transition-shadow appearance-none"
-          >
-            <option value="scenario" className="bg-background text-foreground">시나리오 with AI</option>
-            <option value="test" className="bg-background text-foreground">API 테스트</option>
-            <option value="chaining" className="bg-background text-foreground">API 전이 (Chaining)</option>
-            <option value="flow" className="bg-background text-foreground">프론트 흐름 (Frontend Flow)</option>
-          </select>
-          
-          {visibleCollections.length > 0 && (
-            <div className="flex items-center justify-end space-x-3 text-[11px] text-muted-foreground pt-1 font-medium">
-              <button onClick={expandAll} className="hover:text-foreground transition-colors">전체 펴기</button>
-              <button onClick={collapseAll} className="hover:text-foreground transition-colors">전체 접기</button>
-            </div>
-          )}
+          className="mb-8 select-none flex items-center justify-center cursor-pointer transition-transform hover:scale-110 active:scale-95" 
+          title="AtWorks - Home"
+          onClick={() => window.location.href = '/'}
+        >
+          <Hexagon className={`w-8 h-8 ${theme === 'light' ? 'text-purple-600' : 'text-purple-500'}`} />
         </div>
-        {/* Collections */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 pt-2 scroll-smooth">
-          {visibleCollections.map(col => (
-            <div key={col.id} className="mb-2">
-              <div 
-                className={`flex items-center justify-between cursor-pointer p-2 rounded-md transition-all duration-200 group border border-transparent ${activeCollectionId === col.id ? 'bg-primary/10 border-primary/20 text-primary shadow-[inset_0_1px_4px_rgba(99,102,241,0.1)]' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
-                onClick={() => {
-                  toggleCol(col.id);
-                  setActiveCollectionId(col.id);
-                }}
-                onDoubleClick={() => {
-                  setEditingCollectionId(col.id);
-                  setEditingCollectionName(col.name);
-                }}
-              >
-                <div className="flex items-center space-x-2 w-full overflow-hidden mr-2">
-                  <span className={`w-4 h-4 shrink-0 flex items-center justify-center text-[10px] transition-transform duration-200 ${expandedCols[col.id] ? 'rotate-90' : 'rotate-0'}`}>▶</span>
-                  {editingCollectionId === col.id ? (
-                    <input
-                      type="text"
-                      value={editingCollectionName}
-                      onChange={(e) => setEditingCollectionName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleRenameCollection(col.id);
-                        if (e.key === 'Escape') setEditingCollectionId(null);
-                      }}
-                      onBlur={() => handleRenameCollection(col.id)}
-                      autoFocus
-                      className="bg-input text-sm text-foreground px-2 py-1 border border-primary rounded-md focus:outline-none focus:ring-1 focus:ring-primary w-full shadow-sm"
-                    />
-                  ) : (
-                    <span className="font-bold text-[13px] truncate uppercase tracking-widest">{col.name}</span>
+        
+        <div className="flex flex-col space-y-4 w-full px-2 flex-1">
+          <button 
+            onClick={() => { setSidebarMode('scenario'); setShowAnalyzer(false); }}
+            className={`w-full aspect-square rounded-xl flex flex-col items-center justify-center transition-all duration-200 ${sidebarMode === 'scenario' ? (theme === 'light' ? 'bg-purple-100 text-purple-700 shadow-sm' : 'bg-purple-600/90 text-white shadow-[0_0_15px_rgba(147,51,234,0.3)]') : (theme === 'light' ? 'text-slate-500 hover:bg-slate-200 hover:text-slate-700' : 'text-[#8A8F98] hover:bg-[#1F2023] hover:text-[#EDEDEE]')}`}
+            title="Scenario with AI"
+          >
+            <Sparkles className="w-6 h-6 mb-1" />
+            <span className="text-[9px] font-medium tracking-wide">Scenario</span>
+          </button>
+          <button 
+            onClick={() => { setSidebarMode('chaining'); setShowAnalyzer(false); }}
+            className={`w-full aspect-square rounded-xl flex flex-col items-center justify-center transition-all duration-200 ${sidebarMode === 'chaining' ? (theme === 'light' ? 'bg-purple-100 text-purple-700 shadow-sm' : 'bg-purple-600/90 text-white shadow-[0_0_15px_rgba(147,51,234,0.3)]') : (theme === 'light' ? 'text-slate-500 hover:bg-slate-200 hover:text-slate-700' : 'text-[#8A8F98] hover:bg-[#1F2023] hover:text-[#EDEDEE]')}`}
+            title="API Chaining"
+          >
+            <Network className="w-6 h-6 mb-1" />
+            <span className="text-[9px] font-medium tracking-wide">Chaining</span>
+          </button>
+          <button 
+            onClick={() => { setSidebarMode('test'); setShowAnalyzer(false); }}
+            className={`w-full aspect-square rounded-xl flex flex-col items-center justify-center transition-all duration-200 ${sidebarMode === 'test' ? (theme === 'light' ? 'bg-purple-100 text-purple-700 shadow-sm' : 'bg-purple-600/90 text-white shadow-[0_0_15px_rgba(147,51,234,0.3)]') : (theme === 'light' ? 'text-slate-500 hover:bg-slate-200 hover:text-slate-700' : 'text-[#8A8F98] hover:bg-[#1F2023] hover:text-[#EDEDEE]')}`}
+            title="API Test"
+          >
+            <Beaker className="w-6 h-6 mb-1" />
+            <span className="text-[9px] font-medium tracking-wide">Test</span>
+          </button>
+          <button 
+            onClick={() => { setSidebarMode('flow'); setShowAnalyzer(false); }}
+            className={`w-full aspect-square rounded-xl flex flex-col items-center justify-center transition-all duration-200 ${sidebarMode === 'flow' ? (theme === 'light' ? 'bg-purple-100 text-purple-700 shadow-sm' : 'bg-purple-600/90 text-white shadow-[0_0_15px_rgba(147,51,234,0.3)]') : (theme === 'light' ? 'text-slate-500 hover:bg-slate-200 hover:text-slate-700' : 'text-[#8A8F98] hover:bg-[#1F2023] hover:text-[#EDEDEE]')}`}
+            title="Frontend Flow"
+          >
+            <Workflow className="w-6 h-6 mb-1" />
+            <span className="text-[9px] font-medium tracking-wide">Flow</span>
+          </button>
+        </div>
+        
+        <button className={`mt-auto p-2 transition-colors ${theme === 'light' ? 'text-slate-400 hover:text-slate-600' : 'text-[#8A8F98] hover:text-[#EDEDEE]'}`} title="Settings">
+          <Settings className="w-[22px] h-[22px]" />
+        </button>
+      </div>
+
+      {/* 2. Second Sub-sidebar (Collections/API tree) */}
+      {sidebarMode !== 'scenario' && (
+        <div 
+          className={`flex flex-col shrink-0 relative border-r transition-colors ${theme === 'light' ? 'bg-[#f4f5f7] border-slate-200 text-slate-800' : 'bg-[#1C1C1C] border-border text-foreground'}`}
+          style={{ width: sidebarWidth }}
+        >
+          {/* Resizer Handle */}
+          <div 
+            className="absolute top-0 right-[-2px] w-[3px] h-full cursor-col-resize hover:bg-purple-500/50 z-50 transition-colors"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              isResizing.current = true;
+              document.body.style.cursor = 'col-resize';
+              document.body.style.userSelect = 'none';
+            }}
+          />
+          {/* Workspace Title & Actions */}
+          <div className="flex flex-col p-4 border-b border-border">
+            <div className="flex items-center justify-between mb-3">
+              <h1 className="font-semibold text-[15px] tracking-tight text-foreground/90">
+                {sidebarMode === 'test' ? 'API Requests' : sidebarMode === 'chaining' ? 'API Chaining' : 'Flow Explorer'}
+              </h1>
+              <div className="flex space-x-1 items-center">
+                <button 
+                  onClick={fetchData}
+                  className="text-muted-foreground hover:bg-muted/80 hover:text-foreground p-1.5 rounded-md transition-colors"
+                  title="Refresh Data"
+                >
+                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                </button>
+                {sidebarMode === 'chaining' && (
+                  <button 
+                    onClick={() => { setActiveCollectionId(null); setShowAnalyzer(false); }}
+                    className="text-muted-foreground hover:bg-muted/80 hover:text-foreground text-sm p-1.5 rounded-md transition-colors"
+                    title="Scan New Chain"
+                  >🔍</button>
+                )}
+                <button 
+                  onClick={handleAddCollection}
+                  className="text-muted-foreground hover:bg-muted/80 hover:text-foreground text-lg p-1.5 rounded-md leading-none flex items-center justify-center transition-colors"
+                  title="Add Collection"
+                >+</button>
+                {sidebarMode !== 'chaining' && (
+                  <button 
+                    onClick={() => setShowAnalyzer(true)}
+                    className="text-muted-foreground hover:bg-muted/80 hover:text-foreground p-1.5 rounded-md transition-colors"
+                    title="Import Project"
+                  >
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            {visibleCollections.length > 0 && (
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground/70 font-medium px-1">
+                <span>{visibleCollections.length} COLLECTIONS</span>
+                <div className="flex space-x-3">
+                  <button onClick={expandAll} className="hover:text-foreground transition-colors">Expand All</button>
+                  <button onClick={collapseAll} className="hover:text-foreground transition-colors">Collapse All</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Collections List */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-1 scroll-smooth">
+            {visibleCollections.map(col => (
+              <div key={col.id} className="mb-1">
+                <div 
+                  className={`flex items-center justify-between cursor-pointer px-2 py-1.5 rounded-md transition-colors group border border-transparent ${activeCollectionId === col.id ? 'bg-muted/80 text-foreground font-medium' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
+                  onClick={() => {
+                    toggleCol(col.id);
+                    setActiveCollectionId(col.id);
+                  }}
+                  onDoubleClick={() => {
+                    setEditingCollectionId(col.id);
+                    setEditingCollectionName(col.name);
+                  }}
+                >
+                  <div className="flex items-center space-x-1.5 w-full overflow-hidden mr-2">
+                    <span className={`w-4 h-4 shrink-0 flex items-center justify-center text-[10px] transition-transform duration-200 text-muted-foreground/60 ${expandedCols[col.id] ? 'rotate-90' : 'rotate-0'}`}>▶</span>
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="shrink-0 text-muted-foreground/70"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                    {editingCollectionId === col.id ? (
+                      <input
+                        type="text"
+                        value={editingCollectionName}
+                        onChange={(e) => setEditingCollectionName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleRenameCollection(col.id);
+                          if (e.key === 'Escape') setEditingCollectionId(null);
+                        }}
+                        onBlur={() => handleRenameCollection(col.id)}
+                        autoFocus
+                        className="bg-background text-sm text-foreground px-1.5 py-0.5 border border-primary/50 rounded focus:outline-none focus:ring-1 focus:ring-primary w-full"
+                      />
+                    ) : (
+                      <span className="text-[13px] truncate">{col.name}</span>
+                    )}
+                  </div>
+                  {editingCollectionId !== col.id && (
+                    <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleAddApi(col.id); }}
+                        className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted transition-colors"
+                        title="Add API"
+                      ><svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg></button>
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setEditingCollectionId(col.id); 
+                          setEditingCollectionName(col.name); 
+                        }}
+                        className="text-muted-foreground hover:text-blue-500 p-1 rounded hover:bg-muted transition-colors"
+                        title="Rename"
+                      ><svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); deleteCollection(col.id); }}
+                        className="text-muted-foreground hover:text-red-500 p-1 rounded hover:bg-muted transition-colors"
+                        title="Delete"
+                      ><svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                    </div>
                   )}
                 </div>
-                {editingCollectionId !== col.id && (
-                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleAddApi(col.id); }}
-                      className="text-muted-foreground hover:text-foreground px-1.5 py-1 rounded-md hover:bg-muted transition-colors"
-                      title="Add API"
-                    >+</button>
-                    <button 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        setEditingCollectionId(col.id); 
-                        setEditingCollectionName(col.name); 
-                      }}
-                      className="text-muted-foreground hover:text-blue-400 px-1.5 py-1 rounded-md hover:bg-muted transition-colors"
-                      title="Rename Collection"
-                    >✎</button>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); deleteCollection(col.id); }}
-                      className="text-muted-foreground hover:text-red-400 px-1.5 py-1 rounded-md hover:bg-muted transition-colors"
-                      title="Delete Collection"
-                    >×</button>
+                {expandedCols[col.id] && (
+                  <div className="space-y-0.5 mt-0.5 ml-4 border-l border-border/50 pl-2">
+                    {apiItems.filter(api => api.collectionId === col.id).map(api => (
+                      <div 
+                        key={api.id}
+                        onClick={() => {
+                          setActiveApiId(api.id);
+                          setShowAnalyzer(false);
+                          if (sidebarMode === 'chaining') {
+                            setActiveCollectionId(api.collectionId);
+                          }
+                        }}
+                        className={`flex items-center pl-2 pr-2 py-1.5 rounded-md cursor-pointer text-[12.5px] group transition-colors relative ${activeApiId === api.id ? 'bg-primary/10 text-foreground font-medium' : 'hover:bg-muted/40 text-muted-foreground hover:text-foreground'}`}
+                      >
+                        {activeApiId === api.id && (
+                          <div className="absolute left-[-9px] top-[50%] translate-y-[-50%] w-[3px] h-[16px] bg-primary rounded-r-full" />
+                        )}
+                        <span className={`${getMethodColor(api.method)} font-semibold text-[10px] w-10 shrink-0`}>
+                          {api.method}
+                        </span>
+                        <span className="truncate flex-1">{api.name}</span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteApi(api.id); }}
+                          className="text-muted-foreground hover:text-destructive p-1 rounded hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Delete"
+                        >
+                          <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
-              {expandedCols[col.id] && (
-                <div className="space-y-1 mt-1.5 origin-top animate-in fade-in slide-in-from-top-2 duration-200">
-                  {apiItems.filter(api => api.collectionId === col.id).map(api => (
-                    <div 
-                      key={api.id}
-                      onClick={() => {
-                        setActiveApiId(api.id);
-                        setShowAnalyzer(false);
-                        if (sidebarMode === 'chaining') {
-                          setActiveCollectionId(api.collectionId);
-                        }
-                      }}
-                      className={`flex items-center pl-8 pr-2 py-1.5 rounded-md cursor-pointer text-[13px] group transition-colors ${activeApiId === api.id ? 'bg-primary/20 text-foreground font-medium shadow-[inset_2px_0_0_var(--color-primary)]' : 'hover:bg-muted/40 text-muted-foreground hover:text-foreground'}`}
-                    >
-                      <span className={`${getMethodColor(api.method)} font-bold text-[10px] w-10 shrink-0`}>
-                        {api.method}
-                      </span>
-                      <span className="truncate flex-1">{api.name}</span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteApi(api.id); }}
-                        className="text-muted-foreground hover:text-destructive px-1.5 py-0.5 rounded-sm hover:bg-muted opacity-0 group-hover:opacity-100 transition-all text-sm leading-none"
-                        title="Delete API"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Area */}
       {showAnalyzer ? (
@@ -437,6 +491,8 @@ export default function Home() {
           apiItems={apiItems}
           onSave={fetchData}
           onClose={() => setSidebarMode('test')}
+          theme={theme}
+          onThemeToggle={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
         />
       ) : sidebarMode === 'flow' ? (
         <FrontendFlowView 

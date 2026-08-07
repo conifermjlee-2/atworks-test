@@ -12,3 +12,9 @@
 
 각 기능 패키지 내부에 Controller, Service, Repository, Entity, Dto가 모두 뭉쳐 있어야 합니다. (예: `com.atworks.backend.validation.SwaggerAnalyzerController`)
 절대 `com.atworks.backend.controller.*` 처럼 흩어놓지 마세요.
+
+# 서브 에이전트 및 병렬 처리 기본 원칙
+
+메인 에이전트는 항상 직접 코딩하는 대신 전문화된 **서브 에이전트**를 생성(invoke_subagent)하여 작업을 위임해야 합니다.
+단일 작업이 분할 가능한 경우, 여러 서브 에이전트를 동시에 호출하여 **병렬 처리(Parallel processing)**를 수행해야 합니다.
+이 원칙은 세션이 재시작되더라도 항상 유지되어야 합니다.

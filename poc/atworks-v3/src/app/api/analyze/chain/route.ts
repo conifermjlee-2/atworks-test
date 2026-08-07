@@ -85,21 +85,21 @@ export async function POST(request: Request) {
 
                   let realUrl = '';
                   let realMethod = method;
-                  const queryProp = configObj.properties.find((p: any) => p.key && p.key.name === 'query');
-                  if (queryProp) {
+                  const queryProp = configObj.properties.find((p: any) => p.type === 'ObjectProperty' && p.key && p.key.name === 'query') as any;
+                  if (queryProp && queryProp.value) {
                     if (queryProp.value.type === 'ArrowFunctionExpression' || queryProp.value.type === 'FunctionExpression') {
                       const body = queryProp.value.body;
-                      if (body.type === 'ObjectExpression') {
-                        const urlProp = body.properties.find((p: any) => p.key && p.key.name === 'url');
-                        const mProp = body.properties.find((p: any) => p.key && p.key.name === 'method');
-                        if (urlProp) {
+                      if (body && body.type === 'ObjectExpression') {
+                        const urlProp = body.properties.find((p: any) => p.type === 'ObjectProperty' && p.key && p.key.name === 'url') as any;
+                        const mProp = body.properties.find((p: any) => p.type === 'ObjectProperty' && p.key && p.key.name === 'method') as any;
+                        if (urlProp && urlProp.value) {
                           if (urlProp.value.type === 'StringLiteral') realUrl = urlProp.value.value;
                           else if (urlProp.value.type === 'TemplateLiteral') {
                             // Extract basic template literal string
                             realUrl = urlProp.value.quasis.map((q: any) => q.value.raw).join('{param}');
                           }
                         }
-                        if (mProp && mProp.value.type === 'StringLiteral') realMethod = mProp.value.value.toUpperCase();
+                        if (mProp && mProp.value && mProp.value.type === 'StringLiteral') realMethod = mProp.value.value.toUpperCase();
                       }
                     } else if (queryProp.value.type === 'StringLiteral') {
                       realUrl = queryProp.value.value;
@@ -107,26 +107,26 @@ export async function POST(request: Request) {
                   }
                   
                   const extractTags = (propName: string) => {
-                    const prop = configObj.properties.find((p: any) => p.key && p.key.name === propName);
-                    if (!prop) return [];
+                    const prop = configObj.properties.find((p: any) => p.type === 'ObjectProperty' && p.key && p.key.name === propName) as any;
+                    if (!prop || !prop.value) return [];
                     const tags: any[] = [];
                     if (prop.value.type === 'ArrayExpression') {
                       prop.value.elements.forEach((el: any) => {
                         if (el && el.type === 'StringLiteral') tags.push(el.value);
                         else if (el && el.type === 'ObjectExpression') {
-                          const typeProp = el.properties.find((p: any) => p.key && p.key.name === 'type');
-                          if (typeProp && typeProp.value.type === 'StringLiteral') tags.push(typeProp.value.value);
+                          const typeProp = el.properties.find((p: any) => p.type === 'ObjectProperty' && p.key && p.key.name === 'type') as any;
+                          if (typeProp && typeProp.value && typeProp.value.type === 'StringLiteral') tags.push(typeProp.value.value);
                         }
                       });
                     }
                     else if (prop.value.type === 'ArrowFunctionExpression' || prop.value.type === 'FunctionExpression') {
                       const body = prop.value.body;
-                      if (body.type === 'ArrayExpression') {
+                      if (body && body.type === 'ArrayExpression') {
                         body.elements.forEach((el: any) => {
                           if (el && el.type === 'StringLiteral') tags.push(el.value);
                           else if (el && el.type === 'ObjectExpression') {
-                            const typeProp = el.properties.find((p: any) => p.key && p.key.name === 'type');
-                            if (typeProp && typeProp.value.type === 'StringLiteral') tags.push(typeProp.value.value);
+                            const typeProp = el.properties.find((p: any) => p.type === 'ObjectProperty' && p.key && p.key.name === 'type') as any;
+                            if (typeProp && typeProp.value && typeProp.value.type === 'StringLiteral') tags.push(typeProp.value.value);
                           }
                         });
                       }
@@ -300,7 +300,7 @@ export async function POST(request: Request) {
             
             // Allow resolvedLine from useQuery/useSWR (though they fall through here)
             let finalLine = pathNode.node.loc?.start.line || 0;
-            if ((callee.name === 'useQuery' || callee.name === 'useSWR') && (pathNode as any).__resolvedLine) {
+            if (callee.type === 'Identifier' && (callee.name === 'useQuery' || callee.name === 'useSWR') && (pathNode as any).__resolvedLine) {
                 finalLine = (pathNode as any).__resolvedLine;
             }
 

@@ -1,0 +1,582 @@
+import os, pathlib
+
+REPORT = pathlib.Path(r'C:\Users\lee\Desktop\atworks-test\poc\atworks-v3\report\index.html')
+
+html_content = """<!DOCTYPE html>
+<html lang="ko" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프론트 소스 + API 로그 + AI 결합 리포트</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Pretendard', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            900: '#1e3a8a',
+                        },
+                        dark: {
+                            900: '#09090b',
+                            800: '#18181b',
+                            700: '#27272a',
+                            600: '#3f3f46',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #09090b; color: #e4e4e7; }
+        .glass-panel {
+            background: rgba(24, 24, 27, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        /* Auto-cycling card active states */
+        .pipeline-card {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .pipeline-card.active-step {
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.3) 0%, rgba(88, 28, 135, 0.3) 100%);
+            border-color: rgba(96, 165, 250, 0.6);
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3), 0 0 15px rgba(167, 139, 250, 0.2);
+            transform: translateY(-4px);
+        }
+        .pipeline-card.active-step .badge-num {
+            background-color: #3b82f6;
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.8);
+        }
+        .pipeline-card.active-step .card-title {
+            color: #93c5fd;
+        }
+        .pipeline-card.active-step .card-desc {
+            color: #e4e4e7;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #09090b; }
+        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+    </style>
+</head>
+<body class="antialiased selection:bg-brand-500 selection:text-white">
+
+    <!-- Background Effects -->
+    <div class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
+        <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-brand-900/30 blur-[120px]"></div>
+        <div class="absolute top-[40%] right-[-10%] w-[30%] h-[50%] rounded-full bg-purple-900/20 blur-[100px]"></div>
+        <div class="absolute bottom-[-10%] left-[20%] w-[30%] h-[30%] rounded-full bg-emerald-900/20 blur-[100px]"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-50 glass-panel border-b border-white/5 shadow-lg">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg shadow-brand-500/30">a</div>
+                <span class="font-bold text-lg tracking-tight text-white">atworks<span class="text-brand-400">v3</span></span>
+            </div>
+            <div class="flex gap-1 text-sm font-medium">
+                <a href="#scenario" class="px-4 py-2 text-zinc-400 hover:text-white transition-colors rounded-md hover:bg-white/5">AI 시나리오</a>
+                <a href="#chaining" class="px-4 py-2 text-zinc-400 hover:text-white transition-colors rounded-md hover:bg-white/5">API 전이(Chaining)</a>
+                <a href="#apitest" class="px-4 py-2 text-zinc-400 hover:text-white transition-colors rounded-md hover:bg-white/5">API 추출 테스트</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="max-w-7xl mx-auto px-6 pt-24 pb-12">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-500/30 bg-brand-500/10 text-brand-400 text-xs font-semibold uppercase tracking-wider mb-8">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-brand-500"></span>
+            </span>
+            Architecture Report
+        </div>
+        
+        <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight mb-8 leading-tight text-white">
+            프론트 소스 + API 로그 <br />
+            <span class="gradient-text">+ AI 결합 파이프라인</span>
+        </h1>
+        
+        <p class="text-lg md:text-xl text-zinc-400 max-w-3xl leading-relaxed mb-10">
+            단순히 코드를 읽는 것을 넘어, <strong class="text-white">AST(정적 분석)</strong>와 <strong class="text-white">실제 API 구동 로그</strong>를 <strong class="text-brand-400">LLM</strong>에 주입하여, 완벽한 사용자 여정(User Journey) 기반의 E2E 테스트 시나리오를 자동으로 구축합니다.
+        </p>
+
+        <div class="flex flex-wrap items-center gap-4 mb-8">
+            <a href="#scenario" class="px-6 py-3 rounded-lg bg-white text-black font-semibold hover:bg-zinc-200 transition-colors flex items-center gap-2 shadow-lg">
+                리포트 살펴보기
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </a>
+            <div class="px-6 py-3 rounded-lg glass-panel text-zinc-300 font-medium flex items-center gap-2 border border-white/10">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-400"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                Next.js App Router 호환
+            </div>
+            
+            <button id="togglePrinciplesBtn" onclick="togglePrinciples()" class="px-5 py-3 rounded-lg bg-brand-500/10 border border-brand-500/30 text-brand-400 hover:bg-brand-500/20 font-medium transition-all flex items-center gap-2 group">
+                <span class="text-sm">🔬 소스 분석 원리 보기</span>
+                <svg id="arrowIcon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform duration-300"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+        </div>
+
+        <!-- Collapsible Source Code Analysis Principles Box -->
+        <div id="principlesPanel" class="transition-all duration-500 ease-in-out max-h-0 opacity-0 overflow-hidden">
+            <div class="glass-panel p-8 rounded-2xl border border-brand-500/30 bg-dark-800/90 relative my-6 shadow-2xl">
+                <div class="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 rounded-lg bg-brand-500/20 text-brand-400">⚡</div>
+                        <h3 class="text-xl font-bold text-white">프론트엔드 소스 분석(AST) 작동 원리</h3>
+                    </div>
+                    <span class="text-xs font-mono text-zinc-400 bg-white/5 px-3 py-1 rounded-full">Static Analysis Engine</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-dark-900/80 p-5 rounded-xl border border-white/5">
+                        <div class="text-brand-400 font-bold mb-2 text-sm flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-full bg-brand-500/20 flex items-center justify-center text-xs">1</span>
+                            Babel AST 파싱
+                        </div>
+                        <p class="text-xs text-zinc-400 leading-relaxed">
+                            JSX/TSX 소스코드를 런타임 실행 없이 AST(추상 구문 트리) 구조체로 변환합니다. 모든 컴포넌트, Hook, 함수 호출부를 노드 단위로 정밀 추적합니다.
+                        </p>
+                    </div>
+
+                    <div class="bg-dark-900/80 p-5 rounded-xl border border-white/5">
+                        <div class="text-purple-400 font-bold mb-2 text-sm flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-xs">2</span>
+                            Action → API 맵핑
+                        </div>
+                        <p class="text-xs text-zinc-400 leading-relaxed">
+                            버튼 클릭(onClick), 폼 제출(onSubmit) 등의 사용자 액션 핸들러 내부에서 호출되는 fetch, axios, useQuery 식별자를 바인딩합니다.
+                        </p>
+                    </div>
+
+                    <div class="bg-dark-900/80 p-5 rounded-xl border border-white/5">
+                        <div class="text-emerald-400 font-bold mb-2 text-sm flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-xs">3</span>
+                            Evidence Graph 생성
+                        </div>
+                        <p class="text-xs text-zinc-400 leading-relaxed">
+                            화면 경로(Route) → 사용자 액션 → API 엔드포인트 → 전송 타입(Payload)으로 이어지는 연관 관계 그래프를 도출하여 LLM 입력 프롬프트로 변환합니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 1: AI SCENARIO -->
+    <section id="scenario" class="max-w-7xl mx-auto px-6 py-24 border-t border-white/5">
+        <div class="mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold text-white mb-4 flex items-center gap-4">
+                <div class="p-2 rounded-lg bg-purple-500/20 text-purple-400"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+                시나리오 with AI
+            </h2>
+            <p class="text-zinc-400 text-lg max-w-3xl">프론트엔드 소스코드의 정적 구조(AST)와 네트워크에서 캡처된 실제 API 로그를 융합하여 LLM이 사용자 행동 기반의 테스트 스텝을 역추적합니다.</p>
+        </div>
+
+        <!-- Pipeline Flow with Auto-cycling Highlight Animation -->
+        <div class="glass-panel p-8 rounded-2xl mb-12 relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-32 bg-brand-500/10 blur-[100px] rounded-full"></div>
+            
+            <div class="flex items-center justify-between mb-8 border-b border-white/10 pb-4">
+                <h3 class="text-lg font-bold text-white">End-to-End 파이프라인</h3>
+                <span class="text-xs text-zinc-500 flex items-center gap-1.5 font-mono">
+                    <span class="w-2 h-2 rounded-full bg-brand-500 animate-ping"></span>
+                    2초 간격 순차 탐색 중 (마우스 호버 시 일시정지)
+                </span>
+            </div>
+            
+            <div id="pipelineContainer" class="flex flex-col md:flex-row gap-4 items-stretch justify-between relative z-10">
+                <!-- Step 1 -->
+                <div class="pipeline-card active-step flex-1 bg-dark-800/80 border border-white/10 p-5 rounded-xl relative cursor-pointer" data-step="0">
+                    <div class="badge-num absolute -top-3 -right-3 w-8 h-8 rounded-full bg-dark-700 border border-white/20 flex items-center justify-center text-xs font-bold text-zinc-400 transition-colors">01</div>
+                    <div class="text-2xl mb-3">📁</div>
+                    <h4 class="card-title font-bold text-white mb-2 text-sm transition-colors">프론트 소스 입력</h4>
+                    <p class="card-desc text-xs text-zinc-400 leading-relaxed transition-colors">로컬 프로젝트 경로를 지정하여 컴포넌트와 Route를 탐색합니다.</p>
+                </div>
+                
+                <div class="hidden md:flex items-center justify-center text-zinc-600"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
+                
+                <!-- Step 2 -->
+                <div class="pipeline-card flex-1 bg-dark-800/80 border border-white/10 p-5 rounded-xl relative cursor-pointer" data-step="1">
+                    <div class="badge-num absolute -top-3 -right-3 w-8 h-8 rounded-full bg-dark-700 border border-white/20 flex items-center justify-center text-xs font-bold text-zinc-400 transition-colors">02</div>
+                    <div class="text-2xl mb-3">📋</div>
+                    <h4 class="card-title font-bold text-white mb-2 text-sm transition-colors">API 로그 결합</h4>
+                    <p class="card-desc text-xs text-zinc-400 leading-relaxed transition-colors">실제 브라우저 Network 탭에서 추출한 JSON 형태의 request/response 로그를 주입합니다.</p>
+                </div>
+                
+                <div class="hidden md:flex items-center justify-center text-zinc-600"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
+                
+                <!-- Step 3 -->
+                <div class="pipeline-card flex-1 bg-dark-800/80 border border-white/10 p-5 rounded-xl relative cursor-pointer" data-step="2">
+                    <div class="badge-num absolute -top-3 -right-3 w-8 h-8 rounded-full bg-dark-700 border border-white/20 flex items-center justify-center text-xs font-bold text-zinc-400 transition-colors">03</div>
+                    <div class="text-2xl mb-3">🧠</div>
+                    <h4 class="card-title font-bold text-white mb-2 text-sm transition-colors">LLM 분석 (AI)</h4>
+                    <p class="card-desc text-xs text-zinc-400 leading-relaxed transition-colors">AST Evidence Graph와 로그 Payload를 기반으로 LLM이 여정을 유추합니다.</p>
+                </div>
+                
+                <div class="hidden md:flex items-center justify-center text-zinc-600"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
+                
+                <!-- Step 4 -->
+                <div class="pipeline-card flex-1 bg-dark-800/80 border border-white/10 p-5 rounded-xl relative cursor-pointer" data-step="3">
+                    <div class="badge-num absolute -top-3 -right-3 w-8 h-8 rounded-full bg-dark-700 border border-white/20 flex items-center justify-center text-xs font-bold text-zinc-400 transition-colors">04</div>
+                    <div class="text-2xl mb-3">⚡</div>
+                    <h4 class="card-title font-bold text-white mb-2 text-sm transition-colors">시나리오 실행</h4>
+                    <p class="card-desc text-xs text-zinc-400 leading-relaxed transition-colors">도출된 순차적 스텝을 컬렉션으로 만들고 원클릭으로 통합 테스트를 수행합니다.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Code View -->
+            <div class="rounded-xl overflow-hidden border border-white/10 bg-[#0d1117] flex flex-col">
+                <div class="bg-white/5 border-b border-white/10 px-4 py-3 flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+                    <span class="ml-2 text-xs font-mono text-zinc-400">ScenarioWithAIView.tsx</span>
+                </div>
+                <div class="p-6 overflow-x-auto text-sm font-mono leading-loose text-zinc-300">
+<span class="text-zinc-500">// LLM 통합 분석 API 호출</span>
+<span class="text-purple-400">const</span> <span class="text-blue-400">response</span> <span class="text-purple-400">=</span> <span class="text-purple-400">await</span> <span class="text-yellow-200">fetch</span>(<span class="text-green-400">'/api/analyze/prompt-scenario'</span>, {
+  <span class="text-zinc-200">method:</span> <span class="text-green-400">'POST'</span>,
+  <span class="text-zinc-200">headers:</span> { <span class="text-green-400">'Content-Type'</span>: <span class="text-green-400">'application/json'</span> },
+  <span class="text-zinc-200">body:</span> <span class="text-emerald-400">JSON</span>.<span class="text-yellow-200">stringify</span>({
+    <span class="text-zinc-200">rootPath:</span> sourcePath,      <span class="text-zinc-500">// AST를 위한 소스 경로</span>
+    <span class="text-zinc-200">apiLogs:</span> parsedLogs,       <span class="text-zinc-500">// 실제 구동 로그 </span>
+    <span class="text-zinc-200">customPrompt:</span> userPrompt   <span class="text-zinc-500">// 사용자 커스텀 쿼리</span>
+  })
+});
+
+<span class="text-purple-400">const</span> { <span class="text-blue-400">scenario</span> } <span class="text-purple-400">=</span> <span class="text-purple-400">await</span> <span class="text-blue-400">response</span>.<span class="text-yellow-200">json</span>();
+<span class="text-zinc-500">// 반환: { steps, scenarioName, description }</span>
+                </div>
+            </div>
+
+            <!-- Log JSON View -->
+            <div class="rounded-xl overflow-hidden border border-brand-500/30 bg-brand-900/10 flex flex-col relative">
+                <div class="absolute top-0 right-0 text-[100px] opacity-5">📋</div>
+                <div class="bg-brand-500/10 border-b border-brand-500/20 px-4 py-3 flex items-center justify-between">
+                    <span class="text-xs font-mono font-bold text-brand-400 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                        api_logs.json 예시
+                    </span>
+                    <span class="text-[10px] uppercase tracking-widest text-brand-400/70 border border-brand-500/30 px-2 py-0.5 rounded-full">Payload Data</span>
+                </div>
+                <div class="p-6 overflow-x-auto text-[13px] font-mono leading-relaxed text-zinc-300">
+<span class="text-brand-300">"POST__api_orders"</span>: {
+  <span class="text-brand-300">"timestamp"</span>: <span class="text-emerald-300">"2026-08-05T04:30:12.511Z"</span>,
+  <span class="text-brand-300">"method"</span>: <span class="text-emerald-300">"POST"</span>,
+  <span class="text-brand-300">"endpoint"</span>: <span class="text-emerald-300">"/api/orders"</span>,
+  <span class="text-brand-300">"request"</span>: {
+    <span class="text-brand-300">"body"</span>: {
+      <span class="text-brand-300">"items"</span>: [ { <span class="text-brand-300">"productId"</span>: <span class="text-emerald-300">"prod-1"</span>, <span class="text-brand-300">"qty"</span>: <span class="text-orange-300">2</span> } ],
+      <span class="text-brand-300">"paymentMethod"</span>: <span class="text-emerald-300">"card"</span>
+    }
+  },
+  <span class="text-brand-300">"response"</span>: {
+    <span class="text-brand-300">"status"</span>: <span class="text-orange-300">200</span>,
+    <span class="text-brand-300">"body"</span>: { <span class="text-brand-300">"success"</span>: <span class="text-purple-300">true</span>, <span class="text-brand-300">"orderId"</span>: <span class="text-emerald-300">"ORD-123"</span> }
+  }
+}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 2: API CHAINING -->
+    <section id="chaining" class="max-w-7xl mx-auto px-6 py-24 border-t border-white/5 relative">
+        <!-- Glow effect -->
+        <div class="absolute left-0 top-[20%] w-[500px] h-[500px] bg-emerald-500/10 blur-[150px] rounded-full pointer-events-none"></div>
+        
+        <div class="mb-16 relative z-10">
+            <h2 class="text-3xl md:text-4xl font-bold text-white mb-4 flex items-center gap-4">
+                <div class="p-2 rounded-lg bg-emerald-500/20 text-emerald-400"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.4 10.6a2.83 2.83 0 1 1 4-4l4.6 4.6a2.83 2.83 0 1 1-4 4l-1.4-1.4"/><path d="M10.6 13.4a2.83 2.83 0 1 1-4 4l-4.6-4.6a2.83 2.83 0 1 1 4-4l1.4 1.4"/><line x1="8" x2="16" y1="16" y2="8"/></svg></div>
+                API 테스트 전이(Chaining) 탐지
+            </h2>
+            <p class="text-zinc-400 text-lg max-w-3xl">프론트엔드 코드 내부의 API 간 논리적 연쇄 호출(ex. 생성 후 갱신, 종속 데이터 호출) 패턴을 AST 기반으로 완벽하게 추적하여 연결고리를 도출합니다.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 relative z-10">
+            <div class="glass-panel p-6 rounded-xl border border-emerald-500/20 hover:border-emerald-500/50 transition-colors">
+                <div class="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center text-emerald-400 mb-4 font-bold font-mono text-sm">RQ</div>
+                <h3 class="text-white font-bold mb-2">onSuccess 연쇄</h3>
+                <p class="text-zinc-400 text-sm">react-query의 <code>useMutation</code> 성공 콜백 내 <code>invalidateQueries</code> 패턴을 감지하여 이어지는 GET 요청을 자동으로 연결합니다.</p>
+            </div>
+            
+            <div class="glass-panel p-6 rounded-xl border border-teal-500/20 hover:border-teal-500/50 transition-colors">
+                <div class="w-12 h-12 bg-teal-500/20 rounded-lg flex items-center justify-center text-teal-400 mb-4 font-bold font-mono text-sm">RTK</div>
+                <h3 class="text-white font-bold mb-2">invalidatesTags</h3>
+                <p class="text-zinc-400 text-sm">Redux Toolkit Query의 뮤테이션 시 무효화되는 캐시 태그를 매핑하여 관련된 데이터를 재조회하는 흐름을 찾아냅니다.</p>
+            </div>
+            
+            <div class="glass-panel p-6 rounded-xl border border-cyan-500/20 hover:border-cyan-500/50 transition-colors">
+                <div class="w-12 h-12 bg-cyan-500/20 rounded-lg flex items-center justify-center text-cyan-400 mb-4 font-bold font-mono text-sm">HOOK</div>
+                <h3 class="text-white font-bold mb-2">useEffect 의존성</h3>
+                <p class="text-zinc-400 text-sm"><code>useEffect</code> 의존성 배열에 이전 API 결과값이 포함된 경우, 라이프사이클에 따른 순차 호출 시나리오를 구성합니다.</p>
+            </div>
+        </div>
+
+        <!-- Chaining Result Example -->
+        <div class="glass-panel border-emerald-500/20 rounded-xl overflow-hidden relative z-10">
+            <div class="bg-emerald-500/10 border-b border-emerald-500/20 px-6 py-4 flex items-center gap-3">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="text-sm font-bold text-emerald-400">AST 연쇄 탐지 결과 구조 시각화</span>
+            </div>
+            <div class="p-6 md:p-8 font-mono text-sm leading-loose">
+                <div class="text-emerald-400/80 mb-2 font-bold">src/hooks/useOrder.ts (2개 시나리오 탐지됨)</div>
+                <div class="text-zinc-500 mb-4 text-xs">------------------------------------------</div>
+                
+                <div class="ml-4 border-l-2 border-emerald-900 pl-4 relative">
+                    <div class="absolute w-3 h-3 bg-dark-900 border-2 border-orange-500 rounded-full -left-[9px] top-2"></div>
+                    <div class="text-orange-400 font-bold mb-1">[01] 👆 EVENT useMutation (Line: 47)</div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="px-2 py-0.5 rounded bg-brand-500/20 text-brand-400 text-xs font-bold">POST</span>
+                        <span class="text-white">/api/orders</span>
+                    </div>
+                    
+                    <div class="mt-4 ml-2 border-l-2 border-dashed border-emerald-500/40 pl-6 relative">
+                        <div class="absolute -left-3 top-0 text-emerald-400 text-lg bg-dark-900">↳</div>
+                        <div class="text-emerald-400 mb-2 text-xs font-bold bg-emerald-500/10 inline-block px-2 py-1 rounded">
+                            🔄 onSuccess (Line: 52) → invalidateQueries → 자동 재요청 유발
+                        </div>
+                        
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-xs font-bold">GET</span>
+                            <span class="text-white">/api/orders</span>
+                            <span class="text-zinc-500 text-xs">src/hooks/useOrders.ts</span>
+                        </div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-xs font-bold">GET</span>
+                            <span class="text-white">/api/cart</span>
+                            <span class="text-zinc-500 text-xs">src/components/CartView.tsx</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 3: API TEST -->
+    <section id="apitest" class="max-w-7xl mx-auto px-6 py-24 border-t border-white/5">
+        <div class="mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold text-white mb-4 flex items-center gap-4">
+                <div class="p-2 rounded-lg bg-orange-500/20 text-orange-400"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg></div>
+                API 추출 및 테스트
+            </h2>
+            <p class="text-zinc-400 text-lg max-w-3xl">코드베이스 전체를 스캔하여 흩어진 모든 엔드포인트를 찾아내고, 신뢰도(Confidence) 등급을 매겨 통합 API 컬렉션으로 구축합니다.</p>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-16">
+            <div class="bg-dark-800 border border-white/5 p-4 rounded-xl text-center hover:bg-white/5 transition-colors">
+                <div class="text-xl font-mono text-white font-bold mb-1">fetch</div>
+                <div class="text-[10px] text-zinc-500 uppercase tracking-widest">Native</div>
+            </div>
+            <div class="bg-dark-800 border border-white/5 p-4 rounded-xl text-center hover:bg-white/5 transition-colors">
+                <div class="text-xl font-mono text-white font-bold mb-1">axios</div>
+                <div class="text-[10px] text-zinc-500 uppercase tracking-widest">Client</div>
+            </div>
+            <div class="bg-dark-800 border border-white/5 p-4 rounded-xl text-center hover:bg-white/5 transition-colors">
+                <div class="text-xl font-mono text-white font-bold mb-1">useQuery</div>
+                <div class="text-[10px] text-zinc-500 uppercase tracking-widest">TanStack</div>
+            </div>
+            <div class="bg-dark-800 border border-white/5 p-4 rounded-xl text-center hover:bg-white/5 transition-colors">
+                <div class="text-xl font-mono text-white font-bold mb-1">useSWR</div>
+                <div class="text-[10px] text-zinc-500 uppercase tracking-widest">Vercel</div>
+            </div>
+            <div class="bg-dark-800 border border-white/5 p-4 rounded-xl text-center hover:bg-white/5 transition-colors">
+                <div class="text-xl font-mono text-white font-bold mb-1">Route</div>
+                <div class="text-[10px] text-zinc-500 uppercase tracking-widest">Next.js</div>
+            </div>
+            <div class="bg-dark-800 border border-orange-500/20 p-4 rounded-xl text-center hover:bg-orange-500/10 transition-colors">
+                <div class="text-xl font-mono text-orange-400 font-bold mb-1">Custom</div>
+                <div class="text-[10px] text-orange-500/70 uppercase tracking-widest">Heuristic</div>
+            </div>
+        </div>
+
+        <!-- Confidence Table -->
+        <div class="glass-panel rounded-xl overflow-hidden border border-white/10">
+            <div class="bg-white/5 px-6 py-4 border-b border-white/10 flex justify-between items-center">
+                <h3 class="font-bold text-white">추출 후보 리스트 (Confidence 기반)</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-white/5 text-xs uppercase tracking-wider text-zinc-500 border-b border-white/5">
+                            <th class="px-6 py-4 font-medium">상태</th>
+                            <th class="px-6 py-4 font-medium">Method</th>
+                            <th class="px-6 py-4 font-medium">Endpoint URL</th>
+                            <th class="px-6 py-4 font-medium">Confidence</th>
+                            <th class="px-6 py-4 font-medium">출처</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm">
+                        <tr class="border-b border-white/5 hover:bg-white/5 transition-colors group">
+                            <td class="px-6 py-4"><input type="checkbox" checked class="accent-brand-500 w-4 h-4 rounded bg-dark-900 border-white/20"></td>
+                            <td class="px-6 py-4"><span class="px-2 py-1 rounded bg-brand-500/20 text-brand-400 text-xs font-bold">POST</span></td>
+                            <td class="px-6 py-4 font-mono text-zinc-300 group-hover:text-white transition-colors">/api/orders</td>
+                            <td class="px-6 py-4"><span class="flex items-center gap-1.5 text-emerald-400 font-medium text-xs"><div class="w-2 h-2 rounded-full bg-emerald-400"></div> High</span></td>
+                            <td class="px-6 py-4 text-xs font-mono text-zinc-500">src/api/order.ts:13</td>
+                        </tr>
+                        <tr class="border-b border-white/5 hover:bg-white/5 transition-colors group">
+                            <td class="px-6 py-4"><input type="checkbox" checked class="accent-brand-500 w-4 h-4 rounded bg-dark-900 border-white/20"></td>
+                            <td class="px-6 py-4"><span class="px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 text-xs font-bold">GET</span></td>
+                            <td class="px-6 py-4 font-mono text-zinc-300 group-hover:text-white transition-colors">/api/profile</td>
+                            <td class="px-6 py-4"><span class="flex items-center gap-1.5 text-emerald-400 font-medium text-xs"><div class="w-2 h-2 rounded-full bg-emerald-400"></div> High</span></td>
+                            <td class="px-6 py-4 text-xs font-mono text-zinc-500">src/hooks/useProfile.ts:23</td>
+                        </tr>
+                        <tr class="border-b border-white/5 hover:bg-white/5 transition-colors group">
+                            <td class="px-6 py-4"><input type="checkbox" class="accent-brand-500 w-4 h-4 rounded bg-dark-900 border-white/20"></td>
+                            <td class="px-6 py-4"><span class="px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 text-xs font-bold">GET</span></td>
+                            <td class="px-6 py-4 font-mono text-zinc-300 group-hover:text-white transition-colors">/api/users/{id}</td>
+                            <td class="px-6 py-4"><span class="flex items-center gap-1.5 text-yellow-400 font-medium text-xs"><div class="w-2 h-2 rounded-full bg-yellow-400"></div> Medium</span></td>
+                            <td class="px-6 py-4 text-xs font-mono text-zinc-500">src/lib/http.ts:7 <span class="text-orange-500/70 ml-2">(wrapper)</span></td>
+                        </tr>
+                        <tr class="hover:bg-white/5 transition-colors opacity-40 group">
+                            <td class="px-6 py-4"><input type="checkbox" disabled class="w-4 h-4 rounded bg-dark-900 border-white/20"></td>
+                            <td class="px-6 py-4"><span class="px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 text-xs font-bold">GET</span></td>
+                            <td class="px-6 py-4 font-mono text-zinc-300">/api/dashboard</td>
+                            <td class="px-6 py-4"><span class="flex items-center gap-1.5 text-emerald-400 font-medium text-xs"><div class="w-2 h-2 rounded-full bg-emerald-400"></div> High</span></td>
+                            <td class="px-6 py-4 text-xs font-mono text-zinc-500">app/dashboard/route.ts <span class="text-white ml-2">(이미 등록됨)</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 bg-dark-900 mt-20">
+        <div class="max-w-7xl mx-auto px-6 py-12 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="flex items-center gap-3 opacity-60">
+                <div class="w-6 h-6 rounded bg-white/20 flex items-center justify-center text-white font-bold text-xs">a</div>
+                <span class="font-bold tracking-tight text-white text-sm">atworks<span class="text-brand-400">v3</span></span>
+            </div>
+            <p class="text-zinc-500 text-sm">Next.js · TypeScript · AST(Babel) · LLM Pipeline</p>
+        </div>
+    </footer>
+
+    <script>
+        // Collapsible Principles Panel
+        function togglePrinciples() {
+            const panel = document.getElementById('principlesPanel');
+            const arrow = document.getElementById('arrowIcon');
+            if (panel.classList.contains('max-h-0')) {
+                panel.classList.remove('max-h-0', 'opacity-0');
+                panel.classList.add('max-h-[800px]', 'opacity-100');
+                arrow.classList.add('rotate-180');
+            } else {
+                panel.classList.add('max-h-0', 'opacity-0');
+                panel.classList.remove('max-h-[800px]', 'opacity-100');
+                arrow.classList.remove('rotate-180');
+            }
+        }
+
+        // Auto fold Principles panel on scroll down
+        window.addEventListener('scroll', () => {
+            const panel = document.getElementById('principlesPanel');
+            const arrow = document.getElementById('arrowIcon');
+            if (window.scrollY > 350 && !panel.classList.contains('max-h-0')) {
+                panel.classList.add('max-h-0', 'opacity-0');
+                panel.classList.remove('max-h-[800px]', 'opacity-100');
+                arrow.classList.remove('rotate-180');
+            }
+        });
+
+        // ----------------------------------------------------
+        // Auto-cycling 2-second highlight animation for Pipeline Steps (1~4)
+        // ----------------------------------------------------
+        const cards = document.querySelectorAll('.pipeline-card');
+        const container = document.getElementById('pipelineContainer');
+        let currentStep = 0;
+        let cycleInterval = null;
+        let isHovered = false;
+
+        function setStep(index) {
+            cards.forEach((card, idx) => {
+                if (idx === index) {
+                    card.classList.add('active-step');
+                } else {
+                    card.classList.remove('active-step');
+                }
+            });
+        }
+
+        function startCycling() {
+            if (cycleInterval) clearInterval(cycleInterval);
+            cycleInterval = setInterval(() => {
+                if (!isHovered) {
+                    currentStep = (currentStep + 1) % cards.length;
+                    setStep(currentStep);
+                }
+            }, 2000);
+        }
+
+        function stopCycling() {
+            if (cycleInterval) {
+                clearInterval(cycleInterval);
+                cycleInterval = null;
+            }
+        }
+
+        // Bind events to cards
+        cards.forEach((card, idx) => {
+            card.addEventListener('mouseenter', () => {
+                isHovered = true;
+                stopCycling();
+                currentStep = idx;
+                setStep(idx);
+            });
+
+            card.addEventListener('mouseleave', () => {
+                isHovered = false;
+                startCycling();
+            });
+        });
+
+        // Container hover safety
+        if (container) {
+            container.addEventListener('mouseenter', () => {
+                isHovered = true;
+                stopCycling();
+            });
+            container.addEventListener('mouseleave', () => {
+                isHovered = false;
+                startCycling();
+            });
+        }
+
+        // Initialize cycling animation
+        startCycling();
+    </script>
+</body>
+</html>
+"""
+
+# Write directly to the output file
+out = REPORT
+out.write_text(html_content, encoding='utf-8')
+print(f'Pipeline Auto-cycling animation updated index.html saved: {out}')

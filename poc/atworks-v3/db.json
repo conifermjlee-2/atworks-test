@@ -16,17 +16,17 @@
     },
     {
       "id": "321p57HKCqQ",
-      "name": "NEW COLLECTION",
+      "name": "COL-3",
       "mode": "test"
-    },
-    {
-      "id": "Y0xtqCINI5c",
-      "name": "시나리오 with API 전이 리스트-1",
-      "mode": "chaining"
     },
     {
       "id": "lT-NK8hLWcM",
       "name": "전이2",
+      "mode": "chaining"
+    },
+    {
+      "id": "YdIf9U2ismk",
+      "name": "전이3",
       "mode": "chaining"
     }
   ],
@@ -336,7 +336,7 @@
     },
     {
       "id": "nIKmmaoWVNQ",
-      "collectionId": "Y0xtqCINI5c",
+      "collectionId": null,
       "name": "[Step 1] GET api/products",
       "method": "GET",
       "url": "http://localhost:3002/api/products",
@@ -344,7 +344,7 @@
     },
     {
       "id": "zzbjTlzskhc",
-      "collectionId": "Y0xtqCINI5c",
+      "collectionId": null,
       "name": "[Step 3] GET api/products/:id",
       "method": "GET",
       "url": "http://localhost:3002/api/products/:id",
@@ -413,6 +413,94 @@
       "method": "POST",
       "url": "http://localhost:3002/api/cart",
       "body": "{\n  \"product\": {\n    \"id\": \"prod-2\",\n    \"name\": \"북유럽 감성 미니멀 스탠드 조명\",\n    \"category\": \"living\",\n    \"price\": 89000,\n    \"originalPrice\": 110000,\n    \"rating\": 4.7,\n    \"reviewCount\": 84,\n    \"image\": \"https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80\",\n    \"description\": \"아늑한 분위기를 연출해 주는 스마트 터치 스탠드 조명입니다. 3단계 조도 조절 가능.\",\n    \"isNew\": true\n  },\n  \"quantity\": 1\n}"
+    },
+    {
+      "id": "4CMpB9QcC0w",
+      "collectionId": "noSQBpoqM44",
+      "name": "GET api/products?${params.toString()}",
+      "method": "GET",
+      "url": "api/products?${params.toString()}",
+      "body": ""
+    },
+    {
+      "id": "rU_MVcI1tCM",
+      "collectionId": "noSQBpoqM44",
+      "name": "GET http://localhost:3002/api/cart",
+      "method": "GET",
+      "url": "http://localhost:3002/api/cart",
+      "body": ""
+    },
+    {
+      "id": "AiIVoukRapo",
+      "collectionId": "noSQBpoqM44",
+      "name": "POST http://localhost:3002/api/cart",
+      "method": "POST",
+      "url": "http://localhost:3002/api/cart",
+      "body": "{\n  \"product\": {\n    \"id\": \"prod-2\",\n    \"name\": \"북유럽 감성 미니멀 스탠드 조명\",\n    \"category\": \"living\",\n    \"price\": 89000,\n    \"originalPrice\": 110000,\n    \"rating\": 4.7,\n    \"reviewCount\": 84,\n    \"image\": \"https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80\",\n    \"description\": \"아늑한 분위기를 연출해 주는 스마트 터치 스탠드 조명입니다. 3단계 조도 조절 가능.\",\n    \"isNew\": true\n  },\n  \"quantity\": 1\n}"
+    },
+    {
+      "id": "zJmVjP-vQ1s",
+      "collectionId": "noSQBpoqM44",
+      "name": "POST http://localhost:3002/api/orders",
+      "method": "POST",
+      "url": "http://localhost:3002/api/orders",
+      "body": "{\n  \"items\": [\n    {\n      \"product\": {\n        \"id\": \"prod-2\",\n        \"name\": \"북유럽 감성 미니멀 스탠드 조명\",\n        \"category\": \"living\",\n        \"price\": 89000,\n        \"originalPrice\": 110000,\n        \"rating\": 4.7,\n        \"reviewCount\": 84,\n        \"image\": \"https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80\",\n        \"description\": \"아늑한 분위기를 연출해 주는 스마트 터치 스탠드 조명입니다. 3단계 조도 조절 가능.\",\n        \"isNew\": true\n      },\n      \"quantity\": 5\n    }\n  ],\n  \"shippingInfo\": {\n    \"name\": \"홍길동\",\n    \"phone\": \"010-1234-5678\",\n    \"address\": \"서울특별시 강남구 테헤란로 123\",\n    \"detailAddress\": \"atworks 빌딩 5층\",\n    \"paymentMethod\": \"card\"\n  },\n  \"totalAmount\": 445000,\n  \"buyType\": \"CART\"\n}"
+    },
+    {
+      "id": "SBvZEct__Ks",
+      "collectionId": "noSQBpoqM44",
+      "name": "PUT api/cart",
+      "method": "PUT",
+      "url": "api/cart",
+      "body": ""
+    },
+    {
+      "id": "26Pg9dLakbQ",
+      "collectionId": "noSQBpoqM44",
+      "name": "DELETE api/cart?productId=${productId}",
+      "method": "DELETE",
+      "url": "api/cart?productId=${productId}",
+      "body": ""
+    },
+    {
+      "id": "hf3-qG60dO4",
+      "collectionId": "noSQBpoqM44",
+      "name": "DELETE http://localhost:3002/api/cart",
+      "method": "DELETE",
+      "url": "http://localhost:3002/api/cart",
+      "body": ""
+    },
+    {
+      "id": "MbOV8bYVg4Q",
+      "collectionId": "YdIf9U2ismk",
+      "name": "Step 1: PUT http://localhost:3002/api/cart",
+      "method": "PUT",
+      "url": "http://localhost:3002/api/cart",
+      "body": "{\n  \"productId\": \"prod-2\",\n  \"quantity\": 5\n}"
+    },
+    {
+      "id": "Xxdg1_h4NL4",
+      "collectionId": "YdIf9U2ismk",
+      "name": "Step 2: GET http://localhost:3002/api/cart",
+      "method": "GET",
+      "url": "http://localhost:3002/api/cart",
+      "body": ""
+    },
+    {
+      "id": "cNnjOwMjdm4",
+      "collectionId": "321p57HKCqQ",
+      "name": "POST http://localhost:3002/api/cart",
+      "method": "POST",
+      "url": "http://localhost:3002/api/cart",
+      "body": "{\n  \"product\": {\n    \"id\": \"prod-1\",\n    \"name\": \"프리미엄 무선 노이즈캔슬링 헤드폰 X1\",\n    \"category\": \"electronics\",\n    \"price\": 349000,\n    \"originalPrice\": 399000,\n    \"rating\": 4.9,\n    \"reviewCount\": 128,\n    \"image\": \"https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80\",\n    \"description\": \"몰입감 넘치는 사운드와 강력한 노이즈 캔슬링 기술이 적용된 프리미엄 무선 헤드폰입니다. 최대 30시간 지속 배터리 탑재.\",\n    \"isBest\": true\n  },\n  \"quantity\": 1\n}"
+    },
+    {
+      "id": "ohFB6I6sSkA",
+      "collectionId": "321p57HKCqQ",
+      "name": "PUT http://localhost:3002/api/cart",
+      "method": "PUT",
+      "url": "http://localhost:3002/api/cart",
+      "body": "{\n  \"productId\": \"prod-2\",\n  \"quantity\": 5\n}"
     }
   ],
   "$schema": "./node_modules/json-server/schema.json"

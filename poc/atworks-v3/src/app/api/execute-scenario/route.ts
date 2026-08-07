@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { chromium, Browser } from 'playwright';
-import fs from 'fs';
-import path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 export async function POST(req: Request) {
   const { url, scenario } = await req.json();
 
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 
-  const sendLog = async (type: 'info' | 'error' | 'success', message: string, data?: any) => {
+  const sendLog = async (type: 'info' | 'error' | 'success' | 'healing', message: string, data?: any) => {
     await writer.write(encoder.encode(JSON.stringify({ type, message, data }) + '\n'));
   };
 
@@ -146,6 +146,7 @@ export async function POST(req: Request) {
         const currentUrl = page.url();
 
         const isGetApi = (step.type === 'api_call' || step.type === 'API') && (step.method || '').toUpperCase() === 'GET';
+        const isDeleteApi = (step.api_method || step.method || '').toUpperCase() === 'DELETE' || (step.description || '').includes('삭제');
 
         let stepDesc = step.description || step.action || step.user_action || step.name || '';
         if (isGetApi) {
@@ -222,6 +223,52 @@ export async function POST(req: Request) {
             });
             
             // 애니메이션 완료 대기 후 요소 제거
+            await page.waitForTimeout(500);
+            await page.evaluate(() => {
+                const toast = document.getElementById('pw-bg-toast');
+                if (toast) toast.remove();
+            });
+
+            continue;
+        }
+
+        // --- 삭제(DELETE) 등 위험 API인 경우 안전 모드로 패스 ---
+        if (isDeleteApi) {
+            const endpoint = step.endpoint || step.target || step.api_endpoint || '';
+            const skipReason = `🛡️ 데이터 보호 모드 (삭제 액션 생략): ${endpoint}`;
+            await sendLog('info', `[안전 모드] 삭제 액션은 실행하지 않고 패스합니다: ${endpoint}`);
+
+            await page.evaluate((reason) => {
+                const toast = document.createElement('div');
+                toast.id = 'pw-bg-toast';
+                toast.style.position = 'fixed';
+                toast.style.bottom = '20px';
+                toast.style.right = '20px';
+                toast.style.background = 'rgba(255, 240, 240, 0.98)';
+                toast.style.color = '#990000';
+                toast.style.padding = '12px 20px';
+                toast.style.borderRadius = '8px';
+                toast.style.fontWeight = 'bold';
+                toast.style.fontSize = '14px';
+                toast.style.boxShadow = '0 4px 15px rgba(255,0,0,0.2)';
+                toast.style.zIndex = '9999999';
+                toast.style.borderLeft = '5px solid #ef4444';
+                toast.style.transition = 'opacity 0.5s ease-out';
+                toast.style.opacity = '0';
+                toast.innerHTML = `<div style="font-size:11px; color:#d32f2f; margin-bottom:4px;">위험 동작 차단 (안전 모드)</div><div>${reason}</div>`;
+                document.body.appendChild(toast);
+                
+                toast.offsetHeight;
+                toast.style.opacity = '1';
+            }, skipReason);
+            
+            await page.waitForTimeout(2000);
+
+            await page.evaluate(() => {
+                const toast = document.getElementById('pw-bg-toast');
+                if (toast) toast.style.opacity = '0';
+            });
+            
             await page.waitForTimeout(500);
             await page.evaluate(() => {
                 const toast = document.getElementById('pw-bg-toast');
@@ -403,7 +450,62 @@ ${html}
                     });
                 }
                 await page.waitForTimeout(500);
-                await page.click(aiAction.selector);
+                try {
+                    await page.click(aiAction.selector, { timeout: 5000 });
+                } catch (e: any) {
+                    await sendLog('healing', 'UI 변경 감지! AI가 현재 화면을 재분석하여 대체 요소를 찾습니다...');
+                    const rawHtml = await page.content();
+                    const slimHtml = rawHtml.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '').replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+                    const prompt = `The user wanted to perform action: ${aiAction.action} on selector: ${aiAction.selector}, but the element was not found. Please review the following HTML and find the new, correct selector. Return ONLY a JSON object like {"newSelector": ".new-class"}. HTML:\n${slimHtml.substring(0, 50000)}`;
+                    
+                    const { execFile } = await import('child_process');
+                    const util = await import('util');
+                    const fs = await import('fs');
+                    const path = await import('path');
+                    const os = await import('os');
+                    const crypto = await import('crypto');
+                    const execFilePromise = util.promisify(execFile);
+                    const agyPath = "C:\\Users\\lee\\AppData\\Local\\agy\\bin\\agy.exe";
+                    
+                    const tempFile = path.join(os.tmpdir(), `healing_${crypto.randomUUID()}.txt`);
+                    fs.writeFileSync(tempFile, prompt, 'utf-8');
+                    const agentPrompt = `해당 파일(${tempFile})을 읽고 파일 안에 적힌 모든 지침에 따라 JSON을 생성해 주세요. 반드시 유효한 JSON 형식으로만 응답해야 합니다.`;
+                    
+                    let stdout;
+                    try {
+                        const result = await execFilePromise(agyPath, ['--output-format', 'json', '--print', agentPrompt], { maxBuffer: 10 * 1024 * 1024 });
+                        stdout = result.stdout;
+                    } finally {
+                        try { fs.unlinkSync(tempFile); } catch(err) {}
+                    }
+                    
+                    const resultObj = JSON.parse(stdout);
+                    let aiOutput = '';
+                    if (resultObj.scenarios && resultObj.scenarios.length > 0 && typeof resultObj.scenarios[0].response === 'string') {
+                        aiOutput = resultObj.scenarios[0].response;
+                    } else if (typeof resultObj.response === 'string') {
+                        aiOutput = resultObj.response;
+                    } else if (resultObj.response) {
+                        aiOutput = resultObj.response.content || resultObj.response.text || JSON.stringify(resultObj.response);
+                    } else if (resultObj.content) {
+                        aiOutput = resultObj.content;
+                    } else {
+                        aiOutput = stdout;
+                    }
+                    
+                    const textResponse = aiOutput.replace(/```json\n?/im, '').replace(/```\n?/im, '').trim();
+                    try {
+                        const parsed = JSON.parse(textResponse);
+                        if (parsed.newSelector) {
+                            await sendLog('success', 'AI 자가 치유 성공! 새로운 셀렉터로 액션을 재시도합니다: ' + parsed.newSelector);
+                            await page.click(parsed.newSelector);
+                        } else {
+                            throw e;
+                        }
+                    } catch (parseErr) {
+                        throw e;
+                    }
+                }
                 await page.waitForTimeout(500);
             } else if (aiAction.action === 'fill') {
                 await sendLog('info', `[Fill] ${aiAction.selector} -> "${aiAction.text}"`);
@@ -440,7 +542,62 @@ ${html}
                     }, aiAction.text);
                 }
                 await page.waitForTimeout(500);
-                await page.fill(aiAction.selector, aiAction.text);
+                try {
+                    await page.fill(aiAction.selector, aiAction.text, { timeout: 5000 });
+                } catch (e: any) {
+                    await sendLog('healing', 'UI 변경 감지! AI가 현재 화면을 재분석하여 대체 요소를 찾습니다...');
+                    const rawHtml = await page.content();
+                    const slimHtml = rawHtml.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '').replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+                    const prompt = `The user wanted to perform action: ${aiAction.action} on selector: ${aiAction.selector}, but the element was not found. Please review the following HTML and find the new, correct selector. Return ONLY a JSON object like {"newSelector": ".new-class"}. HTML:\n${slimHtml.substring(0, 50000)}`;
+                    
+                    const { execFile } = await import('child_process');
+                    const util = await import('util');
+                    const fs = await import('fs');
+                    const path = await import('path');
+                    const os = await import('os');
+                    const crypto = await import('crypto');
+                    const execFilePromise = util.promisify(execFile);
+                    const agyPath = "C:\\Users\\lee\\AppData\\Local\\agy\\bin\\agy.exe";
+                    
+                    const tempFile = path.join(os.tmpdir(), `healing_${crypto.randomUUID()}.txt`);
+                    fs.writeFileSync(tempFile, prompt, 'utf-8');
+                    const agentPrompt = `해당 파일(${tempFile})을 읽고 파일 안에 적힌 모든 지침에 따라 JSON을 생성해 주세요. 반드시 유효한 JSON 형식으로만 응답해야 합니다.`;
+                    
+                    let stdout;
+                    try {
+                        const result = await execFilePromise(agyPath, ['--output-format', 'json', '--print', agentPrompt], { maxBuffer: 10 * 1024 * 1024 });
+                        stdout = result.stdout;
+                    } finally {
+                        try { fs.unlinkSync(tempFile); } catch(err) {}
+                    }
+                    
+                    const resultObj = JSON.parse(stdout);
+                    let aiOutput = '';
+                    if (resultObj.scenarios && resultObj.scenarios.length > 0 && typeof resultObj.scenarios[0].response === 'string') {
+                        aiOutput = resultObj.scenarios[0].response;
+                    } else if (typeof resultObj.response === 'string') {
+                        aiOutput = resultObj.response;
+                    } else if (resultObj.response) {
+                        aiOutput = resultObj.response.content || resultObj.response.text || JSON.stringify(resultObj.response);
+                    } else if (resultObj.content) {
+                        aiOutput = resultObj.content;
+                    } else {
+                        aiOutput = stdout;
+                    }
+                    
+                    const textResponse = aiOutput.replace(/```json\n?/im, '').replace(/```\n?/im, '').trim();
+                    try {
+                        const parsed = JSON.parse(textResponse);
+                        if (parsed.newSelector) {
+                            await sendLog('success', 'AI 자가 치유 성공! 새로운 셀렉터로 액션을 재시도합니다: ' + parsed.newSelector);
+                            await page.fill(parsed.newSelector, aiAction.text);
+                        } else {
+                            throw e;
+                        }
+                    } catch (parseErr) {
+                        throw e;
+                    }
+                }
                 await page.waitForTimeout(500);
             } else if (aiAction.action === 'wait') {
                 await sendLog('info', `[Wait] 대기 중...`);
@@ -490,8 +647,10 @@ ${html}
     } catch (err: any) {
       await sendLog('error', `오류 발생: ${err.message}`);
     } finally {
-      if (browser) await browser.close();
       await writer.close();
+      if (browser) {
+        browser.close().catch(e => console.error('Browser close error:', e));
+      }
     }
   })();
 

@@ -369,7 +369,8 @@ function analyzeScreenFile(absolutePath: string, rootPath: string, visited = new
           const src = pathNode.node.source.value;
           const resolved = resolveImportPath(src, filePath, rootPath, packageMap);
           if (resolved && !visited.has(resolved)) {
-             traverseForApis(resolved, compName);
+            const childName = path.basename(resolved);
+            traverseForApis(resolved, `${compName} > ${childName}`);
           }
         }
       });
@@ -378,7 +379,7 @@ function analyzeScreenFile(absolutePath: string, rootPath: string, visited = new
 
   for (const imp of localImports) {
     if (visited.has(imp)) continue;
-    traverseForApis(imp, path.basename(imp, path.extname(imp)));
+    traverseForApis(imp, path.basename(imp));
   }
 
   return screen;
@@ -464,19 +465,21 @@ async function generateWithGemini(staticReport: string, projectName: string, ref
 - 반드시 아래 "JSON STRUCTURE TEMPLATE"과 정확히 일치하는 구조로 JSON 객체를 반환해 주세요. (가장 바깥쪽에 "scenarios" 배열이 있어야 합니다.)
 - "actions" 배열 안의 모든 객체는 기술적인 라우팅 필드와 사람이 읽기 쉬운 한국어 "description" 필드를 모두 포함해야 합니다.
 - "type"은 'navigate', 'api_call', 'submit' 중 하나여야 합니다.
-- "type"이 'api_call'인 경우, "method" (예: GET, POST)와 "endpoint" (예: api/products)를 포함해 주세요.
+- "type"이 'api_call'인 경우, "method" (예: GET, POST)와 "endpoint" (예: http://localhost:3002/api/products)를 포함해 주세요.
 - "type"이 'navigate' 또는 'submit'인 경우, "target" (예: /, /order)을 포함해 주세요.
 - /products/:id 와 같이 경로 파라미터가 필요한 경우, 1, 123, test 같은 가짜 더미(Dummy) 값을 절대 사용하지 마세요.
 - 제공된 "Reference Log"를 깊이 분석하여 실제 로그에 존재하는 고유 식별자(UUID 또는 실제 숫자 ID)를 추출한 뒤 경로에 주입해 주세요. (예: /products/a1b2c3d4-...)
 - 만약 참조 로그에서 실제 ID를 도저히 찾을 수 없다면, 테스트 실행기가 런타임에 동적으로 처리할 수 있도록 /products/{productId} 와 같이 변수 템플릿 형태로 작성해 주세요.
+- 사용자 조작(버튼 클릭, 폼 제출 등)으로 인해 발생하는 API 호출(예: POST, PUT, DELETE)은 별도의 'api_call' 스텝으로 쪼개지 말고, 해당 조작을 의미하는 'submit' 스텝 하나로 통합하세요. 단, 이 때 반드시 해당 스텝 객체 안에 "api_method"와 "api_endpoint" 필드를 추가하여 어떤 API가 통신되는지 명시해 주세요. 오직 화면 진입 시 자동으로 호출되는 백그라운드 API(주로 GET)만 'api_call' 스텝으로 단독 분리하세요.
+- Reference Log에 완전한 절대 경로(Absolute URL, 예: http://localhost:3002/api/...)가 존재한다면 상대 경로로 축약하지 말고 반드시 전체 URL을 endpoint 및 api_endpoint 값으로 사용하세요.
 
 JSON STRUCTURE TEMPLATE:
 {
   "scenarios": [
     {
       "id": "TC-001",
-      "title": "상품 조회",
-      "description": "상품 조회 시나리오",
+      "title": "상품 조회 및 등록",
+      "description": "상품 목록을 조회하고 새 상품을 등록하는 시나리오",
       "page": "/",
       "actions": [
         {
@@ -487,11 +490,18 @@ JSON STRUCTURE TEMPLATE:
         {
           "type": "api_call",
           "method": "GET",
-          "endpoint": "api/products",
+          "endpoint": "http://localhost:3002/api/products",
           "description": "상품 목록 데이터를 불러옵니다."
+        },
+        {
+          "type": "submit",
+          "target": "/",
+          "description": "새 상품 등록 버튼을 클릭합니다.",
+          "api_method": "POST",
+          "api_endpoint": "http://localhost:3002/api/products"
         }
       ],
-      "expectedResult": "목록 노출"
+      "expectedResult": "목록 노출 및 상품 등록 성공"
     }
   ]
 }
